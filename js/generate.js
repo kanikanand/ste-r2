@@ -35,6 +35,7 @@ var DG = window.DG || (window.DG = {});
     shape: 'circle',      // circle | square
     grid: 56,             // dots across the width
     spacingRange: 0.55,   // spacing mode: how hard the wave gathers the marks
+    organic: 0.4,         // bends the waves out of perfect symmetry
     dotScale: 0.82,       // largest dot, as a fraction of the gap between dots
     sizeVariation: 0.9,   // difference between the smallest and largest dot
     contrast: 1,          // gamma on the field before it becomes size
@@ -50,6 +51,27 @@ var DG = window.DG || (window.DG = {});
     imageBlend: 'replace', // replace | multiply
     imageInvert: false
   };
+
+  /* Smooth 2D value noise, for bending the waves out of perfect symmetry. */
+  function noise2(x, y, seed) {
+    var x0 = Math.floor(x);
+    var y0 = Math.floor(y);
+    var fx = x - x0;
+    var fy = y - y0;
+    var sx = fx * fx * (3 - 2 * fx);
+    var sy = fy * fy * (3 - 2 * fy);
+    var a = hash2(x0, y0, seed);
+    var b = hash2(x0 + 1, y0, seed);
+    var c = hash2(x0, y0 + 1, seed);
+    var d = hash2(x0 + 1, y0 + 1, seed);
+    var top = a + (b - a) * sx;
+    return top + (c + (d - c) * sx - top) * sy;
+  }
+
+  /* Two octaves, centred on zero. */
+  function fbm(x, y, seed) {
+    return (noise2(x, y, seed) - 0.5) + (noise2(x * 2.1, y * 2.1, seed + 77) - 0.5) * 0.5;
+  }
 
   /* Deterministic per-dot noise, so a given seed always redraws identically. */
   function hash2(i, j, seed) {
@@ -170,11 +192,26 @@ var DG = window.DG || (window.DG = {});
     var ramp = DG.buildRamp();
     var useGradient = p.colorMode === 'gradient';
 
+    var warp = 1.35 * Math.max(0, p.organic);
+    var NOISE_F = 0.55;   // large-scale meander, not fine grain
+
     /* The wave under a frame pixel, with the image folded in if there is one. */
     function heightAt(x, y) {
       var dx = x - cx;
       var dy = y - cy;
-      var value = preset.density((dx * cos + dy * sin) / half, (-dx * sin + dy * cos) / half);
+      var fx = (dx * cos + dy * sin) / half;
+      var fy = (-dx * sin + dy * cos) / half;
+
+      // Domain warp: push the reading point around with smooth noise, so the
+      // wave bends organically instead of holding its exact symmetry.
+      if (warp > 0) {
+        var nx = fx * NOISE_F;
+        var ny = fy * NOISE_F;
+        fx += warp * fbm(nx, ny, p.seed);
+        fy += warp * fbm(nx + 5.2, ny + 1.3, p.seed + 913);
+      }
+
+      var value = preset.density(fx, fy);
       if (sampler) {
         var img = sampler(x / width, y / height);
         if (p.imageInvert) img = 1 - img;

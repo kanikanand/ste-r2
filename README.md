@@ -69,8 +69,9 @@ crests. In size mode, **size variation** is how much bigger a crest mark is than
 a trough one, and **scatter** randomly drops marks out of the troughs. Either
 way, keep several marks to a band or the grid beats against the wave.
 
-**Wave** — wave scale (how big the bands are), angle, and the frame shape:
-16:9, 1:1, 4:5 or 9:16.
+**Wave** — wave scale (how big the bands are), **organic** (how far the wave is
+bent out of its symmetry) with Shuffle for a different bend, angle, and the
+frame shape: 16:9, 1:1, 4:5 or 9:16.
 
 **Colour** — solid dots in `#de2027`, `#687099`, `#c5eef9`, white or black, or
 the three-stop gradient `#de2027 → #687099 → #c5eef9`, mapped to dot size,

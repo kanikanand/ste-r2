@@ -151,12 +151,8 @@ var DG = window.DG || (window.DG = {});
               <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
                 onChange=${function (v) { set({ contrast: v }); }} />
               ${params.depth === 'size' && html`
-                <div class="row">
-                  <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
-                    onChange=${function (v) { set({ scatter: v }); }} />
-                  <button type="button" class="ghost"
-                    onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
-                </div>`}
+                <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
+                  onChange=${function (v) { set({ scatter: v }); }} />`}
               <p class="hint">
                 ${params.depth === 'spacing'
                   ? 'Every mark is the same size. Gathering is how far the wave pulls them onto its crests, so the packing carries the tone.'
@@ -168,6 +164,16 @@ var DG = window.DG || (window.DG = {});
               <h2>Wave</h2>
               <${DG.Slider} label="Wave scale" value=${params.waveScale} min=${0.2} max=${3}
                 onChange=${function (v) { set({ waveScale: v }); }} />
+              <div class="row">
+                <${DG.Slider} label="Organic" value=${params.organic} min=${0} max=${1}
+                  onChange=${function (v) { set({ organic: v }); }} />
+                <button type="button" class="ghost"
+                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+              </div>
+              <p class="hint">
+                Organic bends the wave out of its exact symmetry — rings go
+                lopsided, bands meander. Shuffle draws a different bend.
+              </p>
               <${DG.AngleDial} value=${params.angle} onChange=${function (v) { set({ angle: v }); }} />
               <span class="ctrl-label">Frame</span>
               <div class="chips">
