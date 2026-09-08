@@ -17,7 +17,6 @@ var DG = window.DG || (window.DG = {});
   ];
 
   DG.BACKGROUNDS = [
-    { id: 'transparent', label: 'Transparent', value: null },
     { id: 'black', label: 'Black', value: '#000000' },
     { id: 'ink', label: 'Ink', value: '#12141c' },
     { id: 'paper', label: 'Paper', value: '#f5f2ec' },
@@ -26,7 +25,7 @@ var DG = window.DG || (window.DG = {});
 
   /* Which quantity the gradient is mapped along. */
   DG.GRADIENT_MAPS = [
-    { id: 'intensity', label: 'Dot size' },
+    { id: 'intensity', label: 'Light' },
     { id: 'x', label: 'Horizontal' },
     { id: 'y', label: 'Vertical' },
     { id: 'radial', label: 'Radial' },
@@ -78,7 +77,10 @@ var DG = window.DG || (window.DG = {});
       case 'x': return (dot.nx + 1) / 2;
       case 'y': return (dot.ny + 1) / 2;
       case 'radial': return Math.min(1, Math.hypot(dot.nx, dot.ny) / Math.SQRT2);
-      case 'angle': return (Math.atan2(dot.ny, dot.nx) + Math.PI) / (Math.PI * 2);
+      // Mirrored rather than wrapped: sweeping the full circle would bring the
+      // last stop back against the first as a hard seam. This runs the ramp out
+      // and back, so both ends of the circle land on the same colour.
+      case 'angle': return Math.abs(Math.atan2(dot.ny, dot.nx)) / Math.PI;
       default: return dot.v;
     }
   };

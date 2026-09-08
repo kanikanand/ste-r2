@@ -9,12 +9,8 @@ var DG = window.DG || (window.DG = {});
 (function (DG) {
   'use strict';
 
-  // Sampled into a wide buffer and read in frame coordinates, so the same
-  // image works whatever frame the pattern is set to.
-  var RES_W = 512;
-  var RES_H = 512;
-
-  var samplerId = 0;
+  var RES_H = 288;
+  var RES_W = Math.round(RES_H * DG.ASPECT);
 
   DG.createSampler = function (img) {
     var canvas = document.createElement('canvas');
@@ -37,14 +33,12 @@ var DG = window.DG || (window.DG = {});
     }
 
     // Addressed in frame coordinates: u and v run 0..1 across the whole frame.
-    var sample = function (u, v) {
+    return function (u, v) {
       var px = Math.round(u * (RES_W - 1));
       var py = Math.round(v * (RES_H - 1));
       if (px < 0 || py < 0 || px >= RES_W || py >= RES_H) return 0;
       return lum[py * RES_W + px];
     };
-    sample.samplerId = ++samplerId;   // lets the line cache tell images apart
-    return sample;
   };
 
   DG.loadImageFile = function (file) {

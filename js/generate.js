@@ -1,79 +1,53 @@
 /* ============================================================================
- * generate.js — the dot texture.
+ * generate.js — dot placement, plus the two renderers.
  *
- * Two ways of turning a wave into a texture.
+ * A preset's density is read as a HEIGHT SURFACE, not as a mask over a fixed
+ * lattice. Rows of points run across the frame in the flow direction, and each
+ * point is pushed perpendicular to its row by the height of the form beneath
+ * it. So the rows ripple into the shape the preset describes, and the dots sit
+ * on those waves. Height also drives dot size and density, so light still
+ * carries the depth.
  *
- *   spacing  every mark is the same size and the wave squeezes the gaps
- *            between them, so density alone carries the tone. Rows march down
- *            the frame at a pitch set by the wave across that row, and marks
- *            march along each row at a pitch set by the wave under them.
- *
- *   size     a plain fixed lattice where the wave sets each mark's size, the
- *            ordinary halftone.
+ * Rows are generated across the frame's rotated bounding box and clipped to
+ * the frame, so turning the angle lets the pattern bleed off every edge
+ * instead of being contained by it.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
 (function (DG) {
   'use strict';
 
-  DG.FRAMES = [
-    { id: '16:9', label: '16 : 9', ratio: 16 / 9 },
-    { id: '1:1', label: '1 : 1', ratio: 1 },
-    { id: '4:5', label: '4 : 5', ratio: 4 / 5 },
-    { id: '9:16', label: '9 : 16', ratio: 9 / 16 }
-  ];
-
-  DG.frameRatio = function (id) {
-    for (var i = 0; i < DG.FRAMES.length; i++) if (DG.FRAMES[i].id === id) return DG.FRAMES[i].ratio;
-    return 16 / 9;
-  };
+  DG.ASPECT = 16 / 9;
 
   DG.DEFAULTS = {
     preset: 'emergence',
-    frame: '16:9',
-    depth: 'spacing',     // spacing (same-size dots, tone from density) | size (halftone)
-    shape: 'circle',      // circle | square
-    grid: 56,             // dots across the width
-    spacingRange: 0.55,   // spacing mode: how hard the wave gathers the marks
-    organic: 0.4,         // bends the waves out of perfect symmetry
-    dotScale: 0.82,       // largest dot, as a fraction of the gap between dots
-    sizeVariation: 0.9,   // difference between the smallest and largest dot
-    contrast: 1,          // gamma on the field before it becomes size
-    scatter: 0,           // randomly thin the dots out where the field is dark
-    waveScale: 1,         // size of the waves, against the frame height
-    angle: 0,             // rotates the pattern under the lattice
+    pointDensity: 30,     // points across the height of the frame
+    patternScale: 1,      // size of one copy of the form, against frame height
+    repeat: 'single',     // single | scatter | radial — how the form repeats
+    copies: 6,            // how many copies when it repeats
+    waveHeight: 0.55,     // how far the form displaces its rows
+    waveMode: 'ridge',    // ridge (rows ride over the surface) | bulge (rows open around it)
+    hideBehind: true,     // drop points the surface in front of them occludes
+    dotScale: 0.72,       // largest dot as a fraction of the point spacing
+    sizeVariation: 0.85,  // extent of the difference between small and large dots
+    contrast: 1.0,        // gamma on the height before it becomes size
+    densityFade: 0.2,     // how much the field thins the points out
+    flowAngle: 0,         // degrees — the direction the rows run
+    flowStrength: 0,      // drift along the preset's own field lines
     seed: 1,
     colorMode: 'red',     // a solid id, or 'gradient'
     gradientMap: 'intensity',
     gradientReverse: false,
-    background: 'transparent',
+    background: 'black',
     // Image mode
-    imageBlend: 'replace', // replace | multiply
-    imageInvert: false
+    imageBlend: 'replace', // replace | multiply | average
+    imageInvert: false,
+    imageAmount: 1
   };
 
-  /* Smooth 2D value noise, for bending the waves out of perfect symmetry. */
-  function noise2(x, y, seed) {
-    var x0 = Math.floor(x);
-    var y0 = Math.floor(y);
-    var fx = x - x0;
-    var fy = y - y0;
-    var sx = fx * fx * (3 - 2 * fx);
-    var sy = fy * fy * (3 - 2 * fy);
-    var a = hash2(x0, y0, seed);
-    var b = hash2(x0 + 1, y0, seed);
-    var c = hash2(x0, y0 + 1, seed);
-    var d = hash2(x0 + 1, y0 + 1, seed);
-    var top = a + (b - a) * sx;
-    return top + (c + (d - c) * sx - top) * sy;
-  }
+  var FLOW_STEPS = 6;
 
-  /* Two octaves, centred on zero. */
-  function fbm(x, y, seed) {
-    return (noise2(x, y, seed) - 0.5) + (noise2(x * 2.1, y * 2.1, seed + 77) - 0.5) * 0.5;
-  }
-
-  /* Deterministic per-dot noise, so a given seed always redraws identically. */
+  /* Deterministic per-point noise, so a given seed always redraws identically. */
   function hash2(i, j, seed) {
     var h = Math.imul(i, 0x27d4eb2d) + Math.imul(j, 0x165667b1) + Math.imul(seed, 0x9e3779b1);
     h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
@@ -83,160 +57,194 @@ var DG = window.DG || (window.DG = {});
   }
 
   /*
-   * Same-size marks, tone from how tightly they are packed.
+   * Build the dot list for a frame of `width` x `height` pixels.
    *
-   * Every mark starts on an even lattice and then walks a little way up the
-   * wave's own slope, so marks gather on the crests and leave the troughs open.
-   * Walking in small steps and capping the total keeps neighbours from
-   * swapping places, so the texture stays legible however hard it is pushed.
-   */
-  function spacingDots(p, width, height, heightAt, ramp, useGradient) {
-    var base = width / Math.max(2, Math.round(p.grid));
-    // Every mark is full size here, so the frame carries far more ink than in
-    // size mode — half the nominal radius keeps the two modes comparable.
-    var r = (base / 2) * p.dotScale * 0.5;
-    if (r < 0.1) return [];
-
-    var pull = Math.max(0, p.spacingRange);
-    var maxMove = base * 0.92 * pull;      // never far enough to cross a neighbour
-    var STEPS = 5;
-    var reach = base * 0.6;                // how far apart the slope is measured
-    var stepLen = maxMove / STEPS;
-
-    var cx = width / 2;
-    var cy = height / 2;
-    var cols = Math.ceil(width / base) + 2;
-    var rows = Math.ceil(height / base) + 2;
-    var dots = [];
-
-    /*
-     * How steep this preset gets at this scale, so travel can be proportional
-     * to the slope rather than saturating. Without it a gentle wave would not
-     * move at all and a steep one would slam every mark onto its crests.
-     */
-    var slopes = [];
-    for (var sy = 0; sy < 12; sy++) {
-      for (var sx = 0; sx < 12; sx++) {
-        var px = (width * (sx + 0.5)) / 12;
-        var py = (height * (sy + 0.5)) / 12;
-        slopes.push(Math.hypot(
-          heightAt(px + reach, py) - heightAt(px - reach, py),
-          heightAt(px, py + reach) - heightAt(px, py - reach)
-        ));
-      }
-    }
-    slopes.sort(function (a, b) { return a - b; });
-    var gScale = Math.max(1e-4, slopes[Math.floor(slopes.length * 0.9)]);
-
-    for (var j = 0; j < rows; j++) {
-      for (var i = 0; i < cols; i++) {
-        var ox = (i - 0.5) * base + base / 2;
-        var oy = (j - 0.5) * base + base / 2;
-        var x = ox;
-        var y = oy;
-
-        for (var s = 0; s < STEPS && pull > 0; s++) {
-          var gx = heightAt(x + reach, y) - heightAt(x - reach, y);
-          var gy = heightAt(x, y + reach) - heightAt(x, y - reach);
-          var len = Math.hypot(gx, gy);
-          if (len < 1e-6) break;
-          // Direction from the slope, distance in proportion to it, so marks on
-          // the steep flanks travel and those on crests and in troughs stay put.
-          var commit = Math.min(1, len / gScale);
-          x += (gx / len) * stepLen * commit;
-          y += (gy / len) * stepLen * commit;
-        }
-
-        // Cap the total move so the lattice deforms without tangling.
-        var dx = x - ox;
-        var dy = y - oy;
-        var move = Math.hypot(dx, dy);
-        if (move > maxMove) {
-          x = ox + (dx / move) * maxMove;
-          y = oy + (dy / move) * maxMove;
-        }
-
-        if (x < -r || x > width + r || y < -r || y > height + r) continue;
-
-        var dot = { x: x, y: y, r: r, v: heightAt(x, y), nx: (x - cx) / cx, ny: (y - cy) / cy };
-        if (useGradient) {
-          var t = DG.gradientCoord(p.gradientMap, dot);
-          if (p.gradientReverse) t = 1 - t;
-          dot.color = ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(t * (ramp.length - 1))))];
-        }
-        dots.push(dot);
-      }
-    }
-    return dots;
-  }
-
-  /*
-   * Build the dots for a frame of `width` x `height` pixels.
-   * `sampler(u, v) -> 0..1` is the optional image source, in frame coordinates.
+   * `sampler(u, v) -> 0..1` is the optional image source, addressed in frame
+   * coordinates (0..1 across the whole frame, never tiled) so a photograph
+   * stays put while the form repeats beneath it.
    */
   DG.generateDots = function (params, width, height, sampler) {
     var p = Object.assign({}, DG.DEFAULTS, params);
     var preset = DG.getPreset(p.preset);
 
-    var cols = Math.max(2, Math.round(p.grid));
-    var gap = width / cols;
-    var rows = Math.max(1, Math.round(height / gap));
-    var maxR = (gap / 2) * p.dotScale;
-
-    var half = (height * Math.max(0.1, p.waveScale)) / 2;
+    var spacing = height / Math.max(2, p.pointDensity);
+    var half = (height * Math.max(0.05, p.patternScale)) / 2;  // half a copy of the form
+    var amp = p.waveHeight * half;                              // displacement in px
+    var maxR = (spacing / 2) * p.dotScale;
     var cx = width / 2;
     var cy = height / 2;
-    var a = (p.angle * Math.PI) / 180;
-    var cos = Math.cos(a);
-    var sin = Math.sin(a);
+
+    var th = (p.flowAngle * Math.PI) / 180;
+    var cos = Math.cos(th);
+    var sin = Math.sin(th);
+
+    // Cover the frame's rotated bounding box, with room for the displacement.
+    var reach = Math.hypot(width, height) / 2 + amp + spacing * 2;
+    var steps = Math.ceil(reach / spacing);
+
     var ramp = DG.buildRamp();
     var useGradient = p.colorMode === 'gradient';
+    var drift = (p.flowStrength * (spacing / half) * 3) / FLOW_STEPS;
 
-    var warp = 1.35 * Math.max(0, p.organic);
-    var NOISE_F = 0.55;   // large-scale meander, not fine grain
+    /*
+     * Where the copies of the form sit, in the form's own units. Rather than
+     * folding the coordinates — which stamps out identical tiles with a seam
+     * between them — each copy gets its own place, turn and size, and they are
+     * combined by taking whichever reads strongest. Copies overlap and drift
+     * out of step, so the repetition is felt rather than counted.
+     */
+    var copies = null;
+    if (p.repeat !== 'single') {
+      var ex = width / 2 / half;                 // half the frame, in form units
+      var ey = height / 2 / half;
+      var n = Math.max(2, Math.round(p.copies));
+      copies = [];
+      var rnd = function (k) { return hash2(k, n, p.seed) - 0.5; };
 
-    /* The wave under a frame pixel, with the image folded in if there is one. */
-    function heightAt(x, y) {
-      var dx = x - cx;
-      var dy = y - cy;
-      var fx = (dx * cos + dy * sin) / half;
-      var fy = (-dx * sin + dy * cos) / half;
-
-      // Domain warp: push the reading point around with smooth noise, so the
-      // wave bends organically instead of holding its exact symmetry.
-      if (warp > 0) {
-        var nx = fx * NOISE_F;
-        var ny = fy * NOISE_F;
-        fx += warp * fbm(nx, ny, p.seed);
-        fy += warp * fbm(nx + 5.2, ny + 1.3, p.seed + 913);
+      if (p.repeat === 'radial') {
+        // Set around a centre, each turned to face outward.
+        var ring = 0.62 * Math.max(ex, ey);
+        for (var c = 0; c < n; c++) {
+          var a0 = (c / n) * Math.PI * 2 + rnd(c * 7) * 0.5;
+          var rad = ring * (1 + rnd(c * 7 + 1) * 0.45);
+          copies.push({
+            x: Math.cos(a0) * rad * (ex / Math.max(ex, ey)),
+            y: Math.sin(a0) * rad * (ey / Math.max(ex, ey)),
+            a: a0 + rnd(c * 7 + 2) * 0.5,
+            s: 1 + rnd(c * 7 + 3) * 0.5
+          });
+        }
+      } else {
+        // Loosely scattered over the frame, off the grid they started on.
+        var nx = Math.max(1, Math.round(Math.sqrt((n * ex) / Math.max(0.2, ey))));
+        var ny = Math.max(1, Math.ceil(n / nx));
+        for (var i2 = 0, made = 0; i2 < nx * ny && made < n; i2++, made++) {
+          var gx = i2 % nx;
+          var gy = Math.floor(i2 / nx);
+          copies.push({
+            x: -ex + ((gx + 0.5) / nx) * 2 * ex + rnd(i2 * 11) * (2 * ex) / nx * 0.8,
+            y: -ey + ((gy + 0.5) / ny) * 2 * ey + rnd(i2 * 11 + 1) * (2 * ey) / ny * 0.8,
+            a: rnd(i2 * 11 + 2) * 1.2,
+            s: 1 + rnd(i2 * 11 + 3) * 0.6
+          });
+        }
       }
-
-      var value = preset.density(fx, fy);
-      if (sampler) {
-        var img = sampler(x / width, y / height);
-        if (p.imageInvert) img = 1 - img;
-        value = p.imageBlend === 'multiply' ? img * value : img;
+      for (var c2 = 0; c2 < copies.length; c2++) {
+        copies[c2].cos = Math.cos(copies[c2].a);
+        copies[c2].sin = Math.sin(copies[c2].a);
       }
-      return Math.pow(DG.clamp01(value), p.contrast);
     }
 
-    if (p.depth === 'spacing') return spacingDots(p, width, height, heightAt, ramp, useGradient);
+    /* The form, once or as the strongest of its overlapping copies. */
+    function formAt(fx, fy) {
+      if (!copies) return preset.density(fx, fy);
+      var best = 0;
+      for (var c = 0; c < copies.length; c++) {
+        var k = copies[c];
+        var dx = fx - k.x;
+        var dy = fy - k.y;
+        var d = preset.density(
+          (dx * k.cos + dy * k.sin) / k.s,
+          (-dx * k.sin + dy * k.cos) / k.s
+        );
+        if (d > best) best = d;
+      }
+      return best;
+    }
+
+    /* Frame pixel -> the form's own coordinates. */
+    function toField(x, y) {
+      return [(x - cx) / half, (y - cy) / half];
+    }
+
+    function heightAt(fx, fy, x, y) {
+      var base = formAt(fx, fy);
+      if (!sampler) return base;
+      var img = sampler(x / width, y / height);
+      if (p.imageInvert) img = 1 - img;
+      var v;
+      if (p.imageBlend === 'multiply') v = img * base;
+      else if (p.imageBlend === 'average') v = (img + base) / 2;
+      else v = img;
+      return DG.clamp01(base + (v - base) * p.imageAmount);
+    }
 
     var dots = [];
+    var margin = maxR + 1;
 
-    for (var j = 0; j < rows; j++) {
-      for (var i = 0; i < cols; i++) {
-        var x = (i + 0.5) * gap;
-        var y = (j + 0.5) * gap + (height - rows * gap) / 2;
+    // Horizon per column, for hiding what the surface occludes. Rows are walked
+    // front to back and a point is kept only if it clears everything already
+    // drawn in front of it — which is also what stops steep parts of the form
+    // from crowding rows into smears.
+    var occlude = p.hideBehind && p.waveMode === 'ridge' && amp !== 0;
+    var horizon = occlude ? new Float64Array(2 * steps + 1).fill(Infinity) : null;
+    // Rows crowding closer than this are smeared into each other, so the ones
+    // behind are dropped rather than drawn on top of the row in front.
+    var minGap = maxR * 1.2;
 
-        var v = heightAt(x, y);
+    for (var jv = steps; jv >= -steps; jv--) {
+      var v = jv * spacing;                    // which row
+      for (var iu = -steps; iu <= steps; iu++) {
+        var u = iu * spacing;                  // position along the row
 
-        if (p.scatter > 0 && hash2(i, j, p.seed) > 1 - p.scatter * (1 - v)) continue;
+        // Base position of the point on its undisplaced row.
+        var x = cx + u * cos - v * sin;
+        var y = cy + u * sin + v * cos;
 
-        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * v);
-        if (r < 0.1) continue;
+        var f = toField(x, y);
+        var fx = f[0];
+        var fy = f[1];
 
-        var dot = { x: x, y: y, r: r, v: v, nx: (x - cx) / cx, ny: (y - cy) / cy };
+        // Optional drift along the preset's own field lines.
+        if (drift !== 0) {
+          for (var s = 0; s < FLOW_STEPS; s++) {
+            var a = DG.flowAt(preset, fx, fy) + th;
+            fx += Math.cos(a) * drift;
+            fy += Math.sin(a) * drift;
+          }
+          x = cx + fx * half;
+          y = cy + fy * half;
+        }
+
+        var raw = DG.clamp01(heightAt(fx, fy, x, y));
+        var hgt = Math.pow(raw, p.contrast);
+
+        // Push the point out of its row by the height of the form beneath it,
+        // along the row's normal. In bulge mode rows open away from the form's
+        // mid-line so the volume stays centred; in ridge mode every row lifts
+        // the same way, like a contour map.
+        if (amp !== 0) {
+          var d;
+          if (p.waveMode === 'ridge') {
+            // Measured from mid-height, so the form straddles its rows instead
+            // of piling the whole pattern to one side.
+            d = -(hgt - 0.5) * amp;
+          } else {
+            var side = -(x - cx) * sin + (y - cy) * cos;   // offset along the normal
+            d = (side < 0 ? -1 : 1) * hgt * amp;
+          }
+          x += -sin * d;
+          y += cos * d;
+
+          if (occlude) {
+            var col = iu + steps;
+            var vDisp = v + d;                 // where the row sits after displacing
+            if (vDisp >= horizon[col] - minGap) continue;
+            horizon[col] = vDisp;
+          }
+        }
+
+        // Clip to the frame: the pattern bleeds off the edges.
+        if (x < -margin || x > width + margin || y < -margin || y > height + margin) continue;
+
+        // Density: the darker the field, the more likely the point is dropped.
+        var keep = 1 - p.densityFade * (1 - hgt);
+        if (hash2(iu, jv, p.seed + 7717) > keep) continue;
+
+        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * hgt);
+        if (r < 0.12) continue;
+
+        var dot = { x: x, y: y, r: r, v: hgt, nx: (x - cx) / (width / 2), ny: (y - cy) / (height / 2) };
         if (useGradient) {
           var t = DG.gradientCoord(p.gradientMap, dot);
           if (p.gradientReverse) t = 1 - t;
@@ -257,34 +265,21 @@ var DG = window.DG || (window.DG = {});
       ctx.fillRect(0, 0, opts.width, opts.height);
     }
     if (!opts.useGradient) ctx.fillStyle = opts.solid;
-    var square = opts.shape === 'square';
     for (var i = 0; i < dots.length; i++) {
       var d = dots[i];
       if (opts.useGradient) ctx.fillStyle = d.color;
-      if (square) {
-        ctx.fillRect(d.x - d.r, d.y - d.r, d.r * 2, d.r * 2);
-      } else {
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
   };
 
-  /*
-   * The same drawing as an SVG document. With no background it comes out with
-   * a transparent ground, which is what you want to lay it over a photograph.
-   */
+  /* Same drawing, as a standalone SVG document. */
   DG.dotsToSVG = function (dots, opts) {
-    var square = opts.shape === 'square';
     var body = dots.map(function (d) {
-      var fill = opts.useGradient ? ' fill="' + d.color + '"' : '';
-      if (square) {
-        return '<rect x="' + (d.x - d.r).toFixed(2) + '" y="' + (d.y - d.r).toFixed(2) +
-          '" width="' + (d.r * 2).toFixed(2) + '" height="' + (d.r * 2).toFixed(2) + '"' + fill + '/>';
-      }
-      return '<circle cx="' + d.x.toFixed(2) + '" cy="' + d.y.toFixed(2) + '" r="' + d.r.toFixed(2) + '"' + fill + '/>';
+      return '<circle cx="' + d.x.toFixed(2) + '" cy="' + d.y.toFixed(2) + '" r="' + d.r.toFixed(2) + '"' +
+        (opts.useGradient ? ' fill="' + d.color + '"' : '') + '/>';
     }).join('');
     return [
       '<svg xmlns="http://www.w3.org/2000/svg" width="' + opts.width + '" height="' + opts.height +

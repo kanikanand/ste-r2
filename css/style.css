@@ -88,7 +88,7 @@ body {
   cursor: pointer;
   text-align: left;
 }
-.thumb canvas { width: 100%; height: auto; display: block; border-radius: 2px; }
+.thumb canvas { width: 100%; height: auto; display: block; border-radius: 2px; }  /* height from the canvas's own ratio */
 .thumb:hover { border-color: var(--slate); }
 .thumb.is-active { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
 .thumb-name { margin-top: 4px; font-size: 11px; }
@@ -110,32 +110,15 @@ body {
   align-items: center;
   justify-content: center;
 }
-.stage-canvas { max-width: 100%; }
 .stage-canvas {
+  display: block;
+  /* The border sits inside the width the script sets, so the canvas always
+     fits its box. Constraining one axis with max-width while the height is
+     fixed inline would squash the frame and turn every dot into an oval. */
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 2px;
-  max-width: 100%;
 }
-/* Checkerboard behind a transparent export, so you can see what you get. */
-.stage-canvas.is-transparent {
-  background-image:
-    linear-gradient(45deg, #1b1b21 25%, transparent 25%, transparent 75%, #1b1b21 75%),
-    linear-gradient(45deg, #1b1b21 25%, transparent 25%, transparent 75%, #1b1b21 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 8px 8px;
-  background-color: #101014;
-}
-
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip {
-  padding: 5px 10px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-}
-.chip.is-active { border-color: var(--red); color: var(--text); }
-button.primary { background: var(--red); border-color: var(--red); color: #fff; }
-button.primary:hover { filter: brightness(1.1); }
 .caption { text-align: center; }
 .caption h2 { margin: 0; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
 .caption p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; margin-inline: auto; }

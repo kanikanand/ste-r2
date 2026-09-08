@@ -21,7 +21,7 @@ var DG = window.DG || (window.DG = {});
   }
 
   DG.exportPNG = function (params, sampler, style, width, filename) {
-    var height = Math.round(width / DG.frameRatio(params.frame));
+    var height = Math.round(width / DG.ASPECT);
     var canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -31,20 +31,18 @@ var DG = window.DG || (window.DG = {});
       height: height,
       background: style.background,
       solid: style.solid,
-      shape: style.shape,
       useGradient: style.useGradient
     });
     canvas.toBlob(function (blob) { if (blob) download(blob, filename); });
   };
 
   DG.exportSVG = function (params, sampler, style, width, filename) {
-    var height = Math.round(width / DG.frameRatio(params.frame));
+    var height = Math.round(width / DG.ASPECT);
     var svg = DG.dotsToSVG(DG.generateDots(params, width, height, sampler), {
       width: width,
       height: height,
       background: style.background,
       solid: style.solid,
-      shape: style.shape,
       useGradient: style.useGradient
     });
     download(new Blob([svg], { type: 'image/svg+xml' }), filename);

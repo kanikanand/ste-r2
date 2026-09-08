@@ -22,12 +22,9 @@ var DG = window.DG || (window.DG = {});
   DG.PatternCanvas = function PatternCanvas(props) {
     var wrapRef = useRef(null);
     var canvasRef = useRef(null);
-    var boxState = useState({ w: 960, h: 540 });
-    var box = boxState[0];
-    var setBox = boxState[1];
-    var ratio = DG.frameRatio(props.params.frame);
-    var w = Math.max(240, Math.floor(Math.min(box.w, box.h * ratio)));
-    var size = { w: w, h: Math.round(w / ratio) };
+    var sizeState = useState({ w: 960, h: 540 });
+    var size = sizeState[0];
+    var setSize = sizeState[1];
 
     useLayoutEffect(function () {
       var el = wrapRef.current;
@@ -35,7 +32,8 @@ var DG = window.DG || (window.DG = {});
       var ro = new ResizeObserver(function (entries) {
         var box = entries[0].contentRect;
         // Largest 16:9 frame that fits the available box.
-        setBox({ w: box.width, h: box.height });
+        var w = Math.max(240, Math.floor(Math.min(box.width, box.height * DG.ASPECT)));
+        setSize({ w: w, h: Math.round(w / DG.ASPECT) });
       });
       ro.observe(el);
       return function () { ro.disconnect(); };
@@ -57,7 +55,6 @@ var DG = window.DG || (window.DG = {});
         height: size.h,
         background: props.style.background,
         solid: props.style.solid,
-        shape: props.style.shape,
         useGradient: props.style.useGradient
       });
       if (props.onCount) props.onCount(dots.length);
@@ -65,12 +62,13 @@ var DG = window.DG || (window.DG = {});
 
     return html`
       <div class="stage" ref=${wrapRef}>
-        <canvas ref=${canvasRef} class=${'stage-canvas' + (props.style.background ? '' : ' is-transparent')}></canvas>
+        <canvas ref=${canvasRef} class="stage-canvas"></canvas>
       </div>`;
   };
 
   /* ---- one preset preview ------------------------------------------------ */
   var THUMB_W = 176;
+  var THUMB_H = Math.round(THUMB_W / DG.ASPECT);
 
   /*
    * Always shows the preset's own field — never the uploaded image — so the
@@ -82,8 +80,6 @@ var DG = window.DG || (window.DG = {});
     var params = props.params;
     var style = props.style;
 
-    var THUMB_H = Math.round(THUMB_W / DG.frameRatio(params.frame));
-
     useEffect(function () {
       var canvas = ref.current;
       if (!canvas) return;
@@ -94,14 +90,13 @@ var DG = window.DG || (window.DG = {});
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       var thumbParams = Object.assign({}, params, {
         preset: preset.id,
-        grid: Math.min(26, params.grid)
+        pointDensity: Math.min(24, params.pointDensity)
       });
       DG.renderDots(ctx, DG.generateDots(thumbParams, THUMB_W, THUMB_H), {
         width: THUMB_W,
         height: THUMB_H,
-        background: style.background || '#0b0b0e',
+        background: style.background,
         solid: style.solid,
-        shape: style.shape,
         useGradient: style.useGradient
       });
     });
@@ -113,7 +108,7 @@ var DG = window.DG || (window.DG = {});
         onClick=${function () { props.onSelect(preset.id); }}
         title=${preset.blurb}
       >
-        <canvas ref=${ref} style=${{ width: THUMB_W, height: THUMB_H }}></canvas>
+        <canvas ref=${ref}></canvas>
         <span class="thumb-name">${preset.name}</span>
         <span class="thumb-sub">${preset.subtitle}</span>
       </button>`;
@@ -168,7 +163,7 @@ var DG = window.DG || (window.DG = {});
           width="60"
           height="60"
           role="slider"
-          aria-label="Pattern angle"
+          aria-label="Angle of flow"
           aria-valuenow=${value}
           aria-valuemin=${0}
           aria-valuemax=${359}
@@ -191,7 +186,7 @@ var DG = window.DG || (window.DG = {});
           <circle cx=${cx} cy=${cy} r="4" class="dial-knob"></circle>
         </svg>
         <div class="dial-meta">
-          <span class="ctrl-label">Angle</span>
+          <span class="ctrl-label">Angle of flow</span>
           <input
             type="number"
             min="0"

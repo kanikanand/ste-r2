@@ -30,7 +30,7 @@ var DG = window.DG || (window.DG = {});
     var countState = useState(0);
     var count = countState[0];
     var setCount = countState[1];
-    var exportSizeState = useState(2000);
+    var exportSizeState = useState(2560);
     var exportSize = exportSizeState[0];
     var setExportSize = exportSizeState[1];
     var fileRef = useRef(null);
@@ -46,10 +46,9 @@ var DG = window.DG || (window.DG = {});
       return {
         background: colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[0]),
         solid: colourOf(params.colorMode, DG.SOLIDS, DG.SOLIDS[0]),
-        useGradient: params.colorMode === 'gradient',
-        shape: params.shape
+        useGradient: params.colorMode === 'gradient'
       };
-    }, [params.background, params.colorMode, params.shape]);
+    }, [params.background, params.colorMode]);
 
     function onFile(e) {
       var file = e.target.files && e.target.files[0];
@@ -68,8 +67,7 @@ var DG = window.DG || (window.DG = {});
       if (fileRef.current) fileRef.current.value = '';
     }
 
-    var stem = params.preset + '-dots';
-    var exportHeight = Math.round(exportSize / DG.frameRatio(params.frame));
+    var stem = params.preset + '-dotted-grid';
 
     return html`
       <div class="app">
@@ -78,28 +76,28 @@ var DG = window.DG || (window.DG = {});
             <span class="brand-mark"></span>
             <div>
               <h1>Dotted Grid Studio</h1>
-              <p>Twelve wave textures · dot size mapped to the wave</p>
+              <p>Twelve flow fields · depth through dot size and density</p>
             </div>
           </div>
           <div class="topbar-actions">
-            <span class="readout">${count.toLocaleString()} dots · ${exportSize} × ${exportHeight}</span>
-            <select value=${exportSize} onChange=${function (e) { setExportSize(parseInt(e.target.value, 10)); }}>
-              <option value=${1200}>1200 px wide</option>
-              <option value=${2000}>2000 px wide</option>
-              <option value=${3200}>3200 px wide</option>
+            <span class="readout">${count.toLocaleString()} dots</span>
+            <select
+              value=${exportSize}
+              onChange=${function (e) { setExportSize(parseInt(e.target.value, 10)); }}
+            >
+              <option value=${1600}>1600 × 900</option>
+              <option value=${2560}>2560 × 1440</option>
+              <option value=${3840}>3840 × 2160</option>
             </select>
-            <button type="button" class="primary"
-              onClick=${function () { DG.exportSVG(params, sampler, style, exportSize, stem + '.svg'); }}>
-              Download SVG
-            </button>
             <button type="button" onClick=${function () { DG.exportPNG(params, sampler, style, exportSize, stem + '.png'); }}>PNG</button>
+            <button type="button" onClick=${function () { DG.exportSVG(params, sampler, style, exportSize, stem + '.svg'); }}>SVG</button>
             <button type="button" onClick=${function () { DG.exportJSON(params, stem + '.json'); }}>JSON</button>
           </div>
         </header>
 
         <div class="layout">
           <aside class="panel panel-presets">
-            <h2>Waves</h2>
+            <h2>Presets</h2>
             <div class="thumbs">
               ${DG.PRESETS.map(function (p) {
                 return html`
@@ -125,65 +123,64 @@ var DG = window.DG || (window.DG = {});
 
           <aside class="panel panel-controls">
             <section>
-              <h2>Dots</h2>
-              <${DG.Choice} label="Depth from" value=${params.depth}
-                options=${[
-                  { id: 'spacing', label: 'Spacing — same size, tone from packing' },
-                  { id: 'size', label: 'Size — halftone' }
-                ]}
-                onChange=${function (v) { set({ depth: v }); }} />
-              <${DG.Choice} label="Mark" value=${params.shape}
-                options=${[
-                  { id: 'circle', label: 'Circle' },
-                  { id: 'square', label: 'Square' }
-                ]}
-                onChange=${function (v) { set({ shape: v }); }} />
-              <${DG.Slider} label="Grid density" value=${params.grid} min=${8} max=${140} step=${1}
+              <h2>Grid</h2>
+              <${DG.Slider} label="Point density" value=${params.pointDensity} min=${6} max=${120} step=${1}
                 format=${function (v) { return v + ' across'; }}
-                onChange=${function (v) { set({ grid: v }); }} />
-              <${DG.Slider} label="Mark size" value=${params.dotScale} min=${0.1} max=${1.6}
+                onChange=${function (v) { set({ pointDensity: v }); }} />
+              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.08} max=${1.4}
                 onChange=${function (v) { set({ dotScale: v }); }} />
-              ${params.depth === 'spacing'
-                ? html`<${DG.Slider} label="Gathering" value=${params.spacingRange} min=${0} max=${1}
-                    onChange=${function (v) { set({ spacingRange: v }); }} />`
-                : html`<${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
-                    onChange=${function (v) { set({ sizeVariation: v }); }} />`}
-              <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
+              <${DG.Slider} label="Dot size variation" value=${params.sizeVariation} min=${0} max=${1}
+                onChange=${function (v) { set({ sizeVariation: v }); }} />
+              <${DG.Slider} label="Depth contrast" value=${params.contrast} min=${0.25} max=${3}
                 onChange=${function (v) { set({ contrast: v }); }} />
-              ${params.depth === 'size' && html`
-                <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
-                  onChange=${function (v) { set({ scatter: v }); }} />`}
-              <p class="hint">
-                ${params.depth === 'spacing'
-                  ? 'Every mark is the same size. Gathering is how far the wave pulls them onto its crests, so the packing carries the tone.'
-                  : 'Size variation is how much bigger a crest dot is than a trough dot. Scatter drops dots out of the troughs.'}
-              </p>
+              <${DG.Slider} label="Density falloff" value=${params.densityFade} min=${0} max=${1}
+                onChange=${function (v) { set({ densityFade: v }); }} />
+              <div class="row">
+                <${DG.Slider} label="Seed" value=${params.seed} min=${1} max=${999} step=${1}
+                  format=${function (v) { return String(v); }}
+                  onChange=${function (v) { set({ seed: v }); }} />
+                <button type="button" class="ghost"
+                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+              </div>
             </section>
 
             <section>
               <h2>Wave</h2>
-              <${DG.Slider} label="Wave scale" value=${params.waveScale} min=${0.2} max=${3}
-                onChange=${function (v) { set({ waveScale: v }); }} />
-              <div class="row">
-                <${DG.Slider} label="Organic" value=${params.organic} min=${0} max=${1}
-                  onChange=${function (v) { set({ organic: v }); }} />
-                <button type="button" class="ghost"
-                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
-              </div>
+              <${DG.Slider} label="Wave height" value=${params.waveHeight} min=${0} max=${1.4}
+                onChange=${function (v) { set({ waveHeight: v }); }} />
+              <${DG.Choice} label="Displacement" value=${params.waveMode}
+                options=${[
+                  { id: 'ridge', label: 'Ridge — rows ride over the form' },
+                  { id: 'bulge', label: 'Bulge — rows open around it' }
+                ]}
+                onChange=${function (v) { set({ waveMode: v }); }} />
+              <label class="check">
+                <input type="checkbox" checked=${params.hideBehind}
+                  onChange=${function (e) { set({ hideBehind: e.target.checked }); }} />
+                <span>Hide what the surface covers</span>
+              </label>
+              <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${2.5}
+                onChange=${function (v) { set({ patternScale: v }); }} />
+              <${DG.Choice} label="Repeat the form" value=${params.repeat}
+                options=${[
+                  { id: 'single', label: 'One copy' },
+                  { id: 'scatter', label: 'Scattered — overlapping copies' },
+                  { id: 'radial', label: 'Radiating — set around a centre' }
+                ]}
+                onChange=${function (v) { set({ repeat: v }); }} />
+              ${params.repeat !== 'single' && html`
+                <${DG.Slider} label="Copies" value=${params.copies} min=${2} max=${16} step=${1}
+                  format=${function (v) { return String(v); }}
+                  onChange=${function (v) { set({ copies: v }); }} />`}
+              <${DG.AngleDial} value=${params.flowAngle} onChange=${function (v) { set({ flowAngle: v }); }} />
+              <${DG.Slider} label="Field drift" value=${params.flowStrength} min=${0} max=${1.5}
+                onChange=${function (v) { set({ flowStrength: v }); }} />
               <p class="hint">
-                Organic bends the wave out of its exact symmetry — rings go
-                lopsided, bands meander. Shuffle draws a different bend.
+                Rows of points run along the angle and are pushed out of line by the
+                height of ${preset.name.toLowerCase()} beneath them. Shrink the pattern
+                scale and repeat it, and the copies overlap and fall out of step
+                rather than stamping out a grid.
               </p>
-              <${DG.AngleDial} value=${params.angle} onChange=${function (v) { set({ angle: v }); }} />
-              <span class="ctrl-label">Frame</span>
-              <div class="chips">
-                ${DG.FRAMES.map(function (f) {
-                  return html`
-                    <button key=${f.id} type="button"
-                      class=${'chip' + (params.frame === f.id ? ' is-active' : '')}
-                      onClick=${function () { set({ frame: f.id }); }}>${f.label}</button>`;
-                })}
-              </div>
             </section>
 
             <section>
@@ -193,7 +190,7 @@ var DG = window.DG || (window.DG = {});
 
             <section>
               <h2>Image mode</h2>
-              <p class="hint">Optional. Light in an image drives dot size instead of the pattern.</p>
+              <p class="hint">Light in the image drives dot size and density.</p>
               <input ref=${fileRef} type="file" accept="image/*" onChange=${onFile} />
               ${image && html`
                 <${React.Fragment}>
@@ -209,12 +206,17 @@ var DG = window.DG || (window.DG = {});
                       <button type="button" class="ghost" onClick=${clearImage}>Remove</button>
                     </div>
                   </div>
-                  <${DG.Choice} label="Combine with pattern" value=${params.imageBlend}
-                    options=${[
-                      { id: 'replace', label: 'Image only' },
-                      { id: 'multiply', label: 'Image inside the pattern' }
-                    ]}
-                    onChange=${function (v) { set({ imageBlend: v }); }} />
+                  <label class="ctrl">
+                    <span class="ctrl-head"><span>Combine with field</span></span>
+                    <select value=${params.imageBlend}
+                      onChange=${function (e) { set({ imageBlend: e.target.value }); }}>
+                      <option value="replace">Replace field</option>
+                      <option value="multiply">Multiply by field</option>
+                      <option value="average">Average with field</option>
+                    </select>
+                  </label>
+                  <${DG.Slider} label="Image amount" value=${params.imageAmount} min=${0} max=${1}
+                    onChange=${function (v) { set({ imageAmount: v }); }} />
                   <label class="check">
                     <input type="checkbox" checked=${params.imageInvert}
                       onChange=${function (e) { set({ imageInvert: e.target.checked }); }} />

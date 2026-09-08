@@ -1,12 +1,10 @@
 # Dotted Grid Studio
 
-A React tool for making dotted textures. Twelve presets, each a wave — the
-description says what the wave does, not what outline it draws. The wave can
-carry the tone two ways: by gathering same-size marks so the *packing* varies,
-or by setting each mark's *size* as an ordinary halftone. Download the result
-as an SVG with a transparent background and lay it over a photograph.
+A React tool for generating dotted grid patterns. Twelve presets describe
+*forms* — waves the grid is pushed into, which is what decides where each dot
+sits — and depth comes from dot size and density being mapped to light.
 
-![the twelve waves](docs/presets.png)
+![the twelve presets](docs/presets.png)
 
 ## Run it
 
@@ -22,81 +20,110 @@ the filesystem. To serve it instead:
 npx http-server -p 8080 .
 ```
 
+Markup is written with [htm](https://github.com/developit/htm), which reads like
+JSX but is parsed at runtime, so the components stay React components without
+needing a compiler.
+
 ## How a pattern is built
 
-The dots sit on a plain square lattice that never moves, so the texture stays
-regular and tiles cleanly. Each preset is one function over the pattern's own
-coordinates (`js/fields.js`):
+Each preset is two functions over the form's own coordinates (`js/fields.js`):
 
-```
-density(x, y) -> 0..1     how much light is at this point
-```
+| | |
+|---|---|
+| `density(x, y) → 0..1` | the *height* of the form, and how much light is on it |
+| `flow(x, y) → angle` | the direction the field lines run |
 
-`js/generate.js` reads that value at each dot and turns it into a radius —
-bright means big, dark means small — and optionally drops the dot altogether
-where the pattern is dark. So one number carries both size and density, which is
-what reads as depth.
+`js/generate.js` reads that density as a **height surface**, not as a mask over
+a fixed lattice. Rows of points run across the frame along the flow angle, and
+each point is pushed perpendicular to its row by the height of the form beneath
+it — so the rows ripple into the shape the preset describes and the dots sit on
+those waves. The same height also drives dot size and the keep/drop decision,
+so light still carries the depth.
 
-The lattice is fixed to the frame; the *pattern* rotates underneath it, which is
-why turning the angle never disturbs the grid. Pattern coordinates are folded
-back into their own square when tiling, so a small pattern repeats seamlessly
-across the frame.
+Rows are generated across the frame's rotated bounding box and clipped to the
+frame, so turning the angle lets the pattern bleed off every edge instead of
+being contained by it. Walking the rows front to back with a per-column horizon
+hides what the surface covers, which keeps steep parts of a form from crowding
+rows into smears.
 
-## The twelve patterns
+A preset that does not define `flow` falls back to the tangent of its own
+density contours, so its dots trace the shape's iso-lines.
 
-| Preset | Form | Pattern |
+## The twelve fields
+
+| Preset | Form | Field |
 |---|---|---|
-| Emergence | Emerging core | Rings radiate from one centre, tightening as they travel out. |
-| Ingenuity | Soft star | The same rings, pulled into five soft points as they spread. |
-| Progress | Directional plume | Bowed wavefronts sweep to the right, opening as they go. |
-| Convergence | Gathering field | Ring sources draw inward, their crests gathering at one centre. |
-| Expansion | Expanding halo | Rings widen as they travel outward, the crests growing apart. |
-| Adaptation | Flowing saddle | Hyperbolic fringes bend through a saddle, rising one way and dipping the other. |
-| Connection | Connecting bridge | Two sources interfere, their fringes bridging the gap between them. |
-| Collaboration | Interference bloom | Two overlapping wave trains beat into a third, denser rhythm. |
-| Precision | Focused lens | Tight parallel bands, bowed just enough to read as a lens. |
-| Transformation | Twisted column | Bands turn as they rise, so the grain runs one way above and another below. |
-| Synergy | Balanced lobes | Three sources at equal spacing settle into one shared weave. |
-| Momentum | Continuous wave | A travelling wave train, its bands oscillating across the frame. |
+| Emergence | Emerging core | A concentrated circular field. |
+| Ingenuity | Soft star | A rounded central mass stretches into five soft points. |
+| Progress | Directional plume | A right-moving diffused plume, as if zooming in on one of the points. |
+| Convergence | Gathering field | Soft concentrations draw inward to one shared centre through subtle channels. |
+| Expansion | Expanding halo | A broad ring of larger dots surrounds a small, deep central point. |
+| Adaptation | Flowing saddle | A continuous undulating form rises on one side and dips, diffused, on the other. |
+| Connection | Connecting bridge | Two rounded masses joined by a narrow dotted neck. |
+| Collaboration | Interference bloom | Two overlapping fields make a third, denser formation where they meet. |
+| Precision | Focused lens | A flattened ellipse concentrating into a tight central band with graduated edges. |
+| Transformation | Twisted column | A vertical form narrows and turns at its midpoint into differently oriented lobes. |
+| Synergy | Balanced lobes | Rounded volumes gather around a shared centre, distinct but coherent. |
+| Momentum | Continuous wave | A stretched, oscillating ribbon carrying alternating concentrations across the frame. |
 
 ## Controls
 
-**Dots** — where the depth comes from (spacing or size), the mark (circle or
-square), grid density (8–140 across the frame), mark size, and contrast.
+The frame is 16:9.
 
-In spacing mode, **gathering** is how far the wave pulls the marks onto its
-crests. In size mode, **size variation** is how much bigger a crest mark is than
-a trough one, and **scatter** randomly drops marks out of the troughs. Either
-way, keep several marks to a band or the grid beats against the wave.
+**Grid** — point density (6–120 points across the frame, independent of how big
+the form is), dot size, **dot size variation** (the extent of the difference
+between the smallest and largest dot; at 0 every dot is the same size and only
+density carries the form), depth contrast (gamma on the height before it becomes
+size), density falloff (how much the form thins the points out), jitter and seed.
 
-**Wave** — wave scale (how big the bands are), **organic** (how far the wave is
-bent out of its symmetry) with Shuffle for a different bend, angle, and the
-frame shape: 16:9, 1:1, 4:5 or 9:16.
+**Wave** — wave height, how far the form displaces its rows; displacement mode,
+either *ridge* (rows ride over the form, reading as a surface) or *bulge* (rows
+open away from it); whether to hide what the surface covers; **pattern scale**,
+the size of one copy of the form; and **repeat**.
+
+Repeating does not tile. Folding the coordinates would stamp out identical
+copies with a seam between them, which reads as a grid rather than a texture.
+Instead each copy gets its own place, turn and size, and they are combined by
+taking whichever reads strongest at that point — so copies overlap and fall out
+of step. *Scattered* spreads them loosely over the frame; *radiating* sets them
+around a centre, each turned to face outward. Shrink the pattern scale and raise
+the copy count to fit more in.
+
+**Angle of flow** is a dial setting the direction the rows run. The pattern is
+drawn past the frame's edges and clipped, so at any angle it bleeds off all four
+sides rather than sitting inside them. **Field drift** additionally carries
+points along the preset's own field lines.
 
 **Colour** — solid dots in `#de2027`, `#687099`, `#c5eef9`, white or black, or
-the three-stop gradient `#de2027 → #687099 → #c5eef9`, mapped to dot size,
-horizontal, vertical, radial or angular position, and reversible. The background
-is transparent by default; black, ink, paper and white are also there.
+the three-stop gradient `#de2027 → #687099 → #c5eef9`. The gradient can be
+mapped to light, horizontal, vertical, radial or angular position, and reversed.
+Four backgrounds.
 
-**Image mode** — optional. Upload an image and its luminance drives dot size
-instead of the wave, either on its own or confined inside the wave.
+The angular mapping runs the ramp out and back rather than round the full
+circle, so both ends land on the same colour instead of meeting as a hard seam.
 
-**Export** — SVG (or PNG) at 1200, 2000 or 3200 px wide. With a transparent
-background the SVG has no backing rectangle, so it drops straight over a
-photograph. Geometry is generated fresh at the export size, so output is
-resolution independent and the SVG is true vector circles or rects.
+**Image mode** — upload an image and its luminance drives dot size and density.
+It can replace the preset field, multiply with it (the preset then acts as a
+mask), or average with it, with an amount slider and an invert toggle. The
+preset gallery keeps showing the underlying fields so it still works as a
+picker.
+
+**Export** — PNG or SVG at 1600×900, 2560×1440 or 3840×2160, or the settings as
+JSON.
+Geometry is generated fresh at the export size, so output is resolution
+independent and the SVG is true vector circles.
 
 ## Layout
 
 ```
 index.html            loads the vendored libraries, then js/ in order
 css/style.css
-js/fields.js          the twelve waves
+js/fields.js          the twelve density + flow fields
 js/color.js           palette, three-stop ramp, gradient mapping
-js/generate.js        lattice -> dot list, and the canvas and SVG renderers
+js/generate.js        height surface -> displaced rows -> dot list, and the renderers
 js/image.js           luminance sampler for image mode
-js/exporters.js       SVG / PNG / JSON download
-js/ui.js              canvas, pattern thumbnails, control widgets
+js/exporters.js       PNG / SVG / JSON download
+js/ui.js              canvas stage, preset thumbnails, control widgets
 js/app.js             state, layout and mount
 vendor/               react, react-dom, htm
 ```
