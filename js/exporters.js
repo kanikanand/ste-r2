@@ -31,6 +31,7 @@ var DG = window.DG || (window.DG = {});
       height: height,
       background: style.background,
       solid: style.solid,
+      shape: style.shape,
       useGradient: style.useGradient
     });
     canvas.toBlob(function (blob) { if (blob) download(blob, filename); });
@@ -43,6 +44,7 @@ var DG = window.DG || (window.DG = {});
       height: height,
       background: style.background,
       solid: style.solid,
+      shape: style.shape,
       useGradient: style.useGradient
     });
     download(new Blob([svg], { type: 'image/svg+xml' }), filename);

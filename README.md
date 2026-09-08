@@ -1,9 +1,10 @@
 # Dotted Grid Studio
 
 A React tool for making dotted textures. Twelve presets, each a wave — the
-description says what the wave does, not what outline it draws — and the wave
-sets each dot's size. Download the result as an SVG with a transparent
-background and lay it over a photograph.
+description says what the wave does, not what outline it draws. The wave can
+carry the tone two ways: by gathering same-size marks so the *packing* varies,
+or by setting each mark's *size* as an ordinary halftone. Download the result
+as an SVG with a transparent background and lay it over a photograph.
 
 ![the twelve waves](docs/presets.png)
 
@@ -60,10 +61,13 @@ across the frame.
 
 ## Controls
 
-**Dots** — grid density (8–140 dots across the frame), dot size, **size
-variation** (how much bigger a crest dot is than a trough dot; at 0 every dot is
-the same size), contrast, and scatter, which randomly drops dots out of the
-troughs. Keep several dots to a band or the grid beats against the wave.
+**Dots** — where the depth comes from (spacing or size), the mark (circle or
+square), grid density (8–140 across the frame), mark size, and contrast.
+
+In spacing mode, **gathering** is how far the wave pulls the marks onto its
+crests. In size mode, **size variation** is how much bigger a crest mark is than
+a trough one, and **scatter** randomly drops marks out of the troughs. Either
+way, keep several marks to a band or the grid beats against the wave.
 
 **Wave** — wave scale (how big the bands are), angle, and the frame shape:
 16:9, 1:1, 4:5 or 9:16.
@@ -79,7 +83,7 @@ instead of the wave, either on its own or confined inside the wave.
 **Export** — SVG (or PNG) at 1200, 2000 or 3200 px wide. With a transparent
 background the SVG has no backing rectangle, so it drops straight over a
 photograph. Geometry is generated fresh at the export size, so output is
-resolution independent and the SVG is true vector circles.
+resolution independent and the SVG is true vector circles or rects.
 
 ## Layout
 

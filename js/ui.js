@@ -57,6 +57,7 @@ var DG = window.DG || (window.DG = {});
         height: size.h,
         background: props.style.background,
         solid: props.style.solid,
+        shape: props.style.shape,
         useGradient: props.style.useGradient
       });
       if (props.onCount) props.onCount(dots.length);
@@ -100,6 +101,7 @@ var DG = window.DG || (window.DG = {});
         height: THUMB_H,
         background: style.background || '#0b0b0e',
         solid: style.solid,
+        shape: style.shape,
         useGradient: style.useGradient
       });
     });

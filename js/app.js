@@ -46,9 +46,10 @@ var DG = window.DG || (window.DG = {});
       return {
         background: colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[0]),
         solid: colourOf(params.colorMode, DG.SOLIDS, DG.SOLIDS[0]),
-        useGradient: params.colorMode === 'gradient'
+        useGradient: params.colorMode === 'gradient',
+        shape: params.shape
       };
-    }, [params.background, params.colorMode]);
+    }, [params.background, params.colorMode, params.shape]);
 
     function onFile(e) {
       var file = e.target.files && e.target.files[0];
@@ -125,24 +126,41 @@ var DG = window.DG || (window.DG = {});
           <aside class="panel panel-controls">
             <section>
               <h2>Dots</h2>
+              <${DG.Choice} label="Depth from" value=${params.depth}
+                options=${[
+                  { id: 'spacing', label: 'Spacing — same size, tone from packing' },
+                  { id: 'size', label: 'Size — halftone' }
+                ]}
+                onChange=${function (v) { set({ depth: v }); }} />
+              <${DG.Choice} label="Mark" value=${params.shape}
+                options=${[
+                  { id: 'circle', label: 'Circle' },
+                  { id: 'square', label: 'Square' }
+                ]}
+                onChange=${function (v) { set({ shape: v }); }} />
               <${DG.Slider} label="Grid density" value=${params.grid} min=${8} max=${140} step=${1}
                 format=${function (v) { return v + ' across'; }}
                 onChange=${function (v) { set({ grid: v }); }} />
-              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.1} max=${1.6}
+              <${DG.Slider} label="Mark size" value=${params.dotScale} min=${0.1} max=${1.6}
                 onChange=${function (v) { set({ dotScale: v }); }} />
-              <${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
-                onChange=${function (v) { set({ sizeVariation: v }); }} />
+              ${params.depth === 'spacing'
+                ? html`<${DG.Slider} label="Gathering" value=${params.spacingRange} min=${0} max=${1}
+                    onChange=${function (v) { set({ spacingRange: v }); }} />`
+                : html`<${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
+                    onChange=${function (v) { set({ sizeVariation: v }); }} />`}
               <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
                 onChange=${function (v) { set({ contrast: v }); }} />
-              <div class="row">
-                <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
-                  onChange=${function (v) { set({ scatter: v }); }} />
-                <button type="button" class="ghost"
-                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
-              </div>
+              ${params.depth === 'size' && html`
+                <div class="row">
+                  <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
+                    onChange=${function (v) { set({ scatter: v }); }} />
+                  <button type="button" class="ghost"
+                    onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+                </div>`}
               <p class="hint">
-                Size variation is how much bigger the brightest dot is than the
-                darkest. Scatter drops dots out where the pattern is dark.
+                ${params.depth === 'spacing'
+                  ? 'Every mark is the same size. Gathering is how far the wave pulls them onto its crests, so the packing carries the tone.'
+                  : 'Size variation is how much bigger a crest dot is than a trough dot. Scatter drops dots out of the troughs.'}
               </p>
             </section>
 
