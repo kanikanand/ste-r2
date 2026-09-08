@@ -9,8 +9,10 @@ var DG = window.DG || (window.DG = {});
 (function (DG) {
   'use strict';
 
-  var RES_H = 288;
-  var RES_W = Math.round(RES_H * DG.ASPECT);
+  // Sampled into a wide buffer and read in frame coordinates, so the same
+  // image works whatever frame the pattern is set to.
+  var RES_W = 512;
+  var RES_H = 512;
 
   var samplerId = 0;
 

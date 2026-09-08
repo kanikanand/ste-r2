@@ -30,7 +30,7 @@ var DG = window.DG || (window.DG = {});
     var countState = useState(0);
     var count = countState[0];
     var setCount = countState[1];
-    var exportSizeState = useState(2560);
+    var exportSizeState = useState(2000);
     var exportSize = exportSizeState[0];
     var setExportSize = exportSizeState[1];
     var fileRef = useRef(null);
@@ -67,7 +67,8 @@ var DG = window.DG || (window.DG = {});
       if (fileRef.current) fileRef.current.value = '';
     }
 
-    var stem = params.preset + '-dotted-grid';
+    var stem = params.preset + '-dots';
+    var exportHeight = Math.round(exportSize / DG.frameRatio(params.frame));
 
     return html`
       <div class="app">
@@ -76,28 +77,28 @@ var DG = window.DG || (window.DG = {});
             <span class="brand-mark"></span>
             <div>
               <h1>Dotted Grid Studio</h1>
-              <p>Twelve flow fields · depth through dot size and density</p>
+              <p>Twelve dot textures · size and density mapped to light</p>
             </div>
           </div>
           <div class="topbar-actions">
-            <span class="readout">${count.toLocaleString()} dots</span>
-            <select
-              value=${exportSize}
-              onChange=${function (e) { setExportSize(parseInt(e.target.value, 10)); }}
-            >
-              <option value=${1600}>1600 × 900</option>
-              <option value=${2560}>2560 × 1440</option>
-              <option value=${3840}>3840 × 2160</option>
+            <span class="readout">${count.toLocaleString()} dots · ${exportSize} × ${exportHeight}</span>
+            <select value=${exportSize} onChange=${function (e) { setExportSize(parseInt(e.target.value, 10)); }}>
+              <option value=${1200}>1200 px wide</option>
+              <option value=${2000}>2000 px wide</option>
+              <option value=${3200}>3200 px wide</option>
             </select>
+            <button type="button" class="primary"
+              onClick=${function () { DG.exportSVG(params, sampler, style, exportSize, stem + '.svg'); }}>
+              Download SVG
+            </button>
             <button type="button" onClick=${function () { DG.exportPNG(params, sampler, style, exportSize, stem + '.png'); }}>PNG</button>
-            <button type="button" onClick=${function () { DG.exportSVG(params, sampler, style, exportSize, stem + '.svg'); }}>SVG</button>
             <button type="button" onClick=${function () { DG.exportJSON(params, stem + '.json'); }}>JSON</button>
           </div>
         </header>
 
         <div class="layout">
           <aside class="panel panel-presets">
-            <h2>Presets</h2>
+            <h2>Patterns</h2>
             <div class="thumbs">
               ${DG.PRESETS.map(function (p) {
                 return html`
@@ -123,85 +124,47 @@ var DG = window.DG || (window.DG = {});
 
           <aside class="panel panel-controls">
             <section>
-              <h2>Form</h2>
-              <${DG.Choice} label="Dot placement" value=${params.placement}
-                options=${[
-                  { id: 'lines', label: 'Along flow lines' },
-                  { id: 'grid', label: 'On grid rows' }
-                ]}
-                onChange=${function (v) { set({ placement: v }); }} />
-              <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${3}
-                onChange=${function (v) { set({ patternScale: v }); }} />
-              <${DG.Choice} label="Repeat the form" value=${params.repeat}
-                options=${[
-                  { id: 'off', label: 'Single copy' },
-                  { id: 'x', label: 'Repeat across' },
-                  { id: 'grid', label: 'Repeat both ways' }
-                ]}
-                onChange=${function (v) { set({ repeat: v }); }} />
-              <${DG.Slider} label="Detail" value=${params.detail} min=${0} max=${0.6}
-                onChange=${function (v) { set({ detail: v }); }} />
-              <${DG.AngleDial} value=${params.flowAngle} onChange=${function (v) { set({ flowAngle: v }); }} />
-            </section>
-
-            ${params.placement === 'lines' ? html`
-              <section>
-                <h2>Flow lines</h2>
-                <${DG.Slider} label="Line density" value=${params.lineDensity} min=${12} max=${140} step=${1}
-                  format=${function (v) { return v + ' across'; }}
-                  onChange=${function (v) { set({ lineDensity: v }); }} />
-                <${DG.Slider} label="Dot spacing along lines" value=${params.dotSpacing} min=${0.12} max=${2}
-                  onChange=${function (v) { set({ dotSpacing: v }); }} />
-                <p class="hint">
-                  Lines follow the contours of ${preset.name.toLowerCase()}, looping
-                  around its peaks and parting at its saddles. Detail wrinkles them;
-                  the angle opens the loops into spirals.
-                </p>
-              </section>` : html`
-              <section>
-                <h2>Grid rows</h2>
-                <${DG.Slider} label="Point density" value=${params.pointDensity} min=${6} max=${120} step=${1}
-                  format=${function (v) { return v + ' across'; }}
-                  onChange=${function (v) { set({ pointDensity: v }); }} />
-                <${DG.Slider} label="Wave height" value=${params.waveHeight} min=${0} max=${1.4}
-                  onChange=${function (v) { set({ waveHeight: v }); }} />
-                <${DG.Choice} label="Displacement" value=${params.waveMode}
-                  options=${[
-                    { id: 'ridge', label: 'Ridge — rows ride over the form' },
-                    { id: 'bulge', label: 'Bulge — rows open around it' }
-                  ]}
-                  onChange=${function (v) { set({ waveMode: v }); }} />
-                <label class="check">
-                  <input type="checkbox" checked=${params.hideBehind}
-                    onChange=${function (e) { set({ hideBehind: e.target.checked }); }} />
-                  <span>Hide what the surface covers</span>
-                </label>
-                <${DG.Slider} label="Field drift" value=${params.flowStrength} min=${0} max=${1.5}
-                  onChange=${function (v) { set({ flowStrength: v }); }} />
-                <p class="hint">
-                  Rows of points run along the angle and are pushed out of line by the
-                  height of ${preset.name.toLowerCase()} beneath them.
-                </p>
-              </section>`}
-
-            <section>
               <h2>Dots</h2>
-              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.08} max=${1.8}
+              <${DG.Slider} label="Grid density" value=${params.grid} min=${8} max=${140} step=${1}
+                format=${function (v) { return v + ' across'; }}
+                onChange=${function (v) { set({ grid: v }); }} />
+              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.1} max=${1.6}
                 onChange=${function (v) { set({ dotScale: v }); }} />
-              <${DG.Slider} label="Dot size variation" value=${params.sizeVariation} min=${0} max=${1}
+              <${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
                 onChange=${function (v) { set({ sizeVariation: v }); }} />
-              <${DG.Slider} label="Depth contrast" value=${params.contrast} min=${0.25} max=${3}
+              <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
                 onChange=${function (v) { set({ contrast: v }); }} />
-              <${DG.Slider} label="Density falloff" value=${params.densityFade} min=${0} max=${1}
-                onChange=${function (v) { set({ densityFade: v }); }} />
-              <${DG.Slider} label="Jitter" value=${params.jitter} min=${0} max=${1}
-                onChange=${function (v) { set({ jitter: v }); }} />
               <div class="row">
-                <${DG.Slider} label="Seed" value=${params.seed} min=${1} max=${999} step=${1}
-                  format=${function (v) { return String(v); }}
-                  onChange=${function (v) { set({ seed: v }); }} />
+                <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
+                  onChange=${function (v) { set({ scatter: v }); }} />
                 <button type="button" class="ghost"
                   onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+              </div>
+              <p class="hint">
+                Size variation is how much bigger the brightest dot is than the
+                darkest. Scatter drops dots out where the pattern is dark.
+              </p>
+            </section>
+
+            <section>
+              <h2>Pattern</h2>
+              <${DG.Slider} label="Pattern size" value=${params.patternSize} min=${0.2} max=${3}
+                onChange=${function (v) { set({ patternSize: v }); }} />
+              <${DG.Choice} label="Repeat" value=${params.tiling}
+                options=${[
+                  { id: 'tile', label: 'Tile to fill the frame' },
+                  { id: 'single', label: 'One copy, centred' }
+                ]}
+                onChange=${function (v) { set({ tiling: v }); }} />
+              <${DG.AngleDial} value=${params.angle} onChange=${function (v) { set({ angle: v }); }} />
+              <span class="ctrl-label">Frame</span>
+              <div class="chips">
+                ${DG.FRAMES.map(function (f) {
+                  return html`
+                    <button key=${f.id} type="button"
+                      class=${'chip' + (params.frame === f.id ? ' is-active' : '')}
+                      onClick=${function () { set({ frame: f.id }); }}>${f.label}</button>`;
+                })}
               </div>
             </section>
 
@@ -212,7 +175,7 @@ var DG = window.DG || (window.DG = {});
 
             <section>
               <h2>Image mode</h2>
-              <p class="hint">Light in the image drives dot size and density.</p>
+              <p class="hint">Optional. Light in an image drives dot size instead of the pattern.</p>
               <input ref=${fileRef} type="file" accept="image/*" onChange=${onFile} />
               ${image && html`
                 <${React.Fragment}>
@@ -228,17 +191,12 @@ var DG = window.DG || (window.DG = {});
                       <button type="button" class="ghost" onClick=${clearImage}>Remove</button>
                     </div>
                   </div>
-                  <label class="ctrl">
-                    <span class="ctrl-head"><span>Combine with field</span></span>
-                    <select value=${params.imageBlend}
-                      onChange=${function (e) { set({ imageBlend: e.target.value }); }}>
-                      <option value="replace">Replace field</option>
-                      <option value="multiply">Multiply by field</option>
-                      <option value="average">Average with field</option>
-                    </select>
-                  </label>
-                  <${DG.Slider} label="Image amount" value=${params.imageAmount} min=${0} max=${1}
-                    onChange=${function (v) { set({ imageAmount: v }); }} />
+                  <${DG.Choice} label="Combine with pattern" value=${params.imageBlend}
+                    options=${[
+                      { id: 'replace', label: 'Image only' },
+                      { id: 'multiply', label: 'Image inside the pattern' }
+                    ]}
+                    onChange=${function (v) { set({ imageBlend: v }); }} />
                   <label class="check">
                     <input type="checkbox" checked=${params.imageInvert}
                       onChange=${function (e) { set({ imageInvert: e.target.checked }); }} />

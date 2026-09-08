@@ -17,6 +17,7 @@ var DG = window.DG || (window.DG = {});
   ];
 
   DG.BACKGROUNDS = [
+    { id: 'transparent', label: 'Transparent', value: null },
     { id: 'black', label: 'Black', value: '#000000' },
     { id: 'ink', label: 'Ink', value: '#12141c' },
     { id: 'paper', label: 'Paper', value: '#f5f2ec' },
@@ -25,7 +26,7 @@ var DG = window.DG || (window.DG = {});
 
   /* Which quantity the gradient is mapped along. */
   DG.GRADIENT_MAPS = [
-    { id: 'intensity', label: 'Light' },
+    { id: 'intensity', label: 'Dot size' },
     { id: 'x', label: 'Horizontal' },
     { id: 'y', label: 'Vertical' },
     { id: 'radial', label: 'Radial' },
