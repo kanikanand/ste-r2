@@ -123,11 +123,70 @@ var DG = window.DG || (window.DG = {});
 
           <aside class="panel panel-controls">
             <section>
-              <h2>Grid</h2>
-              <${DG.Slider} label="Point density" value=${params.pointDensity} min=${6} max=${120} step=${1}
-                format=${function (v) { return v + ' across'; }}
-                onChange=${function (v) { set({ pointDensity: v }); }} />
-              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.08} max=${1.4}
+              <h2>Form</h2>
+              <${DG.Choice} label="Dot placement" value=${params.placement}
+                options=${[
+                  { id: 'lines', label: 'Along flow lines' },
+                  { id: 'grid', label: 'On grid rows' }
+                ]}
+                onChange=${function (v) { set({ placement: v }); }} />
+              <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${3}
+                onChange=${function (v) { set({ patternScale: v }); }} />
+              <${DG.Choice} label="Repeat the form" value=${params.repeat}
+                options=${[
+                  { id: 'off', label: 'Single copy' },
+                  { id: 'x', label: 'Repeat across' },
+                  { id: 'grid', label: 'Repeat both ways' }
+                ]}
+                onChange=${function (v) { set({ repeat: v }); }} />
+              <${DG.Slider} label="Detail" value=${params.detail} min=${0} max=${0.6}
+                onChange=${function (v) { set({ detail: v }); }} />
+              <${DG.AngleDial} value=${params.flowAngle} onChange=${function (v) { set({ flowAngle: v }); }} />
+            </section>
+
+            ${params.placement === 'lines' ? html`
+              <section>
+                <h2>Flow lines</h2>
+                <${DG.Slider} label="Line density" value=${params.lineDensity} min=${12} max=${140} step=${1}
+                  format=${function (v) { return v + ' across'; }}
+                  onChange=${function (v) { set({ lineDensity: v }); }} />
+                <${DG.Slider} label="Dot spacing along lines" value=${params.dotSpacing} min=${0.12} max=${2}
+                  onChange=${function (v) { set({ dotSpacing: v }); }} />
+                <p class="hint">
+                  Lines follow the contours of ${preset.name.toLowerCase()}, looping
+                  around its peaks and parting at its saddles. Detail wrinkles them;
+                  the angle opens the loops into spirals.
+                </p>
+              </section>` : html`
+              <section>
+                <h2>Grid rows</h2>
+                <${DG.Slider} label="Point density" value=${params.pointDensity} min=${6} max=${120} step=${1}
+                  format=${function (v) { return v + ' across'; }}
+                  onChange=${function (v) { set({ pointDensity: v }); }} />
+                <${DG.Slider} label="Wave height" value=${params.waveHeight} min=${0} max=${1.4}
+                  onChange=${function (v) { set({ waveHeight: v }); }} />
+                <${DG.Choice} label="Displacement" value=${params.waveMode}
+                  options=${[
+                    { id: 'ridge', label: 'Ridge — rows ride over the form' },
+                    { id: 'bulge', label: 'Bulge — rows open around it' }
+                  ]}
+                  onChange=${function (v) { set({ waveMode: v }); }} />
+                <label class="check">
+                  <input type="checkbox" checked=${params.hideBehind}
+                    onChange=${function (e) { set({ hideBehind: e.target.checked }); }} />
+                  <span>Hide what the surface covers</span>
+                </label>
+                <${DG.Slider} label="Field drift" value=${params.flowStrength} min=${0} max=${1.5}
+                  onChange=${function (v) { set({ flowStrength: v }); }} />
+                <p class="hint">
+                  Rows of points run along the angle and are pushed out of line by the
+                  height of ${preset.name.toLowerCase()} beneath them.
+                </p>
+              </section>`}
+
+            <section>
+              <h2>Dots</h2>
+              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.08} max=${1.8}
                 onChange=${function (v) { set({ dotScale: v }); }} />
               <${DG.Slider} label="Dot size variation" value=${params.sizeVariation} min=${0} max=${1}
                 onChange=${function (v) { set({ sizeVariation: v }); }} />
@@ -144,40 +203,6 @@ var DG = window.DG || (window.DG = {});
                 <button type="button" class="ghost"
                   onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
               </div>
-            </section>
-
-            <section>
-              <h2>Wave</h2>
-              <${DG.Slider} label="Wave height" value=${params.waveHeight} min=${0} max=${1.4}
-                onChange=${function (v) { set({ waveHeight: v }); }} />
-              <${DG.Choice} label="Displacement" value=${params.waveMode}
-                options=${[
-                  { id: 'ridge', label: 'Ridge — rows ride over the form' },
-                  { id: 'bulge', label: 'Bulge — rows open around it' }
-                ]}
-                onChange=${function (v) { set({ waveMode: v }); }} />
-              <label class="check">
-                <input type="checkbox" checked=${params.hideBehind}
-                  onChange=${function (e) { set({ hideBehind: e.target.checked }); }} />
-                <span>Hide what the surface covers</span>
-              </label>
-              <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${2.5}
-                onChange=${function (v) { set({ patternScale: v }); }} />
-              <${DG.Choice} label="Repeat the form" value=${params.repeat}
-                options=${[
-                  { id: 'off', label: 'Single copy' },
-                  { id: 'x', label: 'Repeat across' },
-                  { id: 'grid', label: 'Repeat both ways' }
-                ]}
-                onChange=${function (v) { set({ repeat: v }); }} />
-              <${DG.AngleDial} value=${params.flowAngle} onChange=${function (v) { set({ flowAngle: v }); }} />
-              <${DG.Slider} label="Field drift" value=${params.flowStrength} min=${0} max=${1.5}
-                onChange=${function (v) { set({ flowStrength: v }); }} />
-              <p class="hint">
-                Rows of points run along the angle and are pushed out of line by the
-                height of ${preset.name.toLowerCase()} beneath them. Shrink the pattern
-                scale and repeat it to tile the wave across the frame.
-              </p>
             </section>
 
             <section>

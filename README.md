@@ -1,8 +1,9 @@
 # Dotted Grid Studio
 
-A React tool for generating dotted grid patterns. Twelve presets describe
-*forms* — waves the grid is pushed into, which is what decides where each dot
-sits — and depth comes from dot size and density being mapped to light.
+A React tool for generating dotted patterns. Twelve presets describe *forms*,
+and the dots are placed by the form itself — strung along its flowing contour
+lines, or on grid rows the form pushes into waves. Depth comes from dot size
+and density being mapped to light.
 
 ![the twelve presets](docs/presets.png)
 
@@ -34,17 +35,28 @@ Each preset is two functions over the form's own coordinates (`js/fields.js`):
 | `flow(x, y) → angle` | the direction the field lines run |
 
 `js/generate.js` reads that density as a **height surface**, not as a mask over
-a fixed lattice. Rows of points run across the frame along the flow angle, and
-each point is pushed perpendicular to its row by the height of the form beneath
-it — so the rows ripple into the shape the preset describes and the dots sit on
-those waves. The same height also drives dot size and the keep/drop decision,
-so light still carries the depth.
+a fixed lattice, and places dots one of two ways.
 
-Rows are generated across the frame's rotated bounding box and clipped to the
-frame, so turning the angle lets the pattern bleed off every edge instead of
-being contained by it. Walking the rows front to back with a per-column horizon
-hides what the surface covers, which keeps steep parts of a form from crowding
-rows into smears.
+**Along flow lines** (the default). `js/streamlines.js` traces curves that
+follow the contours of the height surface — perpendicular to its gradient — and
+keeps them an even distance apart (Jobard & Lefebvre): integrate a curve until
+it leaves the frame, closes on itself, or comes within `dTest` of a curve
+already drawn, then seed the next one a separation away from the one just
+accepted. The curves loop around the form's peaks and part at its saddles, and
+dots are strung along them at even arc length. Turning the angle rotates the
+contour direction, which opens the closed loops into spirals; *detail* folds
+turbulence into the height so the lines wrinkle rather than running smooth.
+
+**On grid rows.** Rows of points run across the frame along the angle, and each
+point is pushed perpendicular to its row by the height of the form beneath it,
+so the rows ripple into the shape the preset describes. Walking the rows front
+to back with a per-column horizon hides what the surface covers, which keeps
+steep parts of a form from crowding rows into smears.
+
+Either way the same height drives dot size and the keep/drop decision, so light
+carries the depth. Geometry is generated across the frame's rotated bounding box
+and clipped, so turning the angle lets the pattern bleed off every edge instead
+of being contained by it.
 
 A preset that does not define `flow` falls back to the tangent of its own
 density contours, so its dots trace the shape's iso-lines.
@@ -70,23 +82,26 @@ density contours, so its dots trace the shape's iso-lines.
 
 The frame is 16:9.
 
-**Grid** — point density (6–120 points across the frame, independent of how big
-the form is), dot size, **dot size variation** (the extent of the difference
-between the smallest and largest dot; at 0 every dot is the same size and only
-density carries the form), depth contrast (gamma on the height before it becomes
-size), density falloff (how much the form thins the points out), jitter and seed.
+**Form** — dot placement (along flow lines, or on grid rows); **pattern scale**,
+the size of one copy of the form, which doubles as a zoom; **repeat**, tiling
+that copy across the frame or in both directions; **detail**, turbulence folded
+into the height; and the **angle of flow** dial. The pattern is drawn past the
+frame's edges and clipped, so at any angle it bleeds off all four sides rather
+than sitting inside them.
 
-**Wave** — wave height, how far the form displaces its rows; displacement mode,
-either *ridge* (rows ride over the form, reading as a surface) or *bulge* (rows
-open away from it); whether to hide what the surface covers; **pattern scale**,
-the size of one copy of the form; and **repeat**, which tiles that copy across
-the frame or in both directions to make a repeating wave. Shrink the pattern and
-raise the point density to fit several copies in.
+**Flow lines** — line density (12–140 lines across the frame) and dot spacing
+along a line, as a fraction of the distance between lines. Well under 1 and the
+dots read as a dotted stroke; above 1 they scatter along the contours.
 
-**Angle of flow** is a dial setting the direction the rows run. The pattern is
-drawn past the frame's edges and clipped, so at any angle it bleeds off all four
-sides rather than sitting inside them. **Field drift** additionally carries
-points along the preset's own field lines.
+**Grid rows** — point density; wave height, how far the form displaces its rows;
+displacement mode, either *ridge* (rows ride over the form, reading as a surface)
+or *bulge* (rows open away from it); whether to hide what the surface covers; and
+field drift, which carries points along the preset's own field lines.
+
+**Dots** — dot size, **dot size variation** (the extent of the difference between
+the smallest and largest dot; at 0 every dot is the same size and only density
+carries the form), depth contrast (gamma on the height before it becomes size),
+density falloff (how much the form thins the dots out), jitter and seed.
 
 **Colour** — solid dots in `#de2027`, `#687099`, `#c5eef9`, white or black, or
 the three-stop gradient `#de2027 → #687099 → #c5eef9`. The gradient can be
@@ -111,7 +126,8 @@ index.html            loads the vendored libraries, then js/ in order
 css/style.css
 js/fields.js          the twelve density + flow fields
 js/color.js           palette, three-stop ramp, gradient mapping
-js/generate.js        height surface -> displaced rows -> dot list, and the renderers
+js/streamlines.js     evenly spaced field lines through the height surface
+js/generate.js        height surface -> dot list (lines or rows), and the renderers
 js/image.js           luminance sampler for image mode
 js/exporters.js       PNG / SVG / JSON download
 js/ui.js              canvas stage, preset thumbnails, control widgets

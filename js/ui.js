@@ -90,7 +90,8 @@ var DG = window.DG || (window.DG = {});
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       var thumbParams = Object.assign({}, params, {
         preset: preset.id,
-        pointDensity: Math.min(24, params.pointDensity)
+        pointDensity: Math.min(24, params.pointDensity),
+        lineDensity: Math.min(26, params.lineDensity)
       });
       DG.renderDots(ctx, DG.generateDots(thumbParams, THUMB_W, THUMB_H), {
         width: THUMB_W,

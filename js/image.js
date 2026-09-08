@@ -12,6 +12,8 @@ var DG = window.DG || (window.DG = {});
   var RES_H = 288;
   var RES_W = Math.round(RES_H * DG.ASPECT);
 
+  var samplerId = 0;
+
   DG.createSampler = function (img) {
     var canvas = document.createElement('canvas');
     canvas.width = RES_W;
@@ -33,12 +35,14 @@ var DG = window.DG || (window.DG = {});
     }
 
     // Addressed in frame coordinates: u and v run 0..1 across the whole frame.
-    return function (u, v) {
+    var sample = function (u, v) {
       var px = Math.round(u * (RES_W - 1));
       var py = Math.round(v * (RES_H - 1));
       if (px < 0 || py < 0 || px >= RES_W || py >= RES_H) return 0;
       return lum[py * RES_W + px];
     };
+    sample.samplerId = ++samplerId;   // lets the line cache tell images apart
+    return sample;
   };
 
   DG.loadImageFile = function (file) {

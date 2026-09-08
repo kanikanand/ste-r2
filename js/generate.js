@@ -21,15 +21,19 @@ var DG = window.DG || (window.DG = {});
 
   DG.DEFAULTS = {
     preset: 'emergence',
+    placement: 'lines',   // lines (dots strung along field lines) | grid (rows of points)
+    lineDensity: 62,      // field lines across the height of the frame
+    dotSpacing: 0.36,     // spacing along a line, against the spacing between lines
+    detail: 0.24,         // turbulence folded into the height, which wrinkles the lines
     pointDensity: 30,     // points across the height of the frame
-    patternScale: 1,      // size of one copy of the form, against frame height
+    patternScale: 1.5,    // size of one copy of the form, against frame height
     repeat: 'off',        // off | x | grid — tile the form into a repeating wave
     waveHeight: 0.55,     // how far the form displaces its rows
     waveMode: 'ridge',    // ridge (rows ride over the surface) | bulge (rows open around it)
     hideBehind: true,     // drop points the surface in front of them occludes
-    dotScale: 0.72,       // largest dot as a fraction of the point spacing
-    sizeVariation: 0.85,  // extent of the difference between small and large dots
-    contrast: 1.0,        // gamma on the height before it becomes size
+    dotScale: 1.1,        // largest dot as a fraction of the point spacing
+    sizeVariation: 0.8,   // extent of the difference between small and large dots
+    contrast: 0.8,        // gamma on the height before it becomes size
     densityFade: 0.2,     // how much the field thins the points out
     flowAngle: 0,         // degrees — the direction the rows run
     flowStrength: 0,      // drift along the preset's own field lines
@@ -46,6 +50,19 @@ var DG = window.DG || (window.DG = {});
   };
 
   var FLOW_STEPS = 6;
+
+  /* Layered sines, for wrinkling the height field. Cheap and seamless. */
+  function turbulence(x, y) {
+    var v = 0;
+    var a = 1;
+    var f = 1.7;
+    for (var i = 0; i < 3; i++) {
+      v += a * Math.sin(x * f + 1.3 * i) * Math.cos(y * f * 1.31 + 2.1 * i);
+      a *= 0.5;
+      f *= 2.13;
+    }
+    return v * 0.57;  // roughly -1..1
+  }
 
   /* Fold a coordinate back into -1..1, for tiling the form. */
   function tile(v) {
@@ -73,6 +90,7 @@ var DG = window.DG || (window.DG = {});
   DG.generateDots = function (params, width, height, sampler) {
     var p = Object.assign({}, DG.DEFAULTS, params);
     var preset = DG.getPreset(p.preset);
+    p.imgKey = sampler ? sampler.samplerId || 0 : 0;
 
     var spacing = height / Math.max(2, p.pointDensity);
     var half = (height * Math.max(0.05, p.patternScale)) / 2;  // half a copy of the form
@@ -104,6 +122,11 @@ var DG = window.DG || (window.DG = {});
 
     function heightAt(fx, fy, x, y) {
       var base = preset.density(fx, fy);
+      // Blended, not added and clamped: adding would push a peak over 1 and the
+      // clamp would flatten it straight back into a plateau.
+      if (p.detail > 0) {
+        base = base * (1 - p.detail) + p.detail * (0.5 + 0.5 * turbulence(fx * 2.4, fy * 2.4));
+      }
       if (!sampler) return base;
       var img = sampler(x / width, y / height);
       if (p.imageInvert) img = 1 - img;
@@ -112,6 +135,16 @@ var DG = window.DG || (window.DG = {});
       else if (p.imageBlend === 'average') v = (img + base) / 2;
       else v = img;
       return DG.clamp01(base + (v - base) * p.imageAmount);
+    }
+
+    /* Height at a frame pixel, going through the tiling. */
+    function heightPx(x, y) {
+      var f = toField(x, y);
+      return DG.clamp01(heightAt(f[0], f[1], x, y));
+    }
+
+    if (p.placement === 'lines') {
+      return DG.dotsAlongLines(p, width, height, heightPx, half, th, ramp, useGradient);
     }
 
     var dots = [];
@@ -193,6 +226,96 @@ var DG = window.DG || (window.DG = {});
         // Density: the darker the field, the more likely the point is dropped.
         var keep = 1 - p.densityFade * (1 - hgt);
         if (hash2(iu, jv, p.seed + 7717) > keep) continue;
+
+        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * hgt);
+        if (r < 0.12) continue;
+
+        var dot = { x: x, y: y, r: r, v: hgt, nx: (x - cx) / (width / 2), ny: (y - cy) / (height / 2) };
+        if (useGradient) {
+          var t = DG.gradientCoord(p.gradientMap, dot);
+          if (p.gradientReverse) t = 1 - t;
+          dot.color = ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(t * (ramp.length - 1))))];
+        }
+        dots.push(dot);
+      }
+    }
+    return dots;
+  };
+
+  /*
+   * Dots strung along evenly spaced field lines.
+   *
+   * The lines follow the contours of the height surface — perpendicular to its
+   * gradient — so they loop around the form's peaks and part at its saddles.
+   * The angle rotates that direction, which opens the closed contours into
+   * spirals. Height still sets dot size and thins the dots out.
+   */
+  var lineCache = new Map();
+  var LINE_CACHE_MAX = 20;
+
+  DG.dotsAlongLines = function (p, width, height, heightPx, half, th, ramp, useGradient) {
+    var dSep = height / Math.max(4, p.lineDensity);
+    var along = dSep * Math.max(0.08, p.dotSpacing);
+    var maxR = (along / 2) * p.dotScale;
+    var grad = Math.max(0.75, dSep * 0.35);   // sampling distance for the gradient
+
+    /*
+     * Contour direction: perpendicular to the gradient. Deep inside a peak the
+     * slope can vanish at close range, so widen the stencil before giving up —
+     * that picks up the shape of the bowl and keeps the lines circulating
+     * instead of collapsing into straight stripes.
+     */
+    function dirAt(x, y) {
+      for (var r = grad, i = 0; i < 3; i++, r *= 4) {
+        var gx = heightPx(x + r, y) - heightPx(x - r, y);
+        var gy = heightPx(x, y + r) - heightPx(x, y - r);
+        if (Math.abs(gx) > 1e-9 || Math.abs(gy) > 1e-9) {
+          return Math.atan2(gy, gx) + Math.PI / 2 + th;
+        }
+      }
+      return th;
+    }
+
+    // Tracing is the expensive part and depends only on the field and the line
+    // spacing, so dot size, spacing and colour changes reuse the same curves.
+    var key = [
+      p.preset, p.patternScale, p.repeat, p.detail, p.flowAngle, p.lineDensity,
+      width, height, p.imgKey || 0, p.imageBlend, p.imageInvert, p.imageAmount
+    ].join('|');
+
+    var lines = lineCache.get(key);
+    if (!lines) {
+      lines = DG.traceStreamlines({
+        width: width,
+        height: height,
+        dSep: dSep,
+        dirAt: dirAt,
+        step: Math.max(0.6, dSep * 0.42)
+      });
+      if (lineCache.size >= LINE_CACHE_MAX) lineCache.delete(lineCache.keys().next().value);
+      lineCache.set(key, lines);
+    }
+
+    var dots = [];
+    var cx = width / 2;
+    var cy = height / 2;
+    var seed = p.seed;
+    var n = 0;
+
+    for (var i = 0; i < lines.length; i++) {
+      var pts = lines[i];
+      var carried = 0;                        // arc length since the last dot
+      for (var k = 2; k < pts.length; k += 2) {
+        var x = pts[k];
+        var y = pts[k + 1];
+        carried += Math.hypot(x - pts[k - 2], y - pts[k - 1]);
+        if (carried < along) continue;
+        carried = 0;
+        n++;
+
+        var hgt = Math.pow(heightPx(x, y), p.contrast);
+        var keep = 1 - p.densityFade * (1 - hgt);
+        if (hash2(i, n, seed + 7717) > keep) continue;
 
         var r = maxR * (1 - p.sizeVariation + p.sizeVariation * hgt);
         if (r < 0.12) continue;
