@@ -10,9 +10,18 @@ and depth comes from dot size and density being mapped to light.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # static bundle in dist/
+npm run dev      # then open the http://localhost:5173 address it prints
+npm run build    # writes a single self-contained dist/index.html
+npm run preview  # serves that build
 ```
+
+`npm run build` inlines the CSS and JS into one file, so `dist/index.html` also
+works opened straight from disk by double-click.
+
+Note that the `index.html` in the project root is only the dev entry point — it
+loads `/src/main.jsx` as an ES module, which browsers block over `file://`.
+Opening it directly shows a short note saying so rather than a blank page. Use
+`npm run dev`, or the built `dist/index.html`.
 
 ## How a pattern is built
 
