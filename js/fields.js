@@ -1,5 +1,5 @@
-/**
- * The twelve fields.
+/* ============================================================================
+ * fields.js — the twelve fields.
  *
  * Every preset is described by two functions in a normalised square where
  * x and y run from -1 to 1:
@@ -13,11 +13,15 @@
  * A preset can omit `flow`, in which case the direction falls back to the
  * tangent of the density contour through that point (see flowAt below), which
  * makes the dots trace the shape's own iso-lines.
- */
+ * ==========================================================================*/
+var DG = window.DG || (window.DG = {});
 
-const TAU = Math.PI * 2;
+(function (DG) {
+  'use strict';
 
-export const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const TAU = Math.PI * 2;
+
+var clamp01 = DG.clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 const gauss = (d, s) => Math.exp(-(d * d) / (2 * s * s));
 
@@ -48,7 +52,7 @@ const segDist = (x, y, ax, ay, bx, by) => {
   return Math.hypot(x - (ax + dx * t), y - (ay + dy * t));
 };
 
-export const PRESETS = [
+var PRESETS = DG.PRESETS = [
   {
     id: 'emergence',
     name: 'Emergence',
@@ -230,20 +234,21 @@ export const PRESETS = [
   },
 ];
 
-export const PRESETS_BY_ID = Object.fromEntries(PRESETS.map((p) => [p.id, p]));
+DG.PRESETS_BY_ID = Object.fromEntries(PRESETS.map(function (p) { return [p.id, p]; }));
 
-export const getPreset = (id) => PRESETS_BY_ID[id] || PRESETS[0];
+DG.getPreset = function (id) { return DG.PRESETS_BY_ID[id] || PRESETS[0]; };
 
 /**
  * Direction of the field line at a point. Presets that define their own `flow`
  * use it; the rest follow the tangent of their density contour, found from a
  * small central difference.
  */
-export function flowAt(preset, x, y) {
+DG.flowAt = function flowAt(preset, x, y) {
   if (preset.flow) return preset.flow(x, y);
   const h = 0.02;
   const gx = preset.density(x + h, y) - preset.density(x - h, y);
   const gy = preset.density(x, y + h) - preset.density(x, y - h);
   if (gx === 0 && gy === 0) return 0;
   return Math.atan2(gy, gx) + Math.PI / 2;
-}
+};
+})(DG);

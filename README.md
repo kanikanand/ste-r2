@@ -4,43 +4,39 @@ A React tool for generating dotted grid patterns. Twelve presets describe
 *fields* — the shapes the dots gather into and the directions their lines flow —
 and depth comes from dot size and density being mapped to light.
 
-![Twelve presets](docs/presets.png)
+![the twelve presets](docs/presets.png)
 
-## Running it
+## Run it
 
-**Without installing anything:** download
-[`dotted-grid-studio.html`](dotted-grid-studio.html) and open it in a browser.
-It is the whole tool — markup, styles and script inlined into one file — and
-everything works offline, exports included.
-
-**From source:**
-
-```bash
-npm install
-npm run dev         # then open the http://localhost:5173 address it prints
-npm run build       # writes a single self-contained dist/index.html
-npm run standalone  # the same, copied to dotted-grid-studio.html
-npm run preview     # serves the build
+```
+open index.html
 ```
 
-Note that the `index.html` in the project root is only the dev entry point — it
-loads `/src/main.jsx` as an ES module, which browsers block over `file://`, so
-opening *that* file directly shows a short note instead of the app. Use
-`npm run dev` or the standalone file above.
+That is the whole setup. There is no build step and no package manager — React
+and htm are vendored in `vendor/`, so the page works offline and straight off
+the filesystem. To serve it instead:
+
+```
+npx http-server -p 8080 .
+```
+
+Markup is written with [htm](https://github.com/developit/htm), which reads like
+JSX but is parsed at runtime, so the components stay React components without
+needing a compiler.
 
 ## How a pattern is built
 
-Each preset is two functions over a normalised square (`src/lib/fields.js`):
+Each preset is two functions over a normalised square (`js/fields.js`):
 
 | | |
 |---|---|
 | `density(x, y) → 0..1` | how much *light* is at this point |
 | `flow(x, y) → angle` | the direction the field lines run |
 
-`src/lib/generate.js` lays a square lattice over the frame, carries each dot
-along the flow field, reads the density at where it lands, and turns that value
-into a radius and a keep/drop decision. So one number — light — drives both dot
-size and dot density, which is what reads as depth.
+`js/generate.js` lays a square lattice over the frame, carries each dot along
+the flow field, reads the density at where it lands, and turns that value into
+a radius and a keep/drop decision. So one number — light — drives both dot size
+and dot density, which is what reads as depth.
 
 A preset that does not define `flow` falls back to the tangent of its own
 density contours, so its dots trace the shape's iso-lines.
@@ -93,12 +89,16 @@ independent and the SVG is true vector circles.
 ## Layout
 
 ```
-src/
-  lib/fields.js      the twelve density + flow fields
-  lib/generate.js    lattice → advection → dot list, canvas and SVG renderers
-  lib/color.js       palette, three-stop ramp, gradient mapping
-  lib/image.js       luminance sampler for image mode
-  lib/exporters.js   PNG / SVG / JSON download
-  components/        canvas stage, preset thumbnails, control widgets
-  App.jsx            state and layout
+index.html            loads the vendored libraries, then js/ in order
+css/style.css
+js/fields.js          the twelve density + flow fields
+js/color.js           palette, three-stop ramp, gradient mapping
+js/generate.js        lattice -> advection -> dot list, canvas and SVG renderers
+js/image.js           luminance sampler for image mode
+js/exporters.js       PNG / SVG / JSON download
+js/ui.js              canvas stage, preset thumbnails, control widgets
+js/app.js             state, layout and mount
+vendor/               react, react-dom, htm
 ```
+
+Everything hangs off a single global `DG` namespace, one file per concern.

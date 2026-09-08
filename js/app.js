@@ -1,0 +1,214 @@
+/* ============================================================================
+ * app.js — application state, layout and mount.
+ * ==========================================================================*/
+var DG = window.DG || (window.DG = {});
+
+(function (DG) {
+  'use strict';
+
+  var html = DG.html;
+  var useState = React.useState;
+  var useCallback = React.useCallback;
+  var useMemo = React.useMemo;
+  var useRef = React.useRef;
+
+  function colourOf(id, list, fallback) {
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i].value;
+    return fallback.value;
+  }
+
+  function App() {
+    var paramsState = useState(DG.DEFAULTS);
+    var params = paramsState[0];
+    var setParams = paramsState[1];
+    var imageState = useState(null); // { sampler, url, name }
+    var image = imageState[0];
+    var setImage = imageState[1];
+    var useImageState = useState(false);
+    var useImage = useImageState[0];
+    var setUseImage = useImageState[1];
+    var countState = useState(0);
+    var count = countState[0];
+    var setCount = countState[1];
+    var exportSizeState = useState(2000);
+    var exportSize = exportSizeState[0];
+    var setExportSize = exportSizeState[1];
+    var fileRef = useRef(null);
+
+    var set = useCallback(function (patch) {
+      setParams(function (prev) { return Object.assign({}, prev, patch); });
+    }, []);
+
+    var preset = DG.getPreset(params.preset);
+    var sampler = useImage && image ? image.sampler : undefined;
+
+    var style = useMemo(function () {
+      return {
+        background: colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[0]),
+        solid: colourOf(params.colorMode, DG.SOLIDS, DG.SOLIDS[0]),
+        useGradient: params.colorMode === 'gradient'
+      };
+    }, [params.background, params.colorMode]);
+
+    function onFile(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      DG.loadImageFile(file).then(function (res) {
+        if (image && image.url) URL.revokeObjectURL(image.url);
+        setImage({ sampler: DG.createSampler(res.img), url: res.url, name: file.name });
+        setUseImage(true);
+      }).catch(function (err) { alert(err.message); });
+    }
+
+    function clearImage() {
+      if (image && image.url) URL.revokeObjectURL(image.url);
+      setImage(null);
+      setUseImage(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+
+    var stem = params.preset + '-dotted-grid';
+
+    return html`
+      <div class="app">
+        <header class="topbar">
+          <div class="brand">
+            <span class="brand-mark"></span>
+            <div>
+              <h1>Dotted Grid Studio</h1>
+              <p>Twelve flow fields · depth through dot size and density</p>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <span class="readout">${count.toLocaleString()} dots</span>
+            <select
+              value=${exportSize}
+              onChange=${function (e) { setExportSize(parseInt(e.target.value, 10)); }}
+            >
+              <option value=${1000}>1000 px</option>
+              <option value=${2000}>2000 px</option>
+              <option value=${4000}>4000 px</option>
+            </select>
+            <button type="button" onClick=${function () { DG.exportPNG(params, sampler, style, exportSize, stem + '.png'); }}>PNG</button>
+            <button type="button" onClick=${function () { DG.exportSVG(params, sampler, style, exportSize, stem + '.svg'); }}>SVG</button>
+            <button type="button" onClick=${function () { DG.exportJSON(params, stem + '.json'); }}>JSON</button>
+          </div>
+        </header>
+
+        <div class="layout">
+          <aside class="panel panel-presets">
+            <h2>Presets</h2>
+            <div class="thumbs">
+              ${DG.PRESETS.map(function (p) {
+                return html`
+                  <${DG.PresetThumb}
+                    key=${p.id}
+                    preset=${p}
+                    params=${params}
+                    style=${style}
+                    active=${p.id === params.preset}
+                    onSelect=${function (id) { set({ preset: id }); }}
+                  />`;
+              })}
+            </div>
+          </aside>
+
+          <main class="canvas-area">
+            <${DG.PatternCanvas} params=${params} sampler=${sampler} style=${style} onCount=${setCount} />
+            <div class="caption">
+              <h2>${preset.name}</h2>
+              <p><em>${preset.subtitle}</em> — ${preset.blurb}</p>
+            </div>
+          </main>
+
+          <aside class="panel panel-controls">
+            <section>
+              <h2>Grid</h2>
+              <${DG.Slider} label="Grid density" value=${params.grid} min=${6} max=${90} step=${1}
+                format=${function (v) { return v + ' × ' + v; }}
+                onChange=${function (v) { set({ grid: v }); }} />
+              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.08} max=${1.4}
+                onChange=${function (v) { set({ dotScale: v }); }} />
+              <${DG.Slider} label="Dot size variation" value=${params.sizeVariation} min=${0} max=${1}
+                onChange=${function (v) { set({ sizeVariation: v }); }} />
+              <${DG.Slider} label="Depth contrast" value=${params.contrast} min=${0.25} max=${3}
+                onChange=${function (v) { set({ contrast: v }); }} />
+              <${DG.Slider} label="Density falloff" value=${params.densityFade} min=${0} max=${1}
+                onChange=${function (v) { set({ densityFade: v }); }} />
+              <${DG.Slider} label="Jitter" value=${params.jitter} min=${0} max=${1}
+                onChange=${function (v) { set({ jitter: v }); }} />
+              <div class="row">
+                <${DG.Slider} label="Seed" value=${params.seed} min=${1} max=${999} step=${1}
+                  format=${function (v) { return String(v); }}
+                  onChange=${function (v) { set({ seed: v }); }} />
+                <button type="button" class="ghost"
+                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+              </div>
+            </section>
+
+            <section>
+              <h2>Flow</h2>
+              <${DG.AngleDial} value=${params.flowAngle} onChange=${function (v) { set({ flowAngle: v }); }} />
+              <${DG.Slider} label="Flow strength" value=${params.flowStrength} min=${0} max=${1.5}
+                onChange=${function (v) { set({ flowStrength: v }); }} />
+              <p class="hint">
+                At zero the dots sit on a straight lattice. Raise it and they are
+                carried along the field lines of ${preset.name.toLowerCase()}.
+              </p>
+            </section>
+
+            <section>
+              <h2>Colour</h2>
+              <${DG.ColourControls} params=${params} set=${set} />
+            </section>
+
+            <section>
+              <h2>Image mode</h2>
+              <p class="hint">Light in the image drives dot size and density.</p>
+              <input ref=${fileRef} type="file" accept="image/*" onChange=${onFile} />
+              ${image && html`
+                <${React.Fragment}>
+                  <div class="image-row">
+                    <img src=${image.url} alt="" />
+                    <div>
+                      <span class="filename">${image.name}</span>
+                      <label class="check">
+                        <input type="checkbox" checked=${useImage}
+                          onChange=${function (e) { setUseImage(e.target.checked); }} />
+                        <span>Use image</span>
+                      </label>
+                      <button type="button" class="ghost" onClick=${clearImage}>Remove</button>
+                    </div>
+                  </div>
+                  <label class="ctrl">
+                    <span class="ctrl-head"><span>Combine with field</span></span>
+                    <select value=${params.imageBlend}
+                      onChange=${function (e) { set({ imageBlend: e.target.value }); }}>
+                      <option value="replace">Replace field</option>
+                      <option value="multiply">Multiply by field</option>
+                      <option value="average">Average with field</option>
+                    </select>
+                  </label>
+                  <${DG.Slider} label="Image amount" value=${params.imageAmount} min=${0} max=${1}
+                    onChange=${function (v) { set({ imageAmount: v }); }} />
+                  <label class="check">
+                    <input type="checkbox" checked=${params.imageInvert}
+                      onChange=${function (e) { set({ imageInvert: e.target.checked }); }} />
+                    <span>Invert light</span>
+                  </label>
+                <//>`}
+            </section>
+
+            <button type="button" class="ghost wide"
+              onClick=${function () { setParams(Object.assign({}, DG.DEFAULTS, { preset: params.preset })); }}>
+              Reset controls
+            </button>
+          </aside>
+        </div>
+      </div>`;
+  }
+
+  DG.App = App;
+
+  ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+})(DG);
