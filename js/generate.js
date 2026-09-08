@@ -1,10 +1,9 @@
 /* ============================================================================
  * generate.js — the dot texture.
  *
- * A plain square lattice of dots. Each preset is a field over the pattern's own
- * coordinates; the field value at a dot sets that dot's size, and thins dots
- * out where it is dark. The lattice itself never moves, so the texture stays
- * regular and tiles cleanly.
+ * A plain square lattice of dots. Each preset is a wave field; its value at a
+ * dot sets that dot's size, and thins dots out where it is dark. The lattice
+ * itself never moves, so the texture stays regular — the waves do the work.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
@@ -26,13 +25,12 @@ var DG = window.DG || (window.DG = {});
   DG.DEFAULTS = {
     preset: 'emergence',
     frame: '16:9',
-    grid: 40,             // dots across the width
+    grid: 56,             // dots across the width
     dotScale: 0.82,       // largest dot, as a fraction of the gap between dots
     sizeVariation: 0.9,   // difference between the smallest and largest dot
     contrast: 1,          // gamma on the field before it becomes size
     scatter: 0,           // randomly thin the dots out where the field is dark
-    patternSize: 1,       // one copy of the pattern, against the frame height
-    tiling: 'tile',       // tile | single
+    waveScale: 1,         // size of the waves, against the frame height
     angle: 0,             // rotates the pattern under the lattice
     seed: 1,
     colorMode: 'red',     // a solid id, or 'gradient'
@@ -43,13 +41,6 @@ var DG = window.DG || (window.DG = {});
     imageBlend: 'replace', // replace | multiply
     imageInvert: false
   };
-
-  /* Fold a coordinate back into -1..1, which is what makes the pattern tile. */
-  function tile(v) {
-    var t = (v + 1) % 2;
-    if (t < 0) t += 2;
-    return t - 1;
-  }
 
   /* Deterministic per-dot noise, so a given seed always redraws identically. */
   function hash2(i, j, seed) {
@@ -73,14 +64,12 @@ var DG = window.DG || (window.DG = {});
     var rows = Math.max(1, Math.round(height / gap));
     var maxR = (gap / 2) * p.dotScale;
 
-    var half = (height * Math.max(0.1, p.patternSize)) / 2;
+    var half = (height * Math.max(0.1, p.waveScale)) / 2;
     var cx = width / 2;
     var cy = height / 2;
     var a = (p.angle * Math.PI) / 180;
     var cos = Math.cos(a);
     var sin = Math.sin(a);
-    var repeat = p.tiling === 'tile';
-
     var ramp = DG.buildRamp();
     var useGradient = p.colorMode === 'gradient';
     var dots = [];
@@ -95,10 +84,6 @@ var DG = window.DG || (window.DG = {});
         var dy = y - cy;
         var fx = (dx * cos + dy * sin) / half;
         var fy = (-dx * sin + dy * cos) / half;
-        if (repeat) {
-          fx = tile(fx);
-          fy = tile(fy);
-        }
 
         var value = preset.density(fx, fy);
         if (sampler) {

@@ -1,11 +1,11 @@
 # Dotted Grid Studio
 
-A React tool for making dotted textures. Twelve presets, each a description of
-how the dots gather; the pattern sets each dot's size and thins them out where
-it is dark. Download the result as an SVG with a transparent background and lay
-it over a photograph.
+A React tool for making dotted textures. Twelve presets, each a wave — the
+description says what the wave does, not what outline it draws — and the wave
+sets each dot's size. Download the result as an SVG with a transparent
+background and lay it over a photograph.
 
-![the twelve patterns](docs/presets.png)
+![the twelve waves](docs/presets.png)
 
 ## Run it
 
@@ -45,28 +45,28 @@ across the frame.
 
 | Preset | Form | Pattern |
 |---|---|---|
-| Emergence | Emerging core | A concentrated circular field. |
-| Ingenuity | Soft star | A rounded central mass stretches into five soft points. |
-| Progress | Directional plume | A right-moving diffused plume. |
-| Convergence | Gathering field | Soft concentrations draw inward to one shared centre through subtle channels. |
-| Expansion | Expanding halo | A broad ring of larger dots surrounds a small, deep central point. |
-| Adaptation | Flowing saddle | A continuous undulating form rises on one side and dips, diffused, on the other. |
-| Connection | Connecting bridge | Two rounded masses joined by a narrow dotted neck. |
-| Collaboration | Interference bloom | Two overlapping fields make a third, denser formation where they meet. |
-| Precision | Focused lens | A flattened ellipse concentrating into a tight central band. |
-| Transformation | Twisted column | A vertical form narrows and turns at its midpoint into differently oriented lobes. |
-| Synergy | Balanced lobes | Rounded volumes gather around a shared centre, distinct but coherent. |
-| Momentum | Continuous wave | A stretched, oscillating ribbon carrying alternating concentrations. |
+| Emergence | Emerging core | Rings radiate from one centre, tightening as they travel out. |
+| Ingenuity | Soft star | The same rings, pulled into five soft points as they spread. |
+| Progress | Directional plume | Bowed wavefronts sweep to the right, opening as they go. |
+| Convergence | Gathering field | Ring sources draw inward, their crests gathering at one centre. |
+| Expansion | Expanding halo | Rings widen as they travel outward, the crests growing apart. |
+| Adaptation | Flowing saddle | Hyperbolic fringes bend through a saddle, rising one way and dipping the other. |
+| Connection | Connecting bridge | Two sources interfere, their fringes bridging the gap between them. |
+| Collaboration | Interference bloom | Two overlapping wave trains beat into a third, denser rhythm. |
+| Precision | Focused lens | Tight parallel bands, bowed just enough to read as a lens. |
+| Transformation | Twisted column | Bands turn as they rise, so the grain runs one way above and another below. |
+| Synergy | Balanced lobes | Three sources at equal spacing settle into one shared weave. |
+| Momentum | Continuous wave | A travelling wave train, its bands oscillating across the frame. |
 
 ## Controls
 
 **Dots** — grid density (8–140 dots across the frame), dot size, **size
-variation** (how much bigger the brightest dot is than the darkest; at 0 every
-dot is the same size), contrast, and scatter, which randomly drops dots out
-where the pattern is dark.
+variation** (how much bigger a crest dot is than a trough dot; at 0 every dot is
+the same size), contrast, and scatter, which randomly drops dots out of the
+troughs. Keep several dots to a band or the grid beats against the wave.
 
-**Pattern** — pattern size, repeat (tile it across the frame, or one copy
-centred), angle, and the frame shape: 16:9, 1:1, 4:5 or 9:16.
+**Wave** — wave scale (how big the bands are), angle, and the frame shape:
+16:9, 1:1, 4:5 or 9:16.
 
 **Colour** — solid dots in `#de2027`, `#687099`, `#c5eef9`, white or black, or
 the three-stop gradient `#de2027 → #687099 → #c5eef9`, mapped to dot size,
@@ -74,7 +74,7 @@ horizontal, vertical, radial or angular position, and reversible. The background
 is transparent by default; black, ink, paper and white are also there.
 
 **Image mode** — optional. Upload an image and its luminance drives dot size
-instead of the pattern, either on its own or confined inside the pattern.
+instead of the wave, either on its own or confined inside the wave.
 
 **Export** — SVG (or PNG) at 1200, 2000 or 3200 px wide. With a transparent
 background the SVG has no backing rectangle, so it drops straight over a
@@ -86,7 +86,7 @@ resolution independent and the SVG is true vector circles.
 ```
 index.html            loads the vendored libraries, then js/ in order
 css/style.css
-js/fields.js          the twelve patterns
+js/fields.js          the twelve waves
 js/color.js           palette, three-stop ramp, gradient mapping
 js/generate.js        lattice -> dot list, and the canvas and SVG renderers
 js/image.js           luminance sampler for image mode

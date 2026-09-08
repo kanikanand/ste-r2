@@ -77,7 +77,7 @@ var DG = window.DG || (window.DG = {});
             <span class="brand-mark"></span>
             <div>
               <h1>Dotted Grid Studio</h1>
-              <p>Twelve dot textures · size and density mapped to light</p>
+              <p>Twelve wave textures · dot size mapped to the wave</p>
             </div>
           </div>
           <div class="topbar-actions">
@@ -98,7 +98,7 @@ var DG = window.DG || (window.DG = {});
 
         <div class="layout">
           <aside class="panel panel-presets">
-            <h2>Patterns</h2>
+            <h2>Waves</h2>
             <div class="thumbs">
               ${DG.PRESETS.map(function (p) {
                 return html`
@@ -147,15 +147,9 @@ var DG = window.DG || (window.DG = {});
             </section>
 
             <section>
-              <h2>Pattern</h2>
-              <${DG.Slider} label="Pattern size" value=${params.patternSize} min=${0.2} max=${3}
-                onChange=${function (v) { set({ patternSize: v }); }} />
-              <${DG.Choice} label="Repeat" value=${params.tiling}
-                options=${[
-                  { id: 'tile', label: 'Tile to fill the frame' },
-                  { id: 'single', label: 'One copy, centred' }
-                ]}
-                onChange=${function (v) { set({ tiling: v }); }} />
+              <h2>Wave</h2>
+              <${DG.Slider} label="Wave scale" value=${params.waveScale} min=${0.2} max=${3}
+                onChange=${function (v) { set({ waveScale: v }); }} />
               <${DG.AngleDial} value=${params.angle} onChange=${function (v) { set({ angle: v }); }} />
               <span class="ctrl-label">Frame</span>
               <div class="chips">
