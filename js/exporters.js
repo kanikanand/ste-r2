@@ -20,13 +20,15 @@ var DG = window.DG || (window.DG = {});
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
-  DG.exportPNG = function (params, sampler, style, size, filename) {
+  DG.exportPNG = function (params, sampler, style, width, filename) {
+    var height = Math.round(width / DG.ASPECT);
     var canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = width;
+    canvas.height = height;
     var ctx = canvas.getContext('2d');
-    DG.renderDots(ctx, DG.generateDots(params, size, sampler), {
-      size: size,
+    DG.renderDots(ctx, DG.generateDots(params, width, height, sampler), {
+      width: width,
+      height: height,
       background: style.background,
       solid: style.solid,
       useGradient: style.useGradient
@@ -34,9 +36,11 @@ var DG = window.DG || (window.DG = {});
     canvas.toBlob(function (blob) { if (blob) download(blob, filename); });
   };
 
-  DG.exportSVG = function (params, sampler, style, size, filename) {
-    var svg = DG.dotsToSVG(DG.generateDots(params, size, sampler), {
-      size: size,
+  DG.exportSVG = function (params, sampler, style, width, filename) {
+    var height = Math.round(width / DG.ASPECT);
+    var svg = DG.dotsToSVG(DG.generateDots(params, width, height, sampler), {
+      width: width,
+      height: height,
       background: style.background,
       solid: style.solid,
       useGradient: style.useGradient

@@ -22,7 +22,7 @@ var DG = window.DG || (window.DG = {});
   DG.PatternCanvas = function PatternCanvas(props) {
     var wrapRef = useRef(null);
     var canvasRef = useRef(null);
-    var sizeState = useState(720);
+    var sizeState = useState({ w: 960, h: 540 });
     var size = sizeState[0];
     var setSize = sizeState[1];
 
@@ -31,7 +31,9 @@ var DG = window.DG || (window.DG = {});
       if (!el || typeof ResizeObserver === 'undefined') return undefined;
       var ro = new ResizeObserver(function (entries) {
         var box = entries[0].contentRect;
-        setSize(Math.max(160, Math.floor(Math.min(box.width, box.height))));
+        // Largest 16:9 frame that fits the available box.
+        var w = Math.max(240, Math.floor(Math.min(box.width, box.height * DG.ASPECT)));
+        setSize({ w: w, h: Math.round(w / DG.ASPECT) });
       });
       ro.observe(el);
       return function () { ro.disconnect(); };
@@ -41,15 +43,16 @@ var DG = window.DG || (window.DG = {});
       var canvas = canvasRef.current;
       if (!canvas) return;
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = size * dpr;
-      canvas.height = size * dpr;
-      canvas.style.width = size + 'px';
-      canvas.style.height = size + 'px';
+      canvas.width = size.w * dpr;
+      canvas.height = size.h * dpr;
+      canvas.style.width = size.w + 'px';
+      canvas.style.height = size.h + 'px';
       var ctx = canvas.getContext('2d');
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var dots = DG.generateDots(props.params, size, props.sampler);
+      var dots = DG.generateDots(props.params, size.w, size.h, props.sampler);
       DG.renderDots(ctx, dots, {
-        size: size,
+        width: size.w,
+        height: size.h,
         background: props.style.background,
         solid: props.style.solid,
         useGradient: props.style.useGradient
@@ -64,7 +67,8 @@ var DG = window.DG || (window.DG = {});
   };
 
   /* ---- one preset preview ------------------------------------------------ */
-  var THUMB = 132;
+  var THUMB_W = 176;
+  var THUMB_H = Math.round(THUMB_W / DG.ASPECT);
 
   /*
    * Always shows the preset's own field — never the uploaded image — so the
@@ -80,16 +84,17 @@ var DG = window.DG || (window.DG = {});
       var canvas = ref.current;
       if (!canvas) return;
       var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = THUMB * dpr;
-      canvas.height = THUMB * dpr;
+      canvas.width = THUMB_W * dpr;
+      canvas.height = THUMB_H * dpr;
       var ctx = canvas.getContext('2d');
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       var thumbParams = Object.assign({}, params, {
         preset: preset.id,
-        grid: Math.min(26, params.grid)
+        pointDensity: Math.min(24, params.pointDensity)
       });
-      DG.renderDots(ctx, DG.generateDots(thumbParams, THUMB), {
-        size: THUMB,
+      DG.renderDots(ctx, DG.generateDots(thumbParams, THUMB_W, THUMB_H), {
+        width: THUMB_W,
+        height: THUMB_H,
         background: style.background,
         solid: style.solid,
         useGradient: style.useGradient
@@ -103,7 +108,7 @@ var DG = window.DG || (window.DG = {});
         onClick=${function () { props.onSelect(preset.id); }}
         title=${preset.blurb}
       >
-        <canvas ref=${ref} style=${{ width: THUMB, height: THUMB }}></canvas>
+        <canvas ref=${ref} style=${{ width: THUMB_W, height: THUMB_H }}></canvas>
         <span class="thumb-name">${preset.name}</span>
         <span class="thumb-sub">${preset.subtitle}</span>
       </button>`;
@@ -194,6 +199,18 @@ var DG = window.DG || (window.DG = {});
           <span class="unit">deg</span>
         </div>
       </div>`;
+  };
+
+  DG.Choice = function Choice(props) {
+    return html`
+      <label class="ctrl">
+        <span class="ctrl-head"><span>${props.label}</span></span>
+        <select value=${props.value} onChange=${function (e) { props.onChange(e.target.value); }}>
+          ${props.options.map(function (o) {
+            return html`<option key=${o.id} value=${o.id}>${o.label}</option>`;
+          })}
+        </select>
+      </label>`;
   };
 
   DG.ColourControls = function ColourControls(props) {

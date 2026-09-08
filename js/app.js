@@ -30,7 +30,7 @@ var DG = window.DG || (window.DG = {});
     var countState = useState(0);
     var count = countState[0];
     var setCount = countState[1];
-    var exportSizeState = useState(2000);
+    var exportSizeState = useState(2560);
     var exportSize = exportSizeState[0];
     var setExportSize = exportSizeState[1];
     var fileRef = useRef(null);
@@ -85,9 +85,9 @@ var DG = window.DG || (window.DG = {});
               value=${exportSize}
               onChange=${function (e) { setExportSize(parseInt(e.target.value, 10)); }}
             >
-              <option value=${1000}>1000 px</option>
-              <option value=${2000}>2000 px</option>
-              <option value=${4000}>4000 px</option>
+              <option value=${1600}>1600 × 900</option>
+              <option value=${2560}>2560 × 1440</option>
+              <option value=${3840}>3840 × 2160</option>
             </select>
             <button type="button" onClick=${function () { DG.exportPNG(params, sampler, style, exportSize, stem + '.png'); }}>PNG</button>
             <button type="button" onClick=${function () { DG.exportSVG(params, sampler, style, exportSize, stem + '.svg'); }}>SVG</button>
@@ -124,9 +124,9 @@ var DG = window.DG || (window.DG = {});
           <aside class="panel panel-controls">
             <section>
               <h2>Grid</h2>
-              <${DG.Slider} label="Grid density" value=${params.grid} min=${6} max=${90} step=${1}
-                format=${function (v) { return v + ' × ' + v; }}
-                onChange=${function (v) { set({ grid: v }); }} />
+              <${DG.Slider} label="Point density" value=${params.pointDensity} min=${6} max=${120} step=${1}
+                format=${function (v) { return v + ' across'; }}
+                onChange=${function (v) { set({ pointDensity: v }); }} />
               <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.08} max=${1.4}
                 onChange=${function (v) { set({ dotScale: v }); }} />
               <${DG.Slider} label="Dot size variation" value=${params.sizeVariation} min=${0} max=${1}
@@ -147,13 +147,36 @@ var DG = window.DG || (window.DG = {});
             </section>
 
             <section>
-              <h2>Flow</h2>
+              <h2>Wave</h2>
+              <${DG.Slider} label="Wave height" value=${params.waveHeight} min=${0} max=${1.4}
+                onChange=${function (v) { set({ waveHeight: v }); }} />
+              <${DG.Choice} label="Displacement" value=${params.waveMode}
+                options=${[
+                  { id: 'ridge', label: 'Ridge — rows ride over the form' },
+                  { id: 'bulge', label: 'Bulge — rows open around it' }
+                ]}
+                onChange=${function (v) { set({ waveMode: v }); }} />
+              <label class="check">
+                <input type="checkbox" checked=${params.hideBehind}
+                  onChange=${function (e) { set({ hideBehind: e.target.checked }); }} />
+                <span>Hide what the surface covers</span>
+              </label>
+              <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${2.5}
+                onChange=${function (v) { set({ patternScale: v }); }} />
+              <${DG.Choice} label="Repeat the form" value=${params.repeat}
+                options=${[
+                  { id: 'off', label: 'Single copy' },
+                  { id: 'x', label: 'Repeat across' },
+                  { id: 'grid', label: 'Repeat both ways' }
+                ]}
+                onChange=${function (v) { set({ repeat: v }); }} />
               <${DG.AngleDial} value=${params.flowAngle} onChange=${function (v) { set({ flowAngle: v }); }} />
-              <${DG.Slider} label="Flow strength" value=${params.flowStrength} min=${0} max=${1.5}
+              <${DG.Slider} label="Field drift" value=${params.flowStrength} min=${0} max=${1.5}
                 onChange=${function (v) { set({ flowStrength: v }); }} />
               <p class="hint">
-                At zero the dots sit on a straight lattice. Raise it and they are
-                carried along the field lines of ${preset.name.toLowerCase()}.
+                Rows of points run along the angle and are pushed out of line by the
+                height of ${preset.name.toLowerCase()} beneath them. Shrink the pattern
+                scale and repeat it to tile the wave across the frame.
               </p>
             </section>
 

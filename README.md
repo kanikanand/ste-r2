@@ -1,8 +1,8 @@
 # Dotted Grid Studio
 
 A React tool for generating dotted grid patterns. Twelve presets describe
-*fields* — the shapes the dots gather into and the directions their lines flow —
-and depth comes from dot size and density being mapped to light.
+*forms* — waves the grid is pushed into, which is what decides where each dot
+sits — and depth comes from dot size and density being mapped to light.
 
 ![the twelve presets](docs/presets.png)
 
@@ -26,17 +26,25 @@ needing a compiler.
 
 ## How a pattern is built
 
-Each preset is two functions over a normalised square (`js/fields.js`):
+Each preset is two functions over the form's own coordinates (`js/fields.js`):
 
 | | |
 |---|---|
-| `density(x, y) → 0..1` | how much *light* is at this point |
+| `density(x, y) → 0..1` | the *height* of the form, and how much light is on it |
 | `flow(x, y) → angle` | the direction the field lines run |
 
-`js/generate.js` lays a square lattice over the frame, carries each dot along
-the flow field, reads the density at where it lands, and turns that value into
-a radius and a keep/drop decision. So one number — light — drives both dot size
-and dot density, which is what reads as depth.
+`js/generate.js` reads that density as a **height surface**, not as a mask over
+a fixed lattice. Rows of points run across the frame along the flow angle, and
+each point is pushed perpendicular to its row by the height of the form beneath
+it — so the rows ripple into the shape the preset describes and the dots sit on
+those waves. The same height also drives dot size and the keep/drop decision,
+so light still carries the depth.
+
+Rows are generated across the frame's rotated bounding box and clipped to the
+frame, so turning the angle lets the pattern bleed off every edge instead of
+being contained by it. Walking the rows front to back with a per-column horizon
+hides what the surface covers, which keeps steep parts of a form from crowding
+rows into smears.
 
 A preset that does not define `flow` falls back to the tangent of its own
 density contours, so its dots trace the shape's iso-lines.
@@ -60,16 +68,25 @@ density contours, so its dots trace the shape's iso-lines.
 
 ## Controls
 
-**Grid** — grid density (6–90 dots across), dot size, **dot size variation**
-(the extent of the difference between the smallest and largest dot; at 0 every
-dot is the same size and only density carries the field), depth contrast (gamma
-on the field before it becomes size), density falloff (how much the field thins
-the lattice out), jitter and seed.
+The frame is 16:9.
 
-**Flow** — **angle of flow**, a dial that rotates every field line, and flow
-strength, which is how far dots are carried along them. At zero the dots sit on
-a straight lattice; raise it and they stream, bunching along the form's edges.
-Dots that run off the frame wrap round, so the square stays full.
+**Grid** — point density (6–120 points across the frame, independent of how big
+the form is), dot size, **dot size variation** (the extent of the difference
+between the smallest and largest dot; at 0 every dot is the same size and only
+density carries the form), depth contrast (gamma on the height before it becomes
+size), density falloff (how much the form thins the points out), jitter and seed.
+
+**Wave** — wave height, how far the form displaces its rows; displacement mode,
+either *ridge* (rows ride over the form, reading as a surface) or *bulge* (rows
+open away from it); whether to hide what the surface covers; **pattern scale**,
+the size of one copy of the form; and **repeat**, which tiles that copy across
+the frame or in both directions to make a repeating wave. Shrink the pattern and
+raise the point density to fit several copies in.
+
+**Angle of flow** is a dial setting the direction the rows run. The pattern is
+drawn past the frame's edges and clipped, so at any angle it bleeds off all four
+sides rather than sitting inside them. **Field drift** additionally carries
+points along the preset's own field lines.
 
 **Colour** — solid dots in `#de2027`, `#687099`, `#c5eef9`, white or black, or
 the three-stop gradient `#de2027 → #687099 → #c5eef9`. The gradient can be
@@ -82,7 +99,8 @@ mask), or average with it, with an amount slider and an invert toggle. The
 preset gallery keeps showing the underlying fields so it still works as a
 picker.
 
-**Export** — PNG or SVG at 1000/2000/4000 px, or the settings as JSON.
+**Export** — PNG or SVG at 1600×900, 2560×1440 or 3840×2160, or the settings as
+JSON.
 Geometry is generated fresh at the export size, so output is resolution
 independent and the SVG is true vector circles.
 
@@ -93,7 +111,7 @@ index.html            loads the vendored libraries, then js/ in order
 css/style.css
 js/fields.js          the twelve density + flow fields
 js/color.js           palette, three-stop ramp, gradient mapping
-js/generate.js        lattice -> advection -> dot list, canvas and SVG renderers
+js/generate.js        height surface -> displaced rows -> dot list, and the renderers
 js/image.js           luminance sampler for image mode
 js/exporters.js       PNG / SVG / JSON download
 js/ui.js              canvas stage, preset thumbnails, control widgets
