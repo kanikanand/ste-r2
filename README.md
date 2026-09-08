@@ -8,20 +8,25 @@ and depth comes from dot size and density being mapped to light.
 
 ## Running it
 
+**Without installing anything:** download
+[`dotted-grid-studio.html`](dotted-grid-studio.html) and open it in a browser.
+It is the whole tool — markup, styles and script inlined into one file — and
+everything works offline, exports included.
+
+**From source:**
+
 ```bash
 npm install
-npm run dev      # then open the http://localhost:5173 address it prints
-npm run build    # writes a single self-contained dist/index.html
-npm run preview  # serves that build
+npm run dev         # then open the http://localhost:5173 address it prints
+npm run build       # writes a single self-contained dist/index.html
+npm run standalone  # the same, copied to dotted-grid-studio.html
+npm run preview     # serves the build
 ```
 
-`npm run build` inlines the CSS and JS into one file, so `dist/index.html` also
-works opened straight from disk by double-click.
-
 Note that the `index.html` in the project root is only the dev entry point — it
-loads `/src/main.jsx` as an ES module, which browsers block over `file://`.
-Opening it directly shows a short note saying so rather than a blank page. Use
-`npm run dev`, or the built `dist/index.html`.
+loads `/src/main.jsx` as an ES module, which browsers block over `file://`, so
+opening *that* file directly shows a short note instead of the app. Use
+`npm run dev` or the standalone file above.
 
 ## How a pattern is built
 
