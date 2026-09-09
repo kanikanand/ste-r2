@@ -40,7 +40,7 @@ var DG = window.DG || (window.DG = {});
     gradientReverse: false,
     background: 'black',
     // Image mode
-    imageBlend: 'multiply', // multiply | average | replace — how the image meets the form
+    imageBlend: 'replace', // replace | average | multiply — how the image sets the tone
     imageInvert: false,
     imageAmount: 1
   };
@@ -157,16 +157,22 @@ var DG = window.DG || (window.DG = {});
       return [(x - cx) / half, (y - cy) / half];
     }
 
-    function heightAt(fx, fy, x, y) {
-      var base = formAt(fx, fy);
-      if (!sampler) return base;
+    /*
+     * An uploaded image supplies the tone — dot size and density — while the
+     * preset keeps the wave to itself. Folding both into one number let the
+     * picture swamp the form, so every preset came out looking the same once an
+     * image was loaded; kept apart, the twelve each shape the picture their own
+     * way.
+     */
+    function toneAt(form, x, y) {
+      if (!sampler) return form;
       var img = sampler(x / width, y / height);
       if (p.imageInvert) img = 1 - img;
       var v;
-      if (p.imageBlend === 'multiply') v = img * base;
-      else if (p.imageBlend === 'average') v = (img + base) / 2;
+      if (p.imageBlend === 'multiply') v = img * form;
+      else if (p.imageBlend === 'average') v = (img + form) / 2;
       else v = img;
-      return DG.clamp01(base + (v - base) * p.imageAmount);
+      return DG.clamp01(form + (v - form) * p.imageAmount);
     }
 
     var dots = [];
@@ -205,8 +211,9 @@ var DG = window.DG || (window.DG = {});
           y = cy + fy * half;
         }
 
-        var raw = DG.clamp01(heightAt(fx, fy, x, y));
-        var hgt = Math.pow(raw, p.contrast);
+        var form = DG.clamp01(formAt(fx, fy));
+        var hgt = Math.pow(form, p.contrast);                       // shapes the wave
+        var tone = Math.pow(toneAt(form, x, y), p.contrast);        // sets size and density
 
         // Push the point out of its row by the height of the form beneath it,
         // along the row's normal. In bulge mode rows open away from the form's
@@ -246,13 +253,13 @@ var DG = window.DG || (window.DG = {});
         if (x < -margin || x > width + margin || y < -margin || y > height + margin) continue;
 
         // Density: the darker the field, the more likely the point is dropped.
-        var keep = 1 - p.densityFade * (1 - hgt);
+        var keep = 1 - p.densityFade * (1 - tone);
         if (hash2(iu, jv, p.seed + 7717) > keep) continue;
 
-        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * hgt);
+        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * tone);
         if (r < 0.12) continue;
 
-        var dot = { x: x, y: y, r: r, v: hgt, nx: (x - cx) / (width / 2), ny: (y - cy) / (height / 2) };
+        var dot = { x: x, y: y, r: r, v: tone, nx: (x - cx) / (width / 2), ny: (y - cy) / (height / 2) };
         if (useGradient) {
           var t = DG.gradientCoord(p.gradientMap, dot);
           if (p.gradientReverse) t = 1 - t;

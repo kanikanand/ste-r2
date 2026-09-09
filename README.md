@@ -115,10 +115,15 @@ The angular mapping runs the ramp out and back rather than round the full
 circle, so both ends land on the same colour instead of meeting as a hard seam.
 
 **Image mode** — upload an image and its luminance drives dot size and density.
-By default it works *inside* the pattern, so each preset still shapes the result
-and the twelve stay distinct; it can also be blended half and half, or take over
-entirely. There is an amount slider and an invert toggle. The preset gallery
-keeps showing the underlying fields so it still works as a picker.
+
+The image supplies the **tone** only; the **wave stays the preset's own**. Those
+are two different jobs and folding them into one number let the picture swamp
+the form, so every preset came out looking much the same once an image was
+loaded. Kept apart, the photograph sets how big each dot is while each of the
+twelve bends the rows its own way. How much of the tone the image takes is a
+choice — all of it, half mixed with the pattern, or only inside the pattern —
+with an amount slider and an invert toggle. The preset gallery keeps showing the
+underlying fields so it still works as a picker.
 
 **Export** — PNG or SVG at 1600×900, 2560×1440 or 3840×2160, or the settings as
 JSON.

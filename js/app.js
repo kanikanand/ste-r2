@@ -191,8 +191,8 @@ var DG = window.DG || (window.DG = {});
             <section>
               <h2>Image mode</h2>
               <p class="hint">
-                Light in the image drives dot size and density. The pattern still
-                shapes it unless you pick image only.
+                Light in the image drives dot size and density. The wave stays the
+                preset's own, so each of the twelve shapes the picture differently.
               </p>
               <input ref=${fileRef} type="file" accept="image/*" onChange=${onFile} />
               ${image && html`
@@ -210,12 +210,12 @@ var DG = window.DG || (window.DG = {});
                     </div>
                   </div>
                   <label class="ctrl">
-                    <span class="ctrl-head"><span>Combine with field</span></span>
+                    <span class="ctrl-head"><span>Tone from the image</span></span>
                     <select value=${params.imageBlend}
                       onChange=${function (e) { set({ imageBlend: e.target.value }); }}>
-                      <option value="multiply">Image inside the pattern</option>
-                      <option value="average">Image blended with the pattern</option>
-                      <option value="replace">Image only, pattern ignored</option>
+                      <option value="replace">All of it</option>
+                      <option value="average">Half, mixed with the pattern</option>
+                      <option value="multiply">Only inside the pattern</option>
                     </select>
                   </label>
                   <${DG.Slider} label="Image amount" value=${params.imageAmount} min=${0} max=${1}
