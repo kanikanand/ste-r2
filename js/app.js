@@ -159,6 +159,18 @@ var DG = window.DG || (window.DG = {});
                   onChange=${function (e) { set({ hideBehind: e.target.checked }); }} />
                 <span>Hide what the surface covers</span>
               </label>
+              <div class="row">
+                <${DG.Slider} label="Angularity" value=${params.angularity} min=${0} max=${1}
+                  onChange=${function (v) { set({ angularity: v }); }} />
+                <select value=${params.facetSides}
+                  onChange=${function (e) { set({ facetSides: parseInt(e.target.value, 10) }); }}>
+                  <option value=${3}>3</option>
+                  <option value=${4}>4</option>
+                  <option value=${5}>5</option>
+                  <option value=${6}>6</option>
+                  <option value=${8}>8</option>
+                </select>
+              </div>
               <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${2.5}
                 onChange=${function (v) { set({ patternScale: v }); }} />
               <${DG.Choice} label="Repeat the form" value=${params.repeat}
@@ -177,9 +189,10 @@ var DG = window.DG || (window.DG = {});
                 onChange=${function (v) { set({ flowStrength: v }); }} />
               <p class="hint">
                 Rows of points run along the angle and are pushed out of line by the
-                height of ${preset.name.toLowerCase()} beneath them. Shrink the pattern
-                scale and repeat it, and the copies overlap and fall out of step
-                rather than stamping out a grid.
+                height of ${preset.name.toLowerCase()} beneath them. Angularity
+                straightens the form's curves into that many sides. Shrink the
+                pattern scale and repeat it, and the copies overlap and fall out of
+                step rather than stamping out a grid.
               </p>
             </section>
 

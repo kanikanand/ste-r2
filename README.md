@@ -66,7 +66,7 @@ density contours, so its dots trace the shape's iso-lines.
 | Preset | Form | Field |
 |---|---|---|
 | Emergence | Emerging core | A concentrated circular field. |
-| Ingenuity | Soft star | A rounded central mass stretches into five soft points. |
+| Ingenuity | Burst | A tight core throws five long rays, far enough apart to read as a burst. |
 | Progress | Directional plume | A right-moving diffused plume, as if zooming in on one of the points. |
 | Convergence | Gathering field | Soft concentrations draw inward to one shared centre through subtle channels. |
 | Expansion | Expanding halo | A broad ring of larger dots surrounds a small, deep central point. |
@@ -90,8 +90,15 @@ size), density falloff (how much the form thins the points out), jitter and seed
 
 **Wave** — wave height, how far the form displaces its rows; displacement mode,
 either *ridge* (rows ride over the form, reading as a surface) or *bulge* (rows
-open away from it); whether to hide what the surface covers; **pattern scale**,
-the size of one copy of the form; and **repeat**.
+open away from it); whether to keep crowded rows apart; **angularity**;
+**pattern scale**, the size of one copy of the form; and **repeat**.
+
+Angularity straightens a form's curves into a given number of sides. Scaling a
+point's radius by the cosine of its angle off the nearest facet centre turns the
+circle `r = R` into a regular n-gon, so it works on any preset without each one
+needing an angular version of itself — at 1 with four sides a dome becomes a
+stepped ziggurat, at 3 a peak. It is a coordinate warp applied before the preset
+is read, so the wave, the tone and the repeat copies all follow it.
 
 Repeating does not tile. Folding the coordinates would stamp out identical
 copies with a seam between them, which reads as a grid rather than a texture.

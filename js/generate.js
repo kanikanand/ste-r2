@@ -27,6 +27,8 @@ var DG = window.DG || (window.DG = {});
     copies: 6,            // how many copies when it repeats
     waveHeight: 0.5,      // how far the form displaces its rows
     waveMode: 'ridge',    // ridge (rows ride over the surface) | bulge (rows open around it)
+    angularity: 0,        // 0 round, 1 straight-sided — how angular the form is
+    facetSides: 6,        // how many sides when it is angular
     hideBehind: true,     // drop points the surface in front of them occludes
     dotScale: 0.72,       // largest dot as a fraction of the point spacing
     sizeVariation: 0.7,   // extent of the difference between small and large dots
@@ -135,15 +137,26 @@ var DG = window.DG || (window.DG = {});
       }
     }
 
+    var angular = Math.max(0, Math.min(1, p.angularity));
+
+    /* The preset, read through the angular warp. */
+    function shapeAt(u, v) {
+      if (angular > 0) {
+        var f = DG.facet(u, v, p.facetSides, angular);
+        return preset.density(f[0], f[1]);
+      }
+      return preset.density(u, v);
+    }
+
     /* The form, once or as the strongest of its overlapping copies. */
     function formAt(fx, fy) {
-      if (!copies) return preset.density(fx, fy);
+      if (!copies) return shapeAt(fx, fy);
       var best = 0;
       for (var c = 0; c < copies.length; c++) {
         var k = copies[c];
         var dx = fx - k.x;
         var dy = fy - k.y;
-        var d = preset.density(
+        var d = shapeAt(
           (dx * k.cos + dy * k.sin) / k.s,
           (-dx * k.sin + dy * k.cos) / k.s
         );

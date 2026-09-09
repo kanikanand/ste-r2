@@ -77,15 +77,17 @@ var PRESETS = DG.PRESETS = [
   {
     id: 'ingenuity',
     name: 'Ingenuity',
-    subtitle: 'Soft star',
-    blurb: 'A rounded central mass stretches into five soft points.',
+    subtitle: 'Burst',
+    blurb: 'A tight core throws five long rays, far enough apart to read as a burst.',
     density(x, y) {
       const r = Math.hypot(x, y);
       const a = Math.atan2(y, x);
-      const R = 0.5 + 0.26 * Math.cos(5 * a - Math.PI / 2);
-      const points = smoothstep(R + 0.2, R - 0.22, r); // the five soft points
-      const core = gauss(r, 0.3); // the simple circle they grow out of
-      return sat(points * 0.8 + core * 0.62);
+      const core = gauss(r, 0.26);
+      // Narrow rays rather than a filled star outline: the higher the power,
+      // the further apart the points read.
+      const spoke = Math.pow(Math.max(0, Math.cos(5 * a - Math.PI / 2)), 6);
+      const rays = spoke * smoothstep(1.45, 0.12, r) * (0.35 + 0.65 * smoothstep(0.05, 0.4, r));
+      return sat(core * 1.15 + rays * 0.95);
     },
     flow: (x, y) => Math.atan2(y, x),
   },
@@ -112,15 +114,17 @@ var PRESETS = DG.PRESETS = [
     subtitle: 'Gathering field',
     blurb: 'Soft concentrations draw inward to one shared centre through subtle channels.',
     density(x, y) {
-      let s = 1.25 * gauss(Math.hypot(x, y), 0.22);
+      // Set wide, so the outer concentrations stay separate and the channels
+      // between them read as a long draw inward rather than a star.
+      let s = 1.15 * gauss(Math.hypot(x, y), 0.2);
       for (let i = 0; i < 5; i++) {
         const a = -Math.PI / 2 + (i * TAU) / 5;
-        const cx = Math.cos(a) * 0.64;
-        const cy = Math.sin(a) * 0.64;
-        s += blob(x, y, cx, cy, 0.2);
-        s += 0.4 * gauss(segDist(x, y, cx, cy, 0, 0), 0.07); // channel
+        const cx = Math.cos(a) * 1.02;
+        const cy = Math.sin(a) * 1.02;
+        s += 0.95 * blob(x, y, cx, cy, 0.17);
+        s += 0.34 * gauss(segDist(x, y, cx, cy, 0, 0), 0.045); // channel
       }
-      return sat(s * 0.78);
+      return sat(s * 0.86);
     },
     // Everything falls toward the centre.
     flow: (x, y) => Math.atan2(-y, -x),
@@ -252,6 +256,26 @@ DG.getPreset = function (id) { return DG.PRESETS_BY_ID[id] || PRESETS[0]; };
  * use it; the rest follow the tangent of their density contour, found from a
  * small central difference.
  */
+/*
+ * Bend a point's coordinates so round contours come out as straight-sided
+ * polygons. Scaling the radius by the cosine of the angle off the nearest
+ * facet centre turns the circle r = R into a regular n-gon, so any preset can
+ * be made angular without each one needing its own version. `amount` blends
+ * from the round original to the fully faceted form.
+ */
+DG.facet = function facet(x, y, sides, amount) {
+  if (!(amount > 0)) return [x, y];
+  var r = Math.hypot(x, y);
+  if (r < 1e-6) return [x, y];
+  var n = Math.max(3, Math.round(sides));
+  var seg = TAU / n;
+  var a = Math.atan2(y, x);
+  var off = a - seg * Math.round(a / seg);        // angle off the nearest facet
+  var k = Math.cos(off) / Math.cos(seg / 2);      // 1 on a corner, less mid-face
+  var m = 1 + (k - 1) * amount;
+  return [x * m, y * m];
+};
+
 DG.flowAt = function flowAt(preset, x, y) {
   if (preset.flow) return preset.flow(x, y);
   const h = 0.02;
