@@ -211,8 +211,8 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'adaptation',
       name: 'Adaptation',
-      form: 'One horizontal wave whose arches all differ — tall and short, smooth and sharp.',
-      blurb: 'A single band crosses the frame; each arch rises to its own height and holds its own shape.',
+      form: 'One broad horizontal wave whose arches all differ — tall and short, smooth and sharp, thick and thin.',
+      blurb: 'A wide band crosses the frame; each arch rises to its own height, holds its own shape, and moves at its own rate.',
       prepare: function (t) {
         return { t: t };
       },
@@ -224,22 +224,29 @@ var DG = window.DG || (window.DG = {});
         // rather than the whole wave sliding past. A travelling wave has to be
         // periodic in its own index to close its loop, which forces every arch
         // to be identical — the one thing this behaviour must not be.
-        var u = fx * 0.62 + 8;
+        var u = fx * 0.5 + 8;
         var i = Math.floor(u);
         var s = u - i;
 
-        // Each arch keeps its own height, its own shape and its own moment,
-        // and each animates on a whole turn.
-        var tall = 0.30 + 0.62 * hash3(i, 3, 21);
-        var when = hash3(i, 7, 33);
-        var swing = 0.5 + 0.5 * Math.sin(TAU * (c.t + when));
-        var height = tall * (0.42 + 0.72 * swing);
+        /*
+         * Each arch moves at its own RATE, not merely on its own phase. Give
+         * them all one turn per cycle and they rise and fall together whenever
+         * their phases happen to sit near each other — which they will, since
+         * only two or three arches are on screen at once, and three hashes are
+         * far too small a sample to look spread out. Different whole numbers
+         * of turns is what makes the movement read as uneven; whole numbers,
+         * so each still closes its own loop.
+         */
+        var rate = 1 + Math.floor(hash3(i, 23, 71) * 3);
+        var swing = 0.5 + 0.5 * Math.sin(TAU * (rate * c.t + hash3(i, 7, 33)));
+        var height = (0.40 + 0.62 * hash3(i, 3, 21)) * (0.5 + 0.7 * swing);
 
         // The exponent is what separates a round arch from a peaked one. Below
         // 1 the crest flattens into a shoulder; above it the arch draws to a
-        // point.
-        var soft = 0.45 + 1.9 * hash3(i, 11, 45);
-        var edge = soft * (0.55 + 0.9 * (0.5 - 0.5 * Math.cos(TAU * (c.t + hash3(i, 13, 57)))));
+        // point. It runs at its own rate too.
+        var srate = 1 + Math.floor(hash3(i, 29, 83) * 3);
+        var soft = 0.5 + 1.8 * hash3(i, 11, 45);
+        var edge = soft * (0.55 + 0.9 * (0.5 - 0.5 * Math.cos(TAU * (srate * c.t + hash3(i, 13, 57)))));
         var lift = Math.pow(Math.sin(Math.PI * s), Math.max(0.35, edge));
 
         // Alternating, so consecutive arches read as one wave rather than as a
@@ -247,9 +254,15 @@ var DG = window.DG || (window.DG = {});
         // band is continuous across the joins whatever the exponents do.
         var centre = ((i & 1) ? -1 : 1) * height * lift;
 
-        // Thickness varies too: a wave of even weight looks drawn, not grown.
-        var band = 0.16 + 0.13 * hash3(i, 17, 69);
-        return clamp01(0.08 + 1.1 * (1 - smoothstep(band * 0.45, band, Math.abs(fy - centre))));
+        // A broad band, and one that swells along its own length: the extra
+        // TAU * s term walks the bulge through the arch as the cycle turns, so
+        // the wave thickens and thins where it stands instead of only rising
+        // and falling.
+        var brate = 1 + Math.floor(hash3(i, 31, 95) * 3);
+        var bulge = 0.72 + 0.5 * (0.5 + 0.5 * Math.sin(TAU * (brate * c.t + hash3(i, 37, 101)) + TAU * s));
+        var band = (0.44 + 0.34 * hash3(i, 17, 69)) * bulge;
+
+        return clamp01(0.08 + 1.1 * (1 - smoothstep(band * 0.5, band, Math.abs(fy - centre))));
       }
     },
     {
