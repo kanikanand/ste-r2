@@ -25,11 +25,11 @@ var DG = window.DG || (window.DG = {});
     patternScale: 1,      // size of one copy of the form, against frame height
     repeat: 'single',     // single | scatter | radial — how the form repeats
     copies: 6,            // how many copies when it repeats
-    waveHeight: 0.55,     // how far the form displaces its rows
+    waveHeight: 0.5,      // how far the form displaces its rows
     waveMode: 'ridge',    // ridge (rows ride over the surface) | bulge (rows open around it)
     hideBehind: true,     // drop points the surface in front of them occludes
     dotScale: 0.72,       // largest dot as a fraction of the point spacing
-    sizeVariation: 0.85,  // extent of the difference between small and large dots
+    sizeVariation: 0.7,   // extent of the difference between small and large dots
     contrast: 1.0,        // gamma on the height before it becomes size
     densityFade: 0.2,     // how much the field thins the points out
     flowAngle: 0,         // degrees — the direction the rows run
@@ -40,7 +40,7 @@ var DG = window.DG || (window.DG = {});
     gradientReverse: false,
     background: 'black',
     // Image mode
-    imageBlend: 'replace', // replace | multiply | average
+    imageBlend: 'multiply', // multiply | average | replace — how the image meets the form
     imageInvert: false,
     imageAmount: 1
   };
@@ -172,15 +172,14 @@ var DG = window.DG || (window.DG = {});
     var dots = [];
     var margin = maxR + 1;
 
-    // Horizon per column, for hiding what the surface occludes. Rows are walked
-    // front to back and a point is kept only if it clears everything already
-    // drawn in front of it — which is also what stops steep parts of the form
-    // from crowding rows into smears.
-    var occlude = p.hideBehind && p.waveMode === 'ridge' && amp !== 0;
-    var horizon = occlude ? new Float64Array(2 * steps + 1).fill(Infinity) : null;
-    // Rows crowding closer than this are smeared into each other, so the ones
-    // behind are dropped rather than drawn on top of the row in front.
-    var minGap = maxR * 1.2;
+    // Horizon per column. Rows are walked front to back, and where the form is
+    // too steep for the row spacing the row behind is held back to keep a gap
+    // rather than being dropped. Dropping them cut a hard silhouette and left
+    // the crest a solid cap; holding them back rounds the crest off and every
+    // point stays on the page.
+    var relax = p.hideBehind && p.waveMode === 'ridge' && amp !== 0;
+    var horizon = relax ? new Float64Array(2 * steps + 1).fill(Infinity) : null;
+    var minGap = spacing * 0.62;
 
     for (var jv = steps; jv >= -steps; jv--) {
       var v = jv * spacing;                    // which row
@@ -217,8 +216,10 @@ var DG = window.DG || (window.DG = {});
           var d;
           if (p.waveMode === 'ridge') {
             // Measured from mid-height, so the form straddles its rows instead
-            // of piling the whole pattern to one side.
-            d = -(hgt - 0.5) * amp;
+            // of piling the whole pattern to one side. Eased, so the wave
+            // rounds over its crest rather than driving straight into it.
+            var e = hgt * hgt * (3 - 2 * hgt);
+            d = -(e - 0.5) * amp;
           } else {
             var side = -(x - cx) * sin + (y - cy) * cos;   // offset along the normal
             d = (side < 0 ? -1 : 1) * hgt * amp;
@@ -226,10 +227,17 @@ var DG = window.DG || (window.DG = {});
           x += -sin * d;
           y += cos * d;
 
-          if (occlude) {
+          if (relax) {
             var col = iu + steps;
             var vDisp = v + d;                 // where the row sits after displacing
-            if (vDisp >= horizon[col] - minGap) continue;
+            var limit = horizon[col] - minGap;
+            if (vDisp > limit) {
+              // Too close to the row in front: ease it back to the gap.
+              var pull = vDisp - limit;
+              x -= -sin * pull;
+              y -= cos * pull;
+              vDisp = limit;
+            }
             horizon[col] = vDisp;
           }
         }

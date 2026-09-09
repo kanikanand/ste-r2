@@ -42,9 +42,21 @@ so light still carries the depth.
 
 Rows are generated across the frame's rotated bounding box and clipped to the
 frame, so turning the angle lets the pattern bleed off every edge instead of
-being contained by it. Walking the rows front to back with a per-column horizon
-hides what the surface covers, which keeps steep parts of a form from crowding
-rows into smears.
+being contained by it.
+
+Two details keep the wave reading as a rhythm rather than a relief:
+
+- Each preset finishes with a **soft ceiling** rather than a hard clamp. A clamp
+  pins the top of a form at exactly 1 across a broad area, and a flat top
+  displaces every row it covers by the same amount — the rows keep their spacing
+  and read as a solid slab with a hard edge where the plateau stops. The soft
+  ceiling is the identity below 0.6 and eases onto 1 above it, so the crest
+  keeps enough slope for the rows to go on separating.
+- Where the form is steeper than the row spacing, the row behind is **held back
+  to keep a gap** rather than dropped. Dropping it cut a hard silhouette and
+  left the crest a dense cap; holding it back rounds the crest over and every
+  point stays on the page. The displacement is eased too, so the wave rolls over
+  its crest instead of driving into it.
 
 A preset that does not define `flow` falls back to the tangent of its own
 density contours, so its dots trace the shape's iso-lines.
@@ -103,10 +115,10 @@ The angular mapping runs the ramp out and back rather than round the full
 circle, so both ends land on the same colour instead of meeting as a hard seam.
 
 **Image mode** — upload an image and its luminance drives dot size and density.
-It can replace the preset field, multiply with it (the preset then acts as a
-mask), or average with it, with an amount slider and an invert toggle. The
-preset gallery keeps showing the underlying fields so it still works as a
-picker.
+By default it works *inside* the pattern, so each preset still shapes the result
+and the twelve stay distinct; it can also be blended half and half, or take over
+entirely. There is an amount slider and an invert toggle. The preset gallery
+keeps showing the underlying fields so it still works as a picker.
 
 **Export** — PNG or SVG at 1600×900, 2560×1440 or 3840×2160, or the settings as
 JSON.
