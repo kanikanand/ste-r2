@@ -71,6 +71,13 @@ var DG = window.DG || (window.DG = {});
     var useGradient = p.colorMode === 'gradient';
     var dots = [];
 
+    // Some behaviours need work done once per frame rather than per dot — a
+    // curve sampled, a set of clusters resolved — and some move their dots as
+    // well as resizing them. Both are optional; a pattern that needs neither
+    // just reads its value and the lattice stays put.
+    var ctx = pattern.prepare ? pattern.prepare(phase, p) : null;
+    var half2 = half;
+
     for (var j = 0; j < rows; j++) {
       for (var i = 0; i < cols; i++) {
         var x = (i + 0.5) * gap;
@@ -82,14 +89,22 @@ var DG = window.DG || (window.DG = {});
         var fx = dx * cos + dy * sin;
         var fy = -dx * sin + dy * cos;
 
-        var v = Math.pow(DG.clamp01(pattern.at(fx, fy, phase, p)), p.contrast);
+        var v = Math.pow(DG.clamp01(pattern.at(fx, fy, phase, p, ctx)), p.contrast);
 
         if (p.scatter > 0 && hash2(i, j, p.seed) > 1 - p.scatter * (1 - v)) continue;
 
         var r = maxR * (1 - p.sizeVariation + p.sizeVariation * v);
         if (r < 0.1) continue;
 
-        var dot = { x: x, y: y, r: r, v: v, nx: dx, ny: dy };
+        var px = x;
+        var py = y;
+        if (pattern.offset) {
+          var off = pattern.offset(fx, fy, phase, p, ctx);
+          px += off[0] * half2;
+          py += off[1] * half2;
+        }
+
+        var dot = { x: px, y: py, r: r, v: v, nx: dx, ny: dy };
         if (useGradient) {
           var g = DG.gradientCoord(p.gradientMap, dot);
           if (p.gradientReverse) g = 1 - g;

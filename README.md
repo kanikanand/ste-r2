@@ -21,14 +21,17 @@ npx http-server -p 8080 .
 
 ## The six patterns
 
-| Pattern | Motion |
-|---|---|
-| Expansion | Rings travel outward, the dots swelling as each one passes. |
-| Convergence | The same rings drawn inward, gathering on the centre. |
-| Diffusion | Loose clusters break up and reform as they drift. |
-| Intelligence | Rows break into runs that slide past each other. |
-| Adaptation | A diagonal grade sweeps across, one corner filling as the other empties. |
-| Synchronise | An S-shaped band travels through, the rows falling into step behind it. |
+Six behaviours of one dot system, not six unrelated graphics. The circles are
+the base geometry; radius, local spacing and selective absence do the rest.
+
+| Pattern | Emerging form | Motion |
+|---|---|---|
+| Expansion | A directional field growing from fine grain into visual mass. | A broad swell travels diagonally from the heavy corner. |
+| Convergence | A soft central concentration, like a lens or a gravitational well. | The centre inhales — dots swell and draw in, then return. |
+| Diffusion | A stable lattice turning porous, opening irregular white channels. | Pockets of empty space migrate; dots shrink away ahead and regrow behind. |
+| Intelligence | Clustered information — an abstract circuit, or glyphs that never resolve. | Clusters light up in turn, one gaining as its neighbour recedes. |
+| Adaptation | A flowing, folded ribbon revealed only through changes in dot scale. | The band flexes across the field; the dots never move, they take turns being heavy. |
+| Synchronise | Horizontal signals that drift, lock to a shared beat, and part again. | Pulses travel at one speed but out of phase, align, hold, then separate. |
 
 ## How the motion works
 
@@ -39,17 +42,20 @@ dots swelling and shrinking in turn rather than by anything sliding about.
 
 Periodicity is the whole trick: footage is recorded over a whole number of
 cycles, so a ten second file and a one minute file both loop without a jump at
-the join. Three of the six needed care to get there, and each was caught by
-testing `f(t=0) === f(t=1)` before any of it reached a file:
+the join. It constrains every animated term — each must complete a whole number
+of turns per cycle — and nearly every way it goes wrong is a term completing
+half a turn, or a cross-fade easing back to the wrong end. The looping noise is
+cross-faded *straight across* for exactly that reason: an eased fade returns to
+the layer it left rather than the one it is heading for.
 
-- The drifting noise cross-faded between two layers on an eased curve, which
-  returned to the wrong layer at the end of a cycle. Fading straight across
-  lands back on the layer the cycle began on.
-- *Intelligence* slid its runs along by an arbitrary shift, so a cycle ended on
-  different runs than it started. Wrapping the run index on its own period fixes
-  it.
-- *Synchronise* modulated its band at half rate, which takes two cycles to come
-  back. At twice the rate it closes on one.
+Two behaviours need more than a value per dot, so a pattern may also declare:
+
+- `prepare(t, p)` — work done once per frame, returned as a context. *Adaptation*
+  samples its curve here; sampling it per dot would be wasteful.
+- `offset(...)` — a displacement, for the few cases where moving a dot says
+  something resizing it cannot. *Convergence* draws dots towards its centre in
+  proportion to how much they belong to it, capped well inside the gap so
+  neighbours never trade places.
 
 ## Downloads
 
