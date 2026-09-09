@@ -162,24 +162,19 @@ var DG = window.DG || (window.DG = {});
               <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${2.5}
                 onChange=${function (v) { set({ patternScale: v }); }} />
               <${DG.Choice} label="Repeat the form" value=${params.repeat}
-                options=${[
-                  { id: 'single', label: 'One copy' },
-                  { id: 'scatter', label: 'Scattered — overlapping copies' },
-                  { id: 'radial', label: 'Radiating — set around a centre' }
-                ]}
+                options=${DG.WALLPAPER}
                 onChange=${function (v) { set({ repeat: v }); }} />
-              ${params.repeat !== 'single' && html`
-                <${DG.Slider} label="Copies" value=${params.copies} min=${2} max=${16} step=${1}
-                  format=${function (v) { return String(v); }}
-                  onChange=${function (v) { set({ copies: v }); }} />`}
+              <${DG.Slider} label="Softness" value=${params.softness} min=${0} max=${1}
+                onChange=${function (v) { set({ softness: v }); }} />
               <${DG.AngleDial} value=${params.flowAngle} onChange=${function (v) { set({ flowAngle: v }); }} />
               <${DG.Slider} label="Field drift" value=${params.flowStrength} min=${0} max=${1.5}
                 onChange=${function (v) { set({ flowStrength: v }); }} />
               <p class="hint">
                 Rows of points run along the angle and are pushed out of line by the
-                height of ${preset.name.toLowerCase()} beneath them. Shrink the pattern
-                scale and repeat it, and the copies overlap and fall out of step
-                rather than stamping out a grid.
+                height of ${preset.name.toLowerCase()} beneath them. Repeating folds
+                the form through one of the plane symmetry groups — mirrors, glides
+                and rotations, not just translation. Softness blurs the form, so its
+                edges and the seams between copies stay smooth.
               </p>
             </section>
 

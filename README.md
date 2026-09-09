@@ -93,13 +93,22 @@ either *ridge* (rows ride over the form, reading as a surface) or *bulge* (rows
 open away from it); whether to hide what the surface covers; **pattern scale**,
 the size of one copy of the form; and **repeat**.
 
-Repeating does not tile. Folding the coordinates would stamp out identical
-copies with a seam between them, which reads as a grid rather than a texture.
-Instead each copy gets its own place, turn and size, and they are combined by
-taking whichever reads strongest at that point — so copies overlap and fall out
-of step. *Scattered* spreads them loosely over the frame; *radiating* sets them
-around a centre, each turned to face outward. Shrink the pattern scale and raise
-the copy count to fit more in.
+Repeating goes through the **plane symmetry groups** — p1, p2, pm, pg, pmm,
+pgg, p4, p4m, p3, p6 and p6m — so a form is repeated under mirrors, glides and
+rotations rather than by translation alone.
+
+Folding a point down into a fundamental domain is the textbook construction,
+and it is right for a motif drawn to fill that domain. These forms are not: they
+fill the whole cell, so folding read only the slice that fell inside the wedge
+and threw the rest away, which left the rotation groups all but empty. The
+pattern is the strongest of a point's images under the group instead. That
+replicates the whole form and is just as invariant — a group element only
+permutes a point's images, so the strongest of them does not move. Every group
+is checked against its own generators and holds to floating-point exactness.
+
+Where a form already carries a symmetry, groups that differ only by it will
+coincide: a radially symmetric preset renders the same under p1, p2, p4 and the
+rest, which is correct rather than a fault.
 
 **Angle of flow** is a dial setting the direction the rows run. The pattern is
 drawn past the frame's edges and clipped, so at any angle it bleeds off all four

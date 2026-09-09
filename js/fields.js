@@ -84,9 +84,9 @@ var PRESETS = DG.PRESETS = [
       const a = Math.atan2(y, x);
       // Eight lobes, raised to a power so the points taper and the valleys
       // between them stay wide and open rather than pinching.
-      const lobe = Math.pow(0.5 + 0.5 * Math.cos(8 * a), 1.85);
-      const R = 0.38 + 0.62 * lobe;               // valleys at 0.38, tips at 1.0
-      const body = smoothstep(R + 0.13, R - 0.13, r); // the soft edge rounds the tips
+      const lobe = Math.pow(0.5 + 0.5 * Math.cos(8 * a), 1.5);
+      const R = 0.4 + 0.6 * lobe;                 // valleys at 0.4, tips at 1.0
+      const body = smoothstep(R + 0.3, R - 0.3, r);  // a wide edge, so the points stay soft
       const core = gauss(r, 0.34);                // the centre stays solid
       return sat(body * 0.85 + core * 0.55);
     },
