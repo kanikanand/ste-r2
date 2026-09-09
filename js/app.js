@@ -190,7 +190,11 @@ var DG = window.DG || (window.DG = {});
 
             <section>
               <h2>Image mode</h2>
-              <p class="hint">Light in the image drives dot size and density.</p>
+              <p class="hint">
+                Light in the image drives dot size and density, and the pattern's
+                shape pushes the picture around as it is read — so each of the
+                twelve bends the same photograph its own way.
+              </p>
               <input ref=${fileRef} type="file" accept="image/*" onChange=${onFile} />
               ${image && html`
                 <${React.Fragment}>
@@ -207,14 +211,16 @@ var DG = window.DG || (window.DG = {});
                     </div>
                   </div>
                   <label class="ctrl">
-                    <span class="ctrl-head"><span>Combine with field</span></span>
+                    <span class="ctrl-head"><span>Tone from the image</span></span>
                     <select value=${params.imageBlend}
                       onChange=${function (e) { set({ imageBlend: e.target.value }); }}>
                       <option value="average">Half image, half pattern</option>
                       <option value="multiply">Image inside the pattern</option>
-                      <option value="replace">Image only — all twelve look alike</option>
+                      <option value="replace">Image only</option>
                     </select>
                   </label>
+                  <${DG.Slider} label="Distortion" value=${params.imageDistort} min=${0} max=${1}
+                    onChange=${function (v) { set({ imageDistort: v }); }} />
                   <${DG.Slider} label="Image amount" value=${params.imageAmount} min=${0} max=${1}
                     onChange=${function (v) { set({ imageAmount: v }); }} />
                   <label class="check">

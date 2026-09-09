@@ -115,10 +115,20 @@ The angular mapping runs the ramp out and back rather than round the full
 circle, so both ends land on the same colour instead of meeting as a hard seam.
 
 **Image mode** — upload an image and its luminance drives dot size and density.
-It can replace the preset field, multiply with it (the preset then acts as a
-mask), or average with it, with an amount slider and an invert toggle. The
-preset gallery keeps showing the underlying fields so it still works as a
-picker.
+
+**Distortion** is what makes the twelve mean something here: the form works as a
+displacement map, and the picture is read from a point pushed along the form's
+slope. It stretches down the flanks and gathers at the crests, so each preset
+bends the same photograph its own way. Blending two heights together can never
+do that — at best it dilutes one with the other, and at full image it leaves the
+form contributing nothing at all. Pushing the sampling point is structural, so
+the twelve stay distinct even when the tone comes entirely from the picture. The
+push is calibrated against how steep each preset actually gets at the current
+scale, so the control behaves the same whatever is loaded.
+
+Tone can come half from the image, only from inside the pattern, or entirely
+from the picture, with an amount slider and an invert toggle. The preset gallery
+keeps showing the underlying fields so it still works as a picker.
 
 **Export** — PNG or SVG at 1600×900, 2560×1440 or 3840×2160, or the settings as
 JSON.

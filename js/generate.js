@@ -45,6 +45,7 @@ var DG = window.DG || (window.DG = {});
     // half keeps the form in the result.
     imageBlend: 'average', // average | multiply | replace
     imageInvert: false,
+    imageDistort: 0.5,    // how hard the form's shape bends the picture
     imageAmount: 1
   };
 
@@ -160,10 +161,55 @@ var DG = window.DG || (window.DG = {});
       return [(x - cx) / half, (y - cy) / half];
     }
 
+    /*
+     * How far the form pushes the picture around, calibrated against how steep
+     * this preset actually gets at this scale so the control behaves the same
+     * whatever is loaded.
+     */
+    var distort = sampler ? Math.max(0, p.imageDistort) : 0;
+    var gEps = 0.05;
+    var maxPush = 0.22 * Math.min(width, height);
+    var gRef = 1e-4;
+    if (distort > 0) {
+      var slopes = [];
+      for (var sy = 0; sy < 10; sy++) {
+        for (var sx = 0; sx < 10; sx++) {
+          var qx = (-1 + (2 * (sx + 0.5)) / 10) * (width / 2 / half);
+          var qy = (-1 + (2 * (sy + 0.5)) / 10) * (height / 2 / half);
+          slopes.push(Math.hypot(
+            formAt(qx + gEps, qy) - formAt(qx - gEps, qy),
+            formAt(qx, qy + gEps) - formAt(qx, qy - gEps)
+          ));
+        }
+      }
+      slopes.sort(function (a, b) { return a - b; });
+      gRef = Math.max(1e-4, slopes[Math.floor(slopes.length * 0.9)]);
+    }
+
     function heightAt(fx, fy, x, y) {
       var base = formAt(fx, fy);
       if (!sampler) return base;
-      var img = sampler(x / width, y / height);
+
+      /*
+       * The form works as a displacement map: the picture is read from a point
+       * pushed along the form's slope, so it stretches down the flanks and
+       * gathers at the crests. Each preset bends the same photograph its own
+       * way, which is where the textures come from — blending two heights
+       * together could never do that.
+       */
+      var sxp = x;
+      var syp = y;
+      if (distort > 0) {
+        var gx = formAt(fx + gEps, fy) - formAt(fx - gEps, fy);
+        var gy = formAt(fx, fy + gEps) - formAt(fx, fy - gEps);
+        var len = Math.hypot(gx, gy);
+        if (len > 1e-9) {
+          var push = Math.min(1, len / gRef) * distort * maxPush;
+          sxp += (gx / len) * push;
+          syp += (gy / len) * push;
+        }
+      }
+      var img = sampler(sxp / width, syp / height);
       if (p.imageInvert) img = 1 - img;
       var v;
       if (p.imageBlend === 'multiply') v = img * base;
