@@ -28,7 +28,6 @@ var DG = window.DG || (window.DG = {});
     waveHeight: 0.55,     // how far the form displaces its rows
     waveMode: 'ridge',    // ridge (rows ride over the surface) | bulge (rows open around it)
     hideBehind: true,     // hold crowded rows apart rather than dropping them
-    detail: 0.35,         // folds weather into the form: swirls, saddles, nested bands
     dotScale: 0.72,       // largest dot as a fraction of the point spacing
     sizeVariation: 0.85,  // extent of the difference between small and large dots
     contrast: 1.0,        // gamma on the height before it becomes size
@@ -47,27 +46,6 @@ var DG = window.DG || (window.DG = {});
   };
 
   var FLOW_STEPS = 6;
-
-  /* Smooth 2D value noise, for giving a form its own weather. */
-  function noise2(x, y, seed) {
-    var x0 = Math.floor(x);
-    var y0 = Math.floor(y);
-    var fx = x - x0;
-    var fy = y - y0;
-    var sx = fx * fx * (3 - 2 * fx);
-    var sy = fy * fy * (3 - 2 * fy);
-    var a = hash2(x0, y0, seed);
-    var b = hash2(x0 + 1, y0, seed);
-    var c = hash2(x0, y0 + 1, seed);
-    var d = hash2(x0 + 1, y0 + 1, seed);
-    var top = a + (b - a) * sx;
-    return top + (c + (d - c) * sx - top) * sy;
-  }
-
-  /* Two octaves, centred on zero. */
-  function fbm(x, y, seed) {
-    return (noise2(x, y, seed) - 0.5) + (noise2(x * 2.3, y * 2.3, seed + 77) - 0.5) * 0.5;
-  }
 
   /* Deterministic per-point noise, so a given seed always redraws identically. */
   function hash2(i, j, seed) {
@@ -157,35 +135,15 @@ var DG = window.DG || (window.DG = {});
       }
     }
 
-    var detail = Math.max(0, p.detail);
-
-    /*
-     * The form with its own weather. Smooth noise bends the reading point
-     * around, which swings the form's contours into swirls and saddles, and a
-     * little of the same noise is folded into the height so a single smooth
-     * dome breaks into nested bands. The rows then ride all of it, so the wave
-     * carries that structure while the dots stay on their grid.
-     */
-    function shapeAt(u, v) {
-      if (detail <= 0) return preset.density(u, v);
-      var nx = u * 0.62;
-      var ny = v * 0.62;
-      var wu = u + detail * 1.15 * fbm(nx, ny, p.seed);
-      var wv = v + detail * 1.15 * fbm(nx + 5.2, ny + 1.3, p.seed + 913);
-      var base = preset.density(wu, wv);
-      var grain = 0.5 + 0.5 * fbm(u * 1.45, v * 1.45, p.seed + 401);
-      return base * (1 - 0.3 * detail) + 0.3 * detail * grain * base * 2.2;
-    }
-
     /* The form, once or as the strongest of its overlapping copies. */
     function formAt(fx, fy) {
-      if (!copies) return shapeAt(fx, fy);
+      if (!copies) return preset.density(fx, fy);
       var best = 0;
       for (var c = 0; c < copies.length; c++) {
         var k = copies[c];
         var dx = fx - k.x;
         var dy = fy - k.y;
-        var d = shapeAt(
+        var d = preset.density(
           (dx * k.cos + dy * k.sin) / k.s,
           (-dx * k.sin + dy * k.cos) / k.s
         );
