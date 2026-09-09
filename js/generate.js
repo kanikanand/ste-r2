@@ -1,14 +1,10 @@
 /* ============================================================================
  * generate.js — the dots for one moment.
  *
- * A plain lattice; the network beneath it does the moving. The pattern's value
- * at each point becomes that dot's size, which is what carries every cluster,
- * route and front on the screen.
- *
- * A dot may also be displaced, but only slightly and only together with its
- * neighbours — the Displacement control is capped at a tenth of the gap. Past
- * that the lattice stops reading as a lattice, and once it does, none of the
- * changes happening on it read as changes.
+ * A plain lattice that never moves; the pattern beneath it does. The pattern's
+ * value at each point becomes that dot's size — that is the only thing it may
+ * become. Nothing displaces a dot from its cell, so every apparent gathering
+ * or thinning of the field is dot area, and the grid stays legible under it.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
@@ -36,18 +32,14 @@ var DG = window.DG || (window.DG = {});
     contrast: 1,          // gamma on the pattern before it becomes size
     scatter: 0,           // randomly thin the dots where the pattern is dark
     scale: 1,             // size of the pattern against the frame height
-    clusters: 18,         // cluster centres across the field
-    distort: 0.35,        // how far the field is warped out of true
-    timing: 0.6,          // how far apart the clusters' own moments sit
-    drift: 0,             // coherent displacement, as a fraction of the gap
     speed: 1,             // cycles per second
     angle: 0,             // turns the pattern under the lattice
     seed: 1,
     shape: 'circle',      // circle | square
-    colorMode: 'red',     // a solid by default: colour is a treatment, not the form
+    colorMode: 'slate',   // a solid by default: colour is a treatment, not the form
     gradientMap: 'y',
     gradientReverse: false,
-    background: 'black'
+    background: 'paper'
   };
 
   function hash2(i, j, seed) {
@@ -91,10 +83,6 @@ var DG = window.DG || (window.DG = {});
     // that needs none just reads its value.
     var ctx = pattern.prepare ? pattern.prepare(phase, p) : null;
 
-    // Capped here rather than in the control, so no stored or hand-edited
-    // value can push the lattice further than a tenth of the gap.
-    var driftPx = Math.min(0.1, Math.max(0, p.drift)) * gap;
-
     for (var j = 0; j < rows; j++) {
       for (var i = 0; i < cols; i++) {
         var x = (i + 0.5) * gap;
@@ -113,14 +101,7 @@ var DG = window.DG || (window.DG = {});
         var r = maxR * (1 - p.sizeVariation + p.sizeVariation * v);
         if (r < 0.1) continue;
 
-        var px = x;
-        var py = y;
-        if (driftPx > 0 && pattern.offset) {
-          var off = pattern.offset(fx, fy, phase, p);
-          if (off) { px += off[0] * driftPx; py += off[1] * driftPx; }
-        }
-
-        var dot = { x: px, y: py, r: r, v: v, nx: dx, ny: dy };
+        var dot = { x: x, y: y, r: r, v: v, nx: dx, ny: dy };
         if (useGradient) {
           var g = DG.gradientCoord(p.gradientMap, dot);
           if (p.gradientReverse) g = 1 - g;
