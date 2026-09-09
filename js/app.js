@@ -159,6 +159,12 @@ var DG = window.DG || (window.DG = {});
                   onChange=${function (e) { set({ hideBehind: e.target.checked }); }} />
                 <span>Keep crowded rows apart</span>
               </label>
+              <div class="row">
+                <${DG.Slider} label="Detail" value=${params.detail} min=${0} max=${1}
+                  onChange=${function (v) { set({ detail: v }); }} />
+                <button type="button" class="ghost"
+                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+              </div>
               <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${2.5}
                 onChange=${function (v) { set({ patternScale: v }); }} />
               <${DG.Choice} label="Repeat the form" value=${params.repeat}

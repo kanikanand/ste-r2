@@ -77,15 +77,18 @@ var PRESETS = DG.PRESETS = [
   {
     id: 'ingenuity',
     name: 'Ingenuity',
-    subtitle: 'Soft star',
-    blurb: 'A rounded central mass stretches into five soft points.',
+    subtitle: 'Eight-point star',
+    blurb: 'A solid centre throws eight tapering points, on the axes and the diagonals.',
     density(x, y) {
       const r = Math.hypot(x, y);
       const a = Math.atan2(y, x);
-      const R = 0.5 + 0.26 * Math.cos(5 * a - Math.PI / 2);
-      const points = smoothstep(R + 0.2, R - 0.22, r); // the five soft points
-      const core = gauss(r, 0.3); // the simple circle they grow out of
-      return sat(points * 0.8 + core * 0.62);
+      // Eight lobes, raised to a power so the points taper and the valleys
+      // between them stay wide and open rather than pinching.
+      const lobe = Math.pow(0.5 + 0.5 * Math.cos(8 * a), 1.85);
+      const R = 0.38 + 0.62 * lobe;               // valleys at 0.38, tips at 1.0
+      const body = smoothstep(R + 0.13, R - 0.13, r); // the soft edge rounds the tips
+      const core = gauss(r, 0.34);                // the centre stays solid
+      return sat(body * 0.85 + core * 0.55);
     },
     flow: (x, y) => Math.atan2(y, x),
   },

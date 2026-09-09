@@ -66,7 +66,7 @@ density contours, so its dots trace the shape's iso-lines.
 | Preset | Form | Field |
 |---|---|---|
 | Emergence | Emerging core | A concentrated circular field. |
-| Ingenuity | Soft star | A rounded central mass stretches into five soft points. |
+| Ingenuity | Eight-point star | A solid centre throws eight tapering points, on the axes and the diagonals. |
 | Progress | Directional plume | A right-moving diffused plume, as if zooming in on one of the points. |
 | Convergence | Gathering field | Soft concentrations draw inward to one shared centre through subtle channels. |
 | Expansion | Expanding halo | A broad ring of larger dots surrounds a small, deep central point. |
