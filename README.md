@@ -82,8 +82,8 @@ density contours, so its dots trace the shape's iso-lines.
 
 The frame is 16:9.
 
-**Grid** — point density (6–120 points across the frame, independent of how big
-the form is), dot size, **dot size variation** (the extent of the difference
+**Grid** — **texture**, point density (6–120 points across the frame,
+independent of how big the form is), dot size, **dot size variation** (the extent of the difference
 between the smallest and largest dot; at 0 every dot is the same size and only
 density carries the form), depth contrast (gamma on the height before it becomes
 size), density falloff (how much the form thins the points out), jitter and seed.
@@ -121,9 +121,19 @@ Four backgrounds.
 The angular mapping runs the ramp out and back rather than round the full
 circle, so both ends land on the same colour instead of meeting as a hard seam.
 
+**Texture** is how a form becomes marks, and it is what gives the twelve their
+range. *Size* is the plain halftone, dot size following the tone. The other
+three hand the form a structural job instead: *scatter* thins the dots out where
+the form is weak, so they cluster and leave voids; *dashes* breaks each row into
+runs that stand or fall together; *steps* lands the sizes on a few levels with
+the form shifting where the bands fall, so the terracing follows its contours.
+Because those are structural, they survive a photograph supplying the tone —
+twelve forms against four textures, each combination its own thing.
+
 **Image mode** — upload an image and its luminance drives dot size and density.
 
-The image supplies the **tone** only; the **wave stays the preset's own**. Those
+The image supplies the **tone** only; the **wave and the texture stay the
+preset's own**. Those
 are two different jobs and folding them into one number let the picture swamp
 the form, so every preset came out looking much the same once an image was
 loaded. Kept apart, the photograph sets how big each dot is while each of the

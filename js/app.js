@@ -124,6 +124,14 @@ var DG = window.DG || (window.DG = {});
           <aside class="panel panel-controls">
             <section>
               <h2>Grid</h2>
+              <${DG.Choice} label="Texture" value=${params.texture}
+                options=${[
+                  { id: 'size', label: 'Size — dot size follows the tone' },
+                  { id: 'scatter', label: 'Scatter — the form thins the dots out' },
+                  { id: 'dashes', label: 'Dashes — the form breaks the rows' },
+                  { id: 'steps', label: 'Steps — sizes land on a few levels' }
+                ]}
+                onChange=${function (v) { set({ texture: v }); }} />
               <${DG.Slider} label="Point density" value=${params.pointDensity} min=${6} max=${120} step=${1}
                 format=${function (v) { return v + ' across'; }}
                 onChange=${function (v) { set({ pointDensity: v }); }} />
@@ -204,8 +212,9 @@ var DG = window.DG || (window.DG = {});
             <section>
               <h2>Image mode</h2>
               <p class="hint">
-                Light in the image drives dot size and density. The wave stays the
-                preset's own, so each of the twelve shapes the picture differently.
+                Light in the image drives dot size and density. The wave and the
+                texture stay the preset's own, so each of the twelve shapes the
+                picture differently.
               </p>
               <input ref=${fileRef} type="file" accept="image/*" onChange=${onFile} />
               ${image && html`
@@ -226,8 +235,8 @@ var DG = window.DG || (window.DG = {});
                     <span class="ctrl-head"><span>Tone from the image</span></span>
                     <select value=${params.imageBlend}
                       onChange=${function (e) { set({ imageBlend: e.target.value }); }}>
-                      <option value="replace">All of it</option>
                       <option value="average">Half, mixed with the pattern</option>
+                      <option value="replace">All of it</option>
                       <option value="multiply">Only inside the pattern</option>
                     </select>
                   </label>

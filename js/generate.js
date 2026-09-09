@@ -27,6 +27,7 @@ var DG = window.DG || (window.DG = {});
     copies: 6,            // how many copies when it repeats
     waveHeight: 0.5,      // how far the form displaces its rows
     waveMode: 'ridge',    // ridge (rows ride over the surface) | bulge (rows open around it)
+    texture: 'size',      // size | scatter | dashes | steps — how the form becomes dots
     angularity: 0,        // 0 round, 1 straight-sided — how angular the form is
     facetSides: 6,        // how many sides when it is angular
     hideBehind: true,     // drop points the surface in front of them occludes
@@ -42,7 +43,7 @@ var DG = window.DG || (window.DG = {});
     gradientReverse: false,
     background: 'black',
     // Image mode
-    imageBlend: 'replace', // replace | average | multiply — how the image sets the tone
+    imageBlend: 'average', // replace | average | multiply — how the image sets the tone
     imageInvert: false,
     imageAmount: 1
   };
@@ -269,10 +270,32 @@ var DG = window.DG || (window.DG = {});
         var keep = 1 - p.densityFade * (1 - tone);
         if (hash2(iu, jv, p.seed + 7717) > keep) continue;
 
-        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * tone);
+        /*
+         * How the form becomes marks. Size is the plain halftone; the other
+         * three hand the form a structural job — which dots survive, where the
+         * rows break, where the size banding falls — so the preset still shows
+         * through when a photograph is supplying the tone.
+         */
+        var size = tone;
+        if (p.texture === 'scatter') {
+          // Dots thin out where the form is weak, clustering because the form
+          // itself is smooth.
+          if (hash2(iu, jv, p.seed + 31) > 0.22 + 0.78 * form) continue;
+        } else if (p.texture === 'dashes') {
+          // Rows break into runs: a whole segment stands or falls together.
+          var seg = Math.floor((iu + jv * 5) / 4);
+          if (hash2(seg, jv, p.seed + 57) > 0.25 + 0.75 * form) continue;
+        } else if (p.texture === 'steps') {
+          // Size lands on a few levels, with the form shifting where the bands
+          // fall, so the terracing follows the form's contours.
+          var levels = 4;
+          size = Math.min(1, (Math.floor(tone * levels + form) + 0.5) / levels);
+        }
+
+        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * size);
         if (r < 0.12) continue;
 
-        var dot = { x: x, y: y, r: r, v: tone, nx: (x - cx) / (width / 2), ny: (y - cy) / (height / 2) };
+        var dot = { x: x, y: y, r: r, v: size, nx: (x - cx) / (width / 2), ny: (y - cy) / (height / 2) };
         if (useGradient) {
           var t = DG.gradientCoord(p.gradientMap, dot);
           if (p.gradientReverse) t = 1 - t;
