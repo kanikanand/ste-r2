@@ -119,8 +119,8 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'convergence',
       name: 'Convergence',
-      form: 'Concentric rings closing on a centre.',
-      blurb: 'Rings travel inward and gather; the lattice underneath never moves.',
+      form: 'Concentric rings closing on a centre, unevenly spaced and unevenly drawn.',
+      blurb: 'Rings travel inward and gather — some broad, some fine, bunching at some radii and opening at others.',
       prepare: function (t) {
         // One slow turn, so the cycle closes exactly where it opened. The
         // rings tighten and open on this breath.
@@ -135,9 +135,29 @@ var DG = window.DG || (window.DG = {});
         //
         // +t, not -t. The phase has to move towards the centre for this to be
         // convergence; outward is the same figure playing backwards.
-        var ring = wave(d * c.k + t);
+        // Two ways of being uneven, and they do different jobs. Warping the
+        // radius before the wave sees it changes where the rings fall — they
+        // bunch at some radii and open out at others. The exponent then
+        // changes how wide each one is drawn. With only the first the rings
+        // are unevenly spaced but all the same weight; with only the second
+        // they are evenly spaced and merely lighter and heavier.
+        //
+        // The warp's slope has to stay positive or rings fold through each
+        // other: 1 - (0.26 * 1.7) - (0.10 * 3.3) leaves 0.23 in hand.
+        var warp = d + 0.26 * Math.sin(d * 1.7 + 1.1) + 0.10 * Math.sin(d * 3.3 - 0.4);
+        var ring = wave(warp * c.k + t);
+        // A wide range, which it can afford now that the centre's weight is
+        // added rather than multiplied: a high exponent narrows a ring without
+        // draining it, so every ring still reaches full size at its crest and
+        // they differ in width instead of in weight.
+        var width = 0.75 + 1.35 * (0.5 + 0.5 * Math.sin(d * 1.3 + 2.0));
+        // The centre's weight is added, not multiplied. Multiplying scales the
+        // ring contrast by the same falloff, so the rings fade out towards the
+        // corners while saturating at 1 in the middle — flat at both ends and
+        // only legible in a band between them. Added, every ring is drawn with
+        // the same contrast and the middle simply carries more weight.
         var core = Math.exp(-(d * d) / (2 * 0.85 * 0.85));
-        return clamp01(0.08 + 1.15 * Math.pow(ring, 0.85) * (0.35 + 0.75 * core));
+        return clamp01(0.05 + 0.20 * core + 0.95 * Math.pow(ring, width));
       }
     },
     {
@@ -191,58 +211,45 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'adaptation',
       name: 'Adaptation',
-      form: 'A flowing, folded ribbon revealed only through changes in dot scale.',
-      blurb: 'A winding band flexes across the field; the dots never move, they take turns being heavy.',
-      prepare: function (t, p) {
-        // A curve whose control points ride whole turns, so it returns exactly.
-        var a = TAU * t;
-        // Waypoints the band actually passes through. Bezier control points
-        // only pull the curve towards themselves, which left the ribbon almost
-        // straight; a Catmull-Rom spline goes through them, so the wind reads.
-        var pts = [
-          [-1.7, -0.55 + 0.2 * Math.sin(a)],
-          [-1.05, -0.62 + 0.18 * Math.sin(a)],
-          [-0.35, 0.5 + 0.26 * Math.cos(a)],
-          [0.35, -0.5 + 0.26 * Math.sin(a)],
-          [1.05, 0.62 + 0.18 * Math.cos(a)],
-          [1.7, 0.55 + 0.2 * Math.cos(a)]
-        ];
-        // Sampled once per frame into a polyline; each dot then only needs its
-        // distance to that, which is cheap.
-        var line = [];
-        for (var seg = 1; seg < pts.length - 2; seg++) {
-          var p0 = pts[seg - 1];
-          var p1 = pts[seg];
-          var p2 = pts[seg + 1];
-          var p3 = pts[seg + 2];
-          for (var i = 0; i < 20; i++) {
-            var u = i / 20;
-            var u2 = u * u;
-            var u3 = u2 * u;
-            line.push(
-              0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * u +
-                (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * u2 +
-                (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * u3),
-              0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * u +
-                (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * u2 +
-                (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * u3)
-            );
-          }
-        }
-        return { line: line, width: 0.3 + 0.06 * Math.sin(a) };
+      form: 'One horizontal wave whose arches all differ — tall and short, smooth and sharp.',
+      blurb: 'A single band crosses the frame; each arch rises to its own height and holds its own shape.',
+      prepare: function (t) {
+        return { t: t };
       },
       at: function (x, y, t, p, c) {
-        var sx = x / p.scale;
-        var sy = y / p.scale;
-        var best = 1e9;
-        var line = c.line;
-        for (var i = 0; i < line.length; i += 2) {
-          var dx = line[i] - sx;
-          var dy = line[i + 1] - sy;
-          var d = dx * dx + dy * dy;
-          if (d < best) best = d;
-        }
-        return clamp01(0.08 + 1.05 * (1 - smoothstep(0, c.width, Math.sqrt(best))));
+        var fx = x / p.scale;
+        var fy = y / p.scale;
+
+        // Arches are fixed in place and change character where they stand,
+        // rather than the whole wave sliding past. A travelling wave has to be
+        // periodic in its own index to close its loop, which forces every arch
+        // to be identical — the one thing this behaviour must not be.
+        var u = fx * 0.62 + 8;
+        var i = Math.floor(u);
+        var s = u - i;
+
+        // Each arch keeps its own height, its own shape and its own moment,
+        // and each animates on a whole turn.
+        var tall = 0.30 + 0.62 * hash3(i, 3, 21);
+        var when = hash3(i, 7, 33);
+        var swing = 0.5 + 0.5 * Math.sin(TAU * (c.t + when));
+        var height = tall * (0.42 + 0.72 * swing);
+
+        // The exponent is what separates a round arch from a peaked one. Below
+        // 1 the crest flattens into a shoulder; above it the arch draws to a
+        // point.
+        var soft = 0.45 + 1.9 * hash3(i, 11, 45);
+        var edge = soft * (0.55 + 0.9 * (0.5 - 0.5 * Math.cos(TAU * (c.t + hash3(i, 13, 57)))));
+        var lift = Math.pow(Math.sin(Math.PI * s), Math.max(0.35, edge));
+
+        // Alternating, so consecutive arches read as one wave rather than as a
+        // row of bumps. sin() reaches zero at both ends of every arch, so the
+        // band is continuous across the joins whatever the exponents do.
+        var centre = ((i & 1) ? -1 : 1) * height * lift;
+
+        // Thickness varies too: a wave of even weight looks drawn, not grown.
+        var band = 0.16 + 0.13 * hash3(i, 17, 69);
+        return clamp01(0.08 + 1.1 * (1 - smoothstep(band * 0.45, band, Math.abs(fy - centre))));
       }
     },
     {
@@ -261,15 +268,27 @@ var DG = window.DG || (window.DG = {});
         // rows and the field reads as scatter.
         var rowH = p.pitch || 2 / Math.max(4, p.grid);
         var row = Math.floor((y + 4) / rowH);
-        var offset = (hash3(row, 2, 8) - 0.5) * 0.85 * (1 - c.sync);  // squeezed out as they lock
-        var pulse = wave(x * 0.8 * p.scale - c.t + offset);
+        // Squeezed towards a shared beat, but only ever towards it. Closing
+        // the offsets completely stacks every row's pulse in the same columns
+        // and the field turns into vertical bars — the rhythm stops being
+        // something you read across a row and becomes a grid.
+        var offset = (hash3(row, 2, 8) - 0.5) * 0.85 * (1 - 0.7 * c.sync);
+        // Rows also run at slightly different pitches, so their crests cannot
+        // line up into columns even at their closest. The coefficient on t is
+        // untouched, so every row still completes a whole turn per cycle.
+        var rate = 0.66 + 0.34 * hash3(row, 9, 12);
+        var pulse = wave(x * 0.8 * rate * p.scale - c.t + offset);
         // Long pulses, short dashes and quiet stretches within each row.
         // Each row shaped differently: some long pulses, some short dashes,
         // some barely there.
         // Rows differ in how long their pulses run, not in how hard they snap:
         // sharpen too far and the runs break into isolated dots.
+        // Rows still differ in how long their runs are, but less than they
+        // did: a wide range of exponents leaves some rows almost solid and
+        // others almost empty, and the field stripes horizontally instead of
+        // reading as several parts keeping time.
         var shape = hash3(row, 6, 4);
-        return clamp01(Math.pow(pulse, 0.75 + 1.5 * shape) * 1.3);
+        return clamp01(Math.pow(pulse, 0.95 + 0.85 * shape) * 1.25);
       }
     }
   ];
