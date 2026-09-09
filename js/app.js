@@ -124,14 +124,6 @@ var DG = window.DG || (window.DG = {});
           <aside class="panel panel-controls">
             <section>
               <h2>Grid</h2>
-              <${DG.Choice} label="Texture" value=${params.texture}
-                options=${[
-                  { id: 'size', label: 'Size — dot size follows the tone' },
-                  { id: 'scatter', label: 'Scatter — the form thins the dots out' },
-                  { id: 'dashes', label: 'Dashes — the form breaks the rows' },
-                  { id: 'steps', label: 'Steps — sizes land on a few levels' }
-                ]}
-                onChange=${function (v) { set({ texture: v }); }} />
               <${DG.Slider} label="Point density" value=${params.pointDensity} min=${6} max=${120} step=${1}
                 format=${function (v) { return v + ' across'; }}
                 onChange=${function (v) { set({ pointDensity: v }); }} />
@@ -165,20 +157,8 @@ var DG = window.DG || (window.DG = {});
               <label class="check">
                 <input type="checkbox" checked=${params.hideBehind}
                   onChange=${function (e) { set({ hideBehind: e.target.checked }); }} />
-                <span>Hide what the surface covers</span>
+                <span>Keep crowded rows apart</span>
               </label>
-              <div class="row">
-                <${DG.Slider} label="Angularity" value=${params.angularity} min=${0} max=${1}
-                  onChange=${function (v) { set({ angularity: v }); }} />
-                <select value=${params.facetSides}
-                  onChange=${function (e) { set({ facetSides: parseInt(e.target.value, 10) }); }}>
-                  <option value=${3}>3</option>
-                  <option value=${4}>4</option>
-                  <option value=${5}>5</option>
-                  <option value=${6}>6</option>
-                  <option value=${8}>8</option>
-                </select>
-              </div>
               <${DG.Slider} label="Pattern scale" value=${params.patternScale} min=${0.15} max=${2.5}
                 onChange=${function (v) { set({ patternScale: v }); }} />
               <${DG.Choice} label="Repeat the form" value=${params.repeat}
@@ -197,10 +177,9 @@ var DG = window.DG || (window.DG = {});
                 onChange=${function (v) { set({ flowStrength: v }); }} />
               <p class="hint">
                 Rows of points run along the angle and are pushed out of line by the
-                height of ${preset.name.toLowerCase()} beneath them. Angularity
-                straightens the form's curves into that many sides. Shrink the
-                pattern scale and repeat it, and the copies overlap and fall out of
-                step rather than stamping out a grid.
+                height of ${preset.name.toLowerCase()} beneath them. Shrink the pattern
+                scale and repeat it, and the copies overlap and fall out of step
+                rather than stamping out a grid.
               </p>
             </section>
 
@@ -211,11 +190,7 @@ var DG = window.DG || (window.DG = {});
 
             <section>
               <h2>Image mode</h2>
-              <p class="hint">
-                Light in the image drives dot size and density. The wave and the
-                texture stay the preset's own, so each of the twelve shapes the
-                picture differently.
-              </p>
+              <p class="hint">Light in the image drives dot size and density.</p>
               <input ref=${fileRef} type="file" accept="image/*" onChange=${onFile} />
               ${image && html`
                 <${React.Fragment}>
@@ -232,12 +207,12 @@ var DG = window.DG || (window.DG = {});
                     </div>
                   </div>
                   <label class="ctrl">
-                    <span class="ctrl-head"><span>Tone from the image</span></span>
+                    <span class="ctrl-head"><span>Combine with field</span></span>
                     <select value=${params.imageBlend}
                       onChange=${function (e) { set({ imageBlend: e.target.value }); }}>
-                      <option value="average">Half, mixed with the pattern</option>
-                      <option value="replace">All of it</option>
-                      <option value="multiply">Only inside the pattern</option>
+                      <option value="replace">Replace field</option>
+                      <option value="multiply">Multiply by field</option>
+                      <option value="average">Average with field</option>
                     </select>
                   </label>
                   <${DG.Slider} label="Image amount" value=${params.imageAmount} min=${0} max=${1}

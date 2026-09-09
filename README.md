@@ -44,19 +44,19 @@ Rows are generated across the frame's rotated bounding box and clipped to the
 frame, so turning the angle lets the pattern bleed off every edge instead of
 being contained by it.
 
-Two details keep the wave reading as a rhythm rather than a relief:
+Two details stop a crest flattening into a slab:
 
 - Each preset finishes with a **soft ceiling** rather than a hard clamp. A clamp
   pins the top of a form at exactly 1 across a broad area, and a flat top
-  displaces every row it covers by the same amount — the rows keep their spacing
-  and read as a solid slab with a hard edge where the plateau stops. The soft
-  ceiling is the identity below 0.6 and eases onto 1 above it, so the crest
-  keeps enough slope for the rows to go on separating.
+  displaces every row it covers by the same amount — those rows keep their
+  spacing and read as a solid slab, with a hard edge where the plateau stops.
+  The soft ceiling is the identity below 0.6 and eases onto 1 above it, so a
+  crest keeps enough slope for its rows to go on separating.
 - Where the form is steeper than the row spacing, the row behind is **held back
   to keep a gap** rather than dropped. Dropping it cut a hard silhouette and
-  left the crest a dense cap; holding it back rounds the crest over and every
-  point stays on the page. The displacement is eased too, so the wave rolls over
-  its crest instead of driving into it.
+  packed the crest into a flat cap; holding it back rounds the crest over and
+  every point stays on the page. The displacement is eased too, so the wave
+  rolls over its crest instead of driving into it.
 
 A preset that does not define `flow` falls back to the tangent of its own
 density contours, so its dots trace the shape's iso-lines.
@@ -66,7 +66,7 @@ density contours, so its dots trace the shape's iso-lines.
 | Preset | Form | Field |
 |---|---|---|
 | Emergence | Emerging core | A concentrated circular field. |
-| Ingenuity | Burst | A tight core throws five long rays, far enough apart to read as a burst. |
+| Ingenuity | Soft star | A rounded central mass stretches into five soft points. |
 | Progress | Directional plume | A right-moving diffused plume, as if zooming in on one of the points. |
 | Convergence | Gathering field | Soft concentrations draw inward to one shared centre through subtle channels. |
 | Expansion | Expanding halo | A broad ring of larger dots surrounds a small, deep central point. |
@@ -82,23 +82,16 @@ density contours, so its dots trace the shape's iso-lines.
 
 The frame is 16:9.
 
-**Grid** — **texture**, point density (6–120 points across the frame,
-independent of how big the form is), dot size, **dot size variation** (the extent of the difference
+**Grid** — point density (6–120 points across the frame, independent of how big
+the form is), dot size, **dot size variation** (the extent of the difference
 between the smallest and largest dot; at 0 every dot is the same size and only
 density carries the form), depth contrast (gamma on the height before it becomes
 size), density falloff (how much the form thins the points out), jitter and seed.
 
 **Wave** — wave height, how far the form displaces its rows; displacement mode,
 either *ridge* (rows ride over the form, reading as a surface) or *bulge* (rows
-open away from it); whether to keep crowded rows apart; **angularity**;
-**pattern scale**, the size of one copy of the form; and **repeat**.
-
-Angularity straightens a form's curves into a given number of sides. Scaling a
-point's radius by the cosine of its angle off the nearest facet centre turns the
-circle `r = R` into a regular n-gon, so it works on any preset without each one
-needing an angular version of itself — at 1 with four sides a dome becomes a
-stepped ziggurat, at 3 a peak. It is a coordinate warp applied before the preset
-is read, so the wave, the tone and the repeat copies all follow it.
+open away from it); whether to hide what the surface covers; **pattern scale**,
+the size of one copy of the form; and **repeat**.
 
 Repeating does not tile. Folding the coordinates would stamp out identical
 copies with a seam between them, which reads as a grid rather than a texture.
@@ -121,26 +114,11 @@ Four backgrounds.
 The angular mapping runs the ramp out and back rather than round the full
 circle, so both ends land on the same colour instead of meeting as a hard seam.
 
-**Texture** is how a form becomes marks, and it is what gives the twelve their
-range. *Size* is the plain halftone, dot size following the tone. The other
-three hand the form a structural job instead: *scatter* thins the dots out where
-the form is weak, so they cluster and leave voids; *dashes* breaks each row into
-runs that stand or fall together; *steps* lands the sizes on a few levels with
-the form shifting where the bands fall, so the terracing follows its contours.
-Because those are structural, they survive a photograph supplying the tone —
-twelve forms against four textures, each combination its own thing.
-
 **Image mode** — upload an image and its luminance drives dot size and density.
-
-The image supplies the **tone** only; the **wave and the texture stay the
-preset's own**. Those
-are two different jobs and folding them into one number let the picture swamp
-the form, so every preset came out looking much the same once an image was
-loaded. Kept apart, the photograph sets how big each dot is while each of the
-twelve bends the rows its own way. How much of the tone the image takes is a
-choice — all of it, half mixed with the pattern, or only inside the pattern —
-with an amount slider and an invert toggle. The preset gallery keeps showing the
-underlying fields so it still works as a picker.
+It can replace the preset field, multiply with it (the preset then acts as a
+mask), or average with it, with an amount slider and an invert toggle. The
+preset gallery keeps showing the underlying fields so it still works as a
+picker.
 
 **Export** — PNG or SVG at 1600×900, 2560×1440 or 3840×2160, or the settings as
 JSON.

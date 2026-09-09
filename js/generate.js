@@ -25,14 +25,11 @@ var DG = window.DG || (window.DG = {});
     patternScale: 1,      // size of one copy of the form, against frame height
     repeat: 'single',     // single | scatter | radial — how the form repeats
     copies: 6,            // how many copies when it repeats
-    waveHeight: 0.5,      // how far the form displaces its rows
+    waveHeight: 0.55,     // how far the form displaces its rows
     waveMode: 'ridge',    // ridge (rows ride over the surface) | bulge (rows open around it)
-    texture: 'size',      // size | scatter | dashes | steps — how the form becomes dots
-    angularity: 0,        // 0 round, 1 straight-sided — how angular the form is
-    facetSides: 6,        // how many sides when it is angular
     hideBehind: true,     // drop points the surface in front of them occludes
     dotScale: 0.72,       // largest dot as a fraction of the point spacing
-    sizeVariation: 0.7,   // extent of the difference between small and large dots
+    sizeVariation: 0.85,  // extent of the difference between small and large dots
     contrast: 1.0,        // gamma on the height before it becomes size
     densityFade: 0.2,     // how much the field thins the points out
     flowAngle: 0,         // degrees — the direction the rows run
@@ -43,7 +40,7 @@ var DG = window.DG || (window.DG = {});
     gradientReverse: false,
     background: 'black',
     // Image mode
-    imageBlend: 'average', // replace | average | multiply — how the image sets the tone
+    imageBlend: 'replace', // replace | multiply | average
     imageInvert: false,
     imageAmount: 1
   };
@@ -138,26 +135,15 @@ var DG = window.DG || (window.DG = {});
       }
     }
 
-    var angular = Math.max(0, Math.min(1, p.angularity));
-
-    /* The preset, read through the angular warp. */
-    function shapeAt(u, v) {
-      if (angular > 0) {
-        var f = DG.facet(u, v, p.facetSides, angular);
-        return preset.density(f[0], f[1]);
-      }
-      return preset.density(u, v);
-    }
-
     /* The form, once or as the strongest of its overlapping copies. */
     function formAt(fx, fy) {
-      if (!copies) return shapeAt(fx, fy);
+      if (!copies) return preset.density(fx, fy);
       var best = 0;
       for (var c = 0; c < copies.length; c++) {
         var k = copies[c];
         var dx = fx - k.x;
         var dy = fy - k.y;
-        var d = shapeAt(
+        var d = preset.density(
           (dx * k.cos + dy * k.sin) / k.s,
           (-dx * k.sin + dy * k.cos) / k.s
         );
@@ -171,22 +157,16 @@ var DG = window.DG || (window.DG = {});
       return [(x - cx) / half, (y - cy) / half];
     }
 
-    /*
-     * An uploaded image supplies the tone — dot size and density — while the
-     * preset keeps the wave to itself. Folding both into one number let the
-     * picture swamp the form, so every preset came out looking the same once an
-     * image was loaded; kept apart, the twelve each shape the picture their own
-     * way.
-     */
-    function toneAt(form, x, y) {
-      if (!sampler) return form;
+    function heightAt(fx, fy, x, y) {
+      var base = formAt(fx, fy);
+      if (!sampler) return base;
       var img = sampler(x / width, y / height);
       if (p.imageInvert) img = 1 - img;
       var v;
-      if (p.imageBlend === 'multiply') v = img * form;
-      else if (p.imageBlend === 'average') v = (img + form) / 2;
+      if (p.imageBlend === 'multiply') v = img * base;
+      else if (p.imageBlend === 'average') v = (img + base) / 2;
       else v = img;
-      return DG.clamp01(form + (v - form) * p.imageAmount);
+      return DG.clamp01(base + (v - base) * p.imageAmount);
     }
 
     var dots = [];
@@ -194,8 +174,8 @@ var DG = window.DG || (window.DG = {});
 
     // Horizon per column. Rows are walked front to back, and where the form is
     // too steep for the row spacing the row behind is held back to keep a gap
-    // rather than being dropped. Dropping them cut a hard silhouette and left
-    // the crest a solid cap; holding them back rounds the crest off and every
+    // rather than being dropped. Dropping it cut a hard silhouette and packed
+    // the crest into a flat cap; holding it back rounds the crest over and every
     // point stays on the page.
     var relax = p.hideBehind && p.waveMode === 'ridge' && amp !== 0;
     var horizon = relax ? new Float64Array(2 * steps + 1).fill(Infinity) : null;
@@ -225,9 +205,8 @@ var DG = window.DG || (window.DG = {});
           y = cy + fy * half;
         }
 
-        var form = DG.clamp01(formAt(fx, fy));
-        var hgt = Math.pow(form, p.contrast);                       // shapes the wave
-        var tone = Math.pow(toneAt(form, x, y), p.contrast);        // sets size and density
+        var raw = DG.clamp01(heightAt(fx, fy, x, y));
+        var hgt = Math.pow(raw, p.contrast);
 
         // Push the point out of its row by the height of the form beneath it,
         // along the row's normal. In bulge mode rows open away from the form's
@@ -237,8 +216,8 @@ var DG = window.DG || (window.DG = {});
           var d;
           if (p.waveMode === 'ridge') {
             // Measured from mid-height, so the form straddles its rows instead
-            // of piling the whole pattern to one side. Eased, so the wave
-            // rounds over its crest rather than driving straight into it.
+            // of piling the whole pattern to one side. Eased, so the wave rolls
+            // over its crest rather than driving straight into it.
             var e = hgt * hgt * (3 - 2 * hgt);
             d = -(e - 0.5) * amp;
           } else {
@@ -267,35 +246,13 @@ var DG = window.DG || (window.DG = {});
         if (x < -margin || x > width + margin || y < -margin || y > height + margin) continue;
 
         // Density: the darker the field, the more likely the point is dropped.
-        var keep = 1 - p.densityFade * (1 - tone);
+        var keep = 1 - p.densityFade * (1 - hgt);
         if (hash2(iu, jv, p.seed + 7717) > keep) continue;
 
-        /*
-         * How the form becomes marks. Size is the plain halftone; the other
-         * three hand the form a structural job — which dots survive, where the
-         * rows break, where the size banding falls — so the preset still shows
-         * through when a photograph is supplying the tone.
-         */
-        var size = tone;
-        if (p.texture === 'scatter') {
-          // Dots thin out where the form is weak, clustering because the form
-          // itself is smooth.
-          if (hash2(iu, jv, p.seed + 31) > 0.22 + 0.78 * form) continue;
-        } else if (p.texture === 'dashes') {
-          // Rows break into runs: a whole segment stands or falls together.
-          var seg = Math.floor((iu + jv * 5) / 4);
-          if (hash2(seg, jv, p.seed + 57) > 0.25 + 0.75 * form) continue;
-        } else if (p.texture === 'steps') {
-          // Size lands on a few levels, with the form shifting where the bands
-          // fall, so the terracing follows the form's contours.
-          var levels = 4;
-          size = Math.min(1, (Math.floor(tone * levels + form) + 0.5) / levels);
-        }
-
-        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * size);
+        var r = maxR * (1 - p.sizeVariation + p.sizeVariation * hgt);
         if (r < 0.12) continue;
 
-        var dot = { x: x, y: y, r: r, v: size, nx: (x - cx) / (width / 2), ny: (y - cy) / (height / 2) };
+        var dot = { x: x, y: y, r: r, v: hgt, nx: (x - cx) / (width / 2), ny: (y - cy) / (height / 2) };
         if (useGradient) {
           var t = DG.gradientCoord(p.gradientMap, dot);
           if (p.gradientReverse) t = 1 - t;
