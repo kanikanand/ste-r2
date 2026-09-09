@@ -210,9 +210,9 @@ var DG = window.DG || (window.DG = {});
                     <span class="ctrl-head"><span>Combine with field</span></span>
                     <select value=${params.imageBlend}
                       onChange=${function (e) { set({ imageBlend: e.target.value }); }}>
-                      <option value="replace">Replace field</option>
-                      <option value="multiply">Multiply by field</option>
-                      <option value="average">Average with field</option>
+                      <option value="average">Half image, half pattern</option>
+                      <option value="multiply">Image inside the pattern</option>
+                      <option value="replace">Image only — all twelve look alike</option>
                     </select>
                   </label>
                   <${DG.Slider} label="Image amount" value=${params.imageAmount} min=${0} max=${1}

@@ -40,7 +40,10 @@ var DG = window.DG || (window.DG = {});
     gradientReverse: false,
     background: 'black',
     // Image mode
-    imageBlend: 'replace', // replace | multiply | average
+    // 'replace' takes the whole height from the picture, which leaves the form
+    // contributing nothing and renders all twelve presets identically. Half and
+    // half keeps the form in the result.
+    imageBlend: 'average', // average | multiply | replace
     imageInvert: false,
     imageAmount: 1
   };
