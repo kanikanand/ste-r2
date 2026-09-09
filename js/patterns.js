@@ -88,31 +88,56 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'expansion',
       name: 'Expansion',
-      form: 'A directional field growing from fine grain into visual mass.',
-      blurb: 'Weight gathers at one corner; a broad swell travels diagonally away from it.',
+      form: 'Dense fields growing in area, one behind the next, left to right.',
+      blurb: 'A front advances across the frame, gains ground, and hands over to the one behind it.',
       at: function (x, y, t, p) {
-        // One diagonal coordinate carries both the static falloff and the swell.
-        var s = (x + y) * 0.35 * p.scale;
-        var mass = clamp01(0.5 - s * 0.55);              // heaviest upper-left
-        var swell = wave(s * 0.9 - t);                    // one turn per cycle
-        return clamp01(mass * (0.5 + 0.55 * swell) * 1.5);
+        // Repetition, not a single crossing. A diagonal coordinate gave one
+        // angled edge that swept the frame once and left it; a periodic one
+        // gives the same swell over and over, so any width of canvas is
+        // covered by the behaviour rather than by whatever the edge left
+        // behind.
+        //
+        // Two noise layers bend the front. The coarse one decides where it
+        // bulges and lags, the fine one keeps the boundary from reading as a
+        // drawn curve.
+        // Both layers are stretched along x and compressed along y. Noise that
+        // varies as fast across the frame as it does down it is nearly
+        // constant over any one column, and the front comes out as a straight
+        // vertical edge; the boundary can only wander if the warp changes
+        // faster down the frame than the front travels across it.
+        var warp = 0.55 * (loopNoise(x * 0.35 * p.scale, y * 2.2 * p.scale, t, 3) - 0.5) +
+          0.20 * (loopNoise(x * 0.9 * p.scale, y * 4.5 * p.scale, t, 8) - 0.5);
+        var u = x * 0.34 * p.scale - t + warp;
+        var f = u - Math.floor(u);
+        // Area accumulates through most of the repeat, then gives way. Both
+        // ends reach zero, so consecutive fronts meet in open ground instead
+        // of at a seam.
+        var body = smoothstep(0.02, 0.62, f) * (1 - smoothstep(0.82, 0.99, f));
+        return clamp01(0.1 + 1.1 * body);
       }
     },
     {
       id: 'convergence',
       name: 'Convergence',
-      form: 'A soft central concentration, like a lens or a gravitational well.',
-      blurb: 'The centre inhales — dots swell and the well widens, then returns.',
+      form: 'Concentric rings closing on a centre.',
+      blurb: 'Rings travel inward and gather; the lattice underneath never moves.',
       prepare: function (t) {
-        // Breath: one slow turn, so the cycle closes exactly where it opened
-        // with no snap at either end. The well widens and narrows; the dots
-        // under it stay exactly where they are.
+        // One slow turn, so the cycle closes exactly where it opened. The
+        // rings tighten and open on this breath.
         var breath = 0.5 - 0.5 * Math.cos(TAU * t);
-        return { spread: 0.40 + 0.30 * breath, gain: 0.94 + 0.16 * breath };
+        return { k: 1.9 + 0.35 * breath };
       },
       at: function (x, y, t, p, c) {
         var d = Math.hypot(x, y) / p.scale;
-        return clamp01(0.08 + (0.1 + c.gain) * Math.exp(-(d * d) / (2 * c.spread * c.spread)));
+        // Rings rather than one Gaussian well: the concentration recurs at
+        // every radius instead of sitting in the middle of the frame once, so
+        // the behaviour reaches the corners.
+        //
+        // +t, not -t. The phase has to move towards the centre for this to be
+        // convergence; outward is the same figure playing backwards.
+        var ring = wave(d * c.k + t);
+        var core = Math.exp(-(d * d) / (2 * 0.85 * 0.85));
+        return clamp01(0.08 + 1.15 * Math.pow(ring, 0.85) * (0.35 + 0.75 * core));
       }
     },
     {
@@ -123,15 +148,17 @@ var DG = window.DG || (window.DG = {});
       at: function (x, y, t, p) {
         // Fine enough that the gaps read as channels through a lattice rather
         // than as one soft cloud over it.
-        var n = loopNoise(x * 2.6 * p.scale, y * 2.6 * p.scale, t, 11);
-        // A window, not a threshold: dots leave by shrinking, so the lattice
-        // loosens instead of flickering out.
-        var visible = smoothstep(0.30, 0.52, n);
-        // A second, slower field rides on top so the surviving lattice is not
-        // uniformly heavy — this is what displacing the dots used to buy, and
-        // it costs the grid nothing.
-        var swell = loopNoise(x * 1.1 * p.scale + 9, y * 1.1 * p.scale - 4, t, 27);
-        return clamp01(0.12 + visible * (0.72 + 0.45 * swell));
+        var n = loopNoise(x * 2.2 * p.scale, y * 2.2 * p.scale, t, 11);
+        // A wide window, not a narrow one. Narrow, the noise crosses it in a
+        // couple of dots and the field splits into patches with a hard rim;
+        // wide, the same noise grades across five or six dots and the dense
+        // and open areas belong to one surface.
+        var visible = smoothstep(0.16, 0.74, n);
+        // A second, slower field so the surviving lattice is not uniformly
+        // heavy — held gentle, or it reinstates the patchiness the wide
+        // window just removed.
+        var swell = loopNoise(x * 1.0 * p.scale + 9, y * 1.0 * p.scale - 4, t, 27);
+        return clamp01(0.1 + visible * (0.8 + 0.32 * swell));
       }
     },
     {
@@ -164,85 +191,66 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'adaptation',
       name: 'Adaptation',
-      form: 'A flowing, folded ribbon revealed only through changes in dot scale.',
-      blurb: 'A winding band flexes across the field; the dots never move, they take turns being heavy.',
-      prepare: function (t, p) {
-        // A curve whose control points ride whole turns, so it returns exactly.
-        var a = TAU * t;
-        // Waypoints the band actually passes through. Bezier control points
-        // only pull the curve towards themselves, which left the ribbon almost
-        // straight; a Catmull-Rom spline goes through them, so the wind reads.
-        var pts = [
-          [-1.7, -0.55 + 0.2 * Math.sin(a)],
-          [-1.05, -0.62 + 0.18 * Math.sin(a)],
-          [-0.35, 0.5 + 0.26 * Math.cos(a)],
-          [0.35, -0.5 + 0.26 * Math.sin(a)],
-          [1.05, 0.62 + 0.18 * Math.cos(a)],
-          [1.7, 0.55 + 0.2 * Math.cos(a)]
-        ];
-        // Sampled once per frame into a polyline; each dot then only needs its
-        // distance to that, which is cheap.
-        var line = [];
-        for (var seg = 1; seg < pts.length - 2; seg++) {
-          var p0 = pts[seg - 1];
-          var p1 = pts[seg];
-          var p2 = pts[seg + 1];
-          var p3 = pts[seg + 2];
-          for (var i = 0; i < 20; i++) {
-            var u = i / 20;
-            var u2 = u * u;
-            var u3 = u2 * u;
-            line.push(
-              0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * u +
-                (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * u2 +
-                (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * u3),
-              0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * u +
-                (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * u2 +
-                (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * u3)
-            );
-          }
-        }
-        return { line: line, width: 0.3 + 0.06 * Math.sin(a) };
+      form: 'Stacked bands that shift between a soft squiggle and a hard zigzag.',
+      blurb: 'The same run of bands relaxes into curves and tightens into angles, over and over.',
+      prepare: function (t) {
+        // Smooth at 0, sharp at the half, smooth again at 1 — one turn, so the
+        // change of character is itself the loop rather than something that
+        // has to be undone at the end.
+        return { m: 0.5 - 0.5 * Math.cos(TAU * t), t: t };
       },
       at: function (x, y, t, p, c) {
-        var sx = x / p.scale;
-        var sy = y / p.scale;
-        var best = 1e9;
-        var line = c.line;
-        for (var i = 0; i < line.length; i += 2) {
-          var dx = line[i] - sx;
-          var dy = line[i + 1] - sy;
-          var d = dx * dx + dy * dy;
-          if (d < best) best = d;
-        }
-        return clamp01(0.08 + 1.05 * (1 - smoothstep(0, c.width, Math.sqrt(best))));
+        var fx = x / p.scale;
+        var fy = y / p.scale;
+        var ph = TAU * (fx * 0.55 - c.t);
+
+        // Two waves on one phase, not one wave bent harder. A sine carrying a
+        // third harmonic reads as a squiggle; the triangle of the same phase
+        // reads as folded. Crossfading them keeps every crest in place while
+        // its character changes, which is what makes the morph read as one
+        // band adapting rather than as a shape being replaced.
+        var soft = Math.sin(ph) + 0.34 * Math.sin(3 * ph + 1.1);
+        var hard = 1.15 * (2 / Math.PI) * Math.asin(Math.sin(ph));
+        // Amplitude morphs with the shape. Crossfading sine into triangle at a
+        // fixed amplitude is a change too small to read at this band width —
+        // the squiggle has to be shallow and busy before the fold can arrive
+        // as tall and spare.
+        var centre = (0.20 + 0.30 * c.m) * (soft + (hard - soft) * c.m);
+
+        // Stacked copies: one ribbon crossing the frame left the rest of it
+        // empty.
+        var pitch = 0.85;
+        var yy = fy - centre + pitch * 0.5;
+        var d = Math.abs(yy - pitch * Math.floor(yy / pitch) - pitch * 0.5);
+        return clamp01(0.08 + 1.1 * (1 - smoothstep(0.06, 0.26, d)));
       }
     },
     {
       id: 'synchronise',
       name: 'Synchronise',
-      form: 'Horizontal signals that drift, fall into a shared beat, and part again.',
-      blurb: 'Pulses travel at one speed but out of phase, align, hold, then separate.',
+      form: 'One continuous spiral, winding in and out of itself.',
+      blurb: 'Arms of a single curve sweep inward; the spiral tightens, holds, and opens again.',
       prepare: function (t) {
-        // Alignment rises and falls once across the cycle, so the field ends
-        // as loose as it began.
-        return { sync: 0.5 - 0.5 * Math.cos(TAU * t), t: t };
+        // Tightness rides one turn, so the spiral ends as open as it began.
+        var breath = 0.5 - 0.5 * Math.cos(TAU * t);
+        return { k: 2.2 + 0.6 * breath, t: t };
       },
       at: function (x, y, t, p, c) {
-        // Pinned to the lattice: one pattern row per row of dots. Deriving it
-        // from anything but the real dot pitch puts the signals between the
-        // rows and the field reads as scatter.
-        var rowH = p.pitch || 2 / Math.max(4, p.grid);
-        var row = Math.floor((y + 4) / rowH);
-        var offset = (hash3(row, 2, 8) - 0.5) * 0.85 * (1 - c.sync);  // squeezed out as they lock
-        var pulse = wave(x * 0.8 * p.scale - c.t + offset);
-        // Long pulses, short dashes and quiet stretches within each row.
-        // Each row shaped differently: some long pulses, some short dashes,
-        // some barely there.
-        // Rows differ in how long their pulses run, not in how hard they snap:
-        // sharpen too far and the runs break into isolated dots.
-        var shape = hash3(row, 6, 4);
-        return clamp01(Math.pow(pulse, 0.75 + 1.5 * shape) * 1.3);
+        var d = Math.hypot(x, y) / p.scale;
+        var a = Math.atan2(y, x);
+        // One figure across the whole frame, in place of a row of independent
+        // signals: the arms are the repetition, and they are all the same
+        // curve, so the field reads as one thing turning.
+        //
+        // ARMS must be a whole number. atan2 jumps by a full turn along the
+        // negative x axis, and only a whole number of arms turns that jump
+        // into no jump at all; a fractional count leaves a seam straight
+        // across the frame.
+        // One arm, wound several times over the radius. Three arms at a low
+        // winding rate read as a pinwheel — wide wedges meeting in the middle
+        // — where a single arm crossing its own track reads as a spiral.
+        var u = (a / TAU) + d * c.k - c.t;
+        return clamp01(0.08 + 1.2 * Math.pow(wave(u), 1.3));
       }
     }
   ];
