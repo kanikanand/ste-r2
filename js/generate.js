@@ -2,8 +2,9 @@
  * generate.js — the dots for one moment.
  *
  * A plain lattice that never moves; the pattern beneath it does. The pattern's
- * value at each point becomes that dot's size, so the motion is carried by the
- * dots swelling and shrinking in turn rather than by anything sliding.
+ * value at each point becomes that dot's size — that is the only thing it may
+ * become. Nothing displaces a dot from its cell, so every apparent gathering
+ * or thinning of the field is dot area, and the grid stays legible under it.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
@@ -35,10 +36,10 @@ var DG = window.DG || (window.DG = {});
     angle: 0,             // turns the pattern under the lattice
     seed: 1,
     shape: 'circle',      // circle | square
-    colorMode: 'gradient',
-    gradientMap: 'intensity',
+    colorMode: 'slate',   // a solid by default: colour is a treatment, not the form
+    gradientMap: 'y',
     gradientReverse: false,
-    background: 'black'
+    background: 'paper'
   };
 
   function hash2(i, j, seed) {
@@ -71,12 +72,16 @@ var DG = window.DG || (window.DG = {});
     var useGradient = p.colorMode === 'gradient';
     var dots = [];
 
-    // Some behaviours need work done once per frame rather than per dot — a
-    // curve sampled, a set of clusters resolved — and some move their dots as
-    // well as resizing them. Both are optional; a pattern that needs neither
-    // just reads its value and the lattice stays put.
+    // Behaviours that need to line up with the lattice — rows of pulses, bands —
+    // work from the real distance between neighbouring dots rather than from
+    // the requested column count, which is otherwise only right on a square
+    // frame.
+    p.pitch = gap / half;
+
+    // Some behaviours need work done once per frame rather than per dot: a
+    // curve sampled, a set of clusters resolved. It is optional; a pattern
+    // that needs none just reads its value.
     var ctx = pattern.prepare ? pattern.prepare(phase, p) : null;
-    var half2 = half;
 
     for (var j = 0; j < rows; j++) {
       for (var i = 0; i < cols; i++) {
@@ -96,15 +101,7 @@ var DG = window.DG || (window.DG = {});
         var r = maxR * (1 - p.sizeVariation + p.sizeVariation * v);
         if (r < 0.1) continue;
 
-        var px = x;
-        var py = y;
-        if (pattern.offset) {
-          var off = pattern.offset(fx, fy, phase, p, ctx);
-          px += off[0] * half2;
-          py += off[1] * half2;
-        }
-
-        var dot = { x: px, y: py, r: r, v: v, nx: dx, ny: dy };
+        var dot = { x: x, y: y, r: r, v: v, nx: dx, ny: dy };
         if (useGradient) {
           var g = DG.gradientCoord(p.gradientMap, dot);
           if (p.gradientReverse) g = 1 - g;

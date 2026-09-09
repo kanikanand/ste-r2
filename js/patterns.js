@@ -13,14 +13,17 @@
  * every way this goes wrong is a term that completes half a turn, or a
  * cross-fade that eases back to the wrong end.
  *
- * A behaviour may also declare:
- *   prepare(t, p)  work done once per frame — a curve sampled, clusters
- *                  resolved — returned as a context passed to `at`.
- *   offset(...)    a displacement in field units, for the few cases where
- *                  moving a dot says something resizing it cannot.
+ * A behaviour may also declare prepare(t, p): work done once per frame — a
+ * curve sampled, clusters resolved — returned as a context passed to `at`.
+ *
+ * Nothing here moves a dot. The lattice is fixed; a behaviour may only decide
+ * how much of each cell its dot fills, so every apparent shift of density is a
+ * shift of dot size.
  *
  * x and y run -1..1 over the frame's height, so a wide frame shows more of the
- * pattern rather than stretching it.
+ * pattern rather than stretching it. p.pitch is the distance between
+ * neighbouring dots in those same units, for behaviours that need to line up
+ * with the lattice rather than float over it.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
@@ -99,24 +102,17 @@ var DG = window.DG || (window.DG = {});
       id: 'convergence',
       name: 'Convergence',
       form: 'A soft central concentration, like a lens or a gravitational well.',
-      blurb: 'The centre inhales — dots swell and draw in, then return.',
+      blurb: 'The centre inhales — dots swell and the well widens, then returns.',
       prepare: function (t) {
-        // Breath: spread and pull share one slow turn, so the cycle closes
-        // exactly where it opened with no snap at either end.
+        // Breath: one slow turn, so the cycle closes exactly where it opened
+        // with no snap at either end. The well widens and narrows; the dots
+        // under it stay exactly where they are.
         var breath = 0.5 - 0.5 * Math.cos(TAU * t);
-        return { spread: 0.42 + 0.26 * breath, pull: 0.1 * breath };
+        return { spread: 0.40 + 0.30 * breath, gain: 0.94 + 0.16 * breath };
       },
       at: function (x, y, t, p, c) {
         var d = Math.hypot(x, y) / p.scale;
-        return clamp01(0.1 + 1.05 * Math.exp(-(d * d) / (2 * c.spread * c.spread)));
-      },
-      offset: function (x, y, t, p, c) {
-        // Drawn towards the centre in proportion to belonging to it, and capped
-        // well inside the gap so neighbours never trade places.
-        var d = Math.hypot(x, y) / p.scale;
-        var w = Math.exp(-(d * d) / (2 * c.spread * c.spread));
-        var k = -c.pull * w;
-        return [x * k, y * k];
+        return clamp01(0.08 + (0.1 + c.gain) * Math.exp(-(d * d) / (2 * c.spread * c.spread)));
       }
     },
     {
@@ -131,12 +127,11 @@ var DG = window.DG || (window.DG = {});
         // A window, not a threshold: dots leave by shrinking, so the lattice
         // loosens instead of flickering out.
         var visible = smoothstep(0.30, 0.52, n);
-        return clamp01(0.12 + 1.05 * visible);
-      },
-      offset: function (x, y, t, p) {
-        var n = loopNoise(x * 0.6 * p.scale + 9, y * 0.6 * p.scale - 4, t, 27) - 0.5;
-        var m = loopNoise(x * 0.6 * p.scale - 3, y * 0.6 * p.scale + 7, t, 41) - 0.5;
-        return [n * 0.055, m * 0.055];
+        // A second, slower field rides on top so the surviving lattice is not
+        // uniformly heavy — this is what displacing the dots used to buy, and
+        // it costs the grid nothing.
+        var swell = loopNoise(x * 1.1 * p.scale + 9, y * 1.1 * p.scale - 4, t, 27);
+        return clamp01(0.12 + visible * (0.72 + 0.45 * swell));
       }
     },
     {
@@ -234,12 +229,13 @@ var DG = window.DG || (window.DG = {});
         return { sync: 0.5 - 0.5 * Math.cos(TAU * t), t: t };
       },
       at: function (x, y, t, p, c) {
-        // Pinned to the lattice: one pattern row per row of dots, or the
-        // signals fall between them and the field reads as scatter.
-        var rowH = 2 / Math.max(4, p.grid);
+        // Pinned to the lattice: one pattern row per row of dots. Deriving it
+        // from anything but the real dot pitch puts the signals between the
+        // rows and the field reads as scatter.
+        var rowH = p.pitch || 2 / Math.max(4, p.grid);
         var row = Math.floor((y + 4) / rowH);
         var offset = (hash3(row, 2, 8) - 0.5) * 0.85 * (1 - c.sync);  // squeezed out as they lock
-        var pulse = wave(x * 1.35 * p.scale - c.t + offset);
+        var pulse = wave(x * 0.8 * p.scale - c.t + offset);
         // Long pulses, short dashes and quiet stretches within each row.
         // Each row shaped differently: some long pulses, some short dashes,
         // some barely there.

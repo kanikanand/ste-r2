@@ -28,8 +28,12 @@ var DG = window.DG || (window.DG = {});
     { id: 'white', label: 'White', value: '#ffffff' }
   ];
 
+  /*
+   * Every map is positional. Mapping colour to the dot's own value was the one
+   * that let the gradient restate the form, which then read as a field made of
+   * colour rather than of size.
+   */
   DG.GRADIENT_MAPS = [
-    { id: 'intensity', label: 'Dot size' },
     { id: 'x', label: 'Horizontal' },
     { id: 'y', label: 'Vertical' },
     { id: 'radial', label: 'Radial' },
@@ -81,7 +85,7 @@ var DG = window.DG || (window.DG = {});
       // Mirrored rather than wrapped, so both ends of the circle land on the
       // same colour instead of meeting as a hard seam.
       case 'angle': return Math.abs(Math.atan2(dot.ny, dot.nx)) / Math.PI;
-      default: return dot.v;
+      default: return (dot.ny + 1) / 2;
     }
   };
 })(DG);
