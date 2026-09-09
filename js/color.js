@@ -16,16 +16,20 @@ var DG = window.DG || (window.DG = {});
     { id: 'black', label: 'Black', value: '#0a0a0a' }
   ];
 
+  /* Backgrounds, including the brand solids. */
   DG.BACKGROUNDS = [
+    { id: 'transparent', label: 'Transparent', value: null },
     { id: 'black', label: 'Black', value: '#000000' },
     { id: 'ink', label: 'Ink', value: '#12141c' },
+    { id: 'red', label: 'Red', value: '#de2027' },
+    { id: 'slate', label: 'Slate', value: '#687099' },
+    { id: 'ice', label: 'Ice', value: '#c5eef9' },
     { id: 'paper', label: 'Paper', value: '#f5f2ec' },
     { id: 'white', label: 'White', value: '#ffffff' }
   ];
 
-  /* Which quantity the gradient is mapped along. */
   DG.GRADIENT_MAPS = [
-    { id: 'intensity', label: 'Light' },
+    { id: 'intensity', label: 'Dot size' },
     { id: 'x', label: 'Horizontal' },
     { id: 'y', label: 'Vertical' },
     { id: 'radial', label: 'Radial' },
@@ -47,7 +51,6 @@ var DG = window.DG || (window.DG = {});
 
   var STOP_RGB = GRADIENT_STOPS.map(hexToRgb);
 
-  /* Sample the three-stop ramp at t (0..1). */
   function sampleGradient(t) {
     var c = t <= 0 ? 0 : t >= 1 ? 1 : t;
     var seg = c * (STOP_RGB.length - 1);
@@ -59,7 +62,6 @@ var DG = window.DG || (window.DG = {});
   }
   DG.sampleGradient = sampleGradient;
 
-  /* Pre-computed ramp so per-dot colouring is a lookup, not a mix. */
   DG.buildRamp = function (steps) {
     var n = steps || 96;
     var out = new Array(n);
@@ -71,15 +73,13 @@ var DG = window.DG || (window.DG = {});
     return 'linear-gradient(' + (dir || 'to right') + ', ' + GRADIENT_STOPS.join(', ') + ')';
   };
 
-  /* The 0..1 value a dot's gradient position is read from. */
   DG.gradientCoord = function (map, dot) {
     switch (map) {
       case 'x': return (dot.nx + 1) / 2;
       case 'y': return (dot.ny + 1) / 2;
       case 'radial': return Math.min(1, Math.hypot(dot.nx, dot.ny) / Math.SQRT2);
-      // Mirrored rather than wrapped: sweeping the full circle would bring the
-      // last stop back against the first as a hard seam. This runs the ramp out
-      // and back, so both ends of the circle land on the same colour.
+      // Mirrored rather than wrapped, so both ends of the circle land on the
+      // same colour instead of meeting as a hard seam.
       case 'angle': return Math.abs(Math.atan2(dot.ny, dot.nx)) / Math.PI;
       default: return dot.v;
     }

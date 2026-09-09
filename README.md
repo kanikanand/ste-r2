@@ -1,10 +1,9 @@
-# Dotted Grid Studio
+# Dotted Grid Motion
 
-A React tool for generating dotted grid patterns. Twelve presets describe
-*forms* — waves the grid is pushed into, which is what decides where each dot
-sits — and depth comes from dot size and density being mapped to light.
+Six dotted patterns in constant flow, with footage export. A companion to the
+still branch (`claude/dotted-grid-patterns-wn0ltz`), built motion first.
 
-![the twelve presets](docs/presets.png)
+![the six patterns](docs/patterns.png)
 
 ## Run it
 
@@ -20,141 +19,79 @@ the filesystem. To serve it instead:
 npx http-server -p 8080 .
 ```
 
-Markup is written with [htm](https://github.com/developit/htm), which reads like
-JSX but is parsed at runtime, so the components stay React components without
-needing a compiler.
+## The six patterns
 
-## How a pattern is built
-
-Each preset is two functions over the form's own coordinates (`js/fields.js`):
-
-| | |
+| Pattern | Motion |
 |---|---|
-| `density(x, y) → 0..1` | the *height* of the form, and how much light is on it |
-| `flow(x, y) → angle` | the direction the field lines run |
+| Expansion | Rings travel outward, the dots swelling as each one passes. |
+| Convergence | The same rings drawn inward, gathering on the centre. |
+| Diffusion | Loose clusters break up and reform as they drift. |
+| Intelligence | Rows break into runs that slide past each other. |
+| Adaptation | A diagonal grade sweeps across, one corner filling as the other empties. |
+| Synchronise | An S-shaped band travels through, the rows falling into step behind it. |
 
-`js/generate.js` reads that density as a **height surface**, not as a mask over
-a fixed lattice. Rows of points run across the frame along the flow angle, and
-each point is pushed perpendicular to its row by the height of the form beneath
-it — so the rows ripple into the shape the preset describes and the dots sit on
-those waves. The same height also drives dot size and the keep/drop decision,
-so light still carries the depth.
+## How the motion works
 
-Rows are generated across the frame's rotated bounding box and clipped to the
-frame, so turning the angle lets the pattern bleed off every edge instead of
-being contained by it.
+Each pattern is a function of place *and time* returning 0..1, and each is
+periodic in time with a period of exactly **one cycle** (`js/patterns.js`). The
+lattice never moves; the pattern beneath it does, so the motion is carried by
+dots swelling and shrinking in turn rather than by anything sliding about.
 
-Two details stop a crest flattening into a slab:
+Periodicity is the whole trick: footage is recorded over a whole number of
+cycles, so a ten second file and a one minute file both loop without a jump at
+the join. Three of the six needed care to get there, and each was caught by
+testing `f(t=0) === f(t=1)` before any of it reached a file:
 
-- Each preset finishes with a **soft ceiling** rather than a hard clamp. A clamp
-  pins the top of a form at exactly 1 across a broad area, and a flat top
-  displaces every row it covers by the same amount — those rows keep their
-  spacing and read as a solid slab, with a hard edge where the plateau stops.
-  The soft ceiling is the identity below 0.6 and eases onto 1 above it, so a
-  crest keeps enough slope for its rows to go on separating.
-- Where the form is steeper than the row spacing, the row behind is **held back
-  to keep a gap** rather than dropped. Dropping it cut a hard silhouette and
-  packed the crest into a flat cap; holding it back rounds the crest over and
-  every point stays on the page. The displacement is eased too, so the wave
-  rolls over its crest instead of driving into it.
+- The drifting noise cross-faded between two layers on an eased curve, which
+  returned to the wrong layer at the end of a cycle. Fading straight across
+  lands back on the layer the cycle began on.
+- *Intelligence* slid its runs along by an arbitrary shift, so a cycle ended on
+  different runs than it started. Wrapping the run index on its own period fixes
+  it.
+- *Synchronise* modulated its band at half rate, which takes two cycles to come
+  back. At twice the rate it closes on one.
 
-A preset that does not define `flow` falls back to the tangent of its own
-density contours, so its dots trace the shape's iso-lines.
+## Downloads
 
-## The twelve fields
+**SVG** and **PNG** take the frame showing at the moment you press them — SVG
+**with** the background, PNG **without**, so the still drops straight onto
+something else.
 
-| Preset | Form | Field |
-|---|---|---|
-| Emergence | Emerging core | A concentrated circular field. |
-| Ingenuity | Eight-point star | A solid centre throws eight tapering points, on the axes and the diagonals. |
-| Progress | Directional plume | A right-moving diffused plume, as if zooming in on one of the points. |
-| Convergence | Gathering field | Soft concentrations draw inward to one shared centre through subtle channels. |
-| Expansion | Expanding halo | A broad ring of larger dots surrounds a small, deep central point. |
-| Adaptation | Flowing saddle | A continuous undulating form rises on one side and dips, diffused, on the other. |
-| Connection | Connecting bridge | Two rounded masses joined by a narrow dotted neck. |
-| Collaboration | Interference bloom | Two overlapping fields make a third, denser formation where they meet. |
-| Precision | Focused lens | A flattened ellipse concentrating into a tight central band with graduated edges. |
-| Transformation | Twisted column | A vertical form narrows and turns at its midpoint into differently oriented lobes. |
-| Synergy | Balanced lobes | Rounded volumes gather around a shared centre, distinct but coherent. |
-| Momentum | Continuous wave | A stretched, oscillating ribbon carrying alternating concentrations across the frame. |
+**GIF** and **MP4** at 10 seconds, 30 seconds or a minute.
+
+GIF is encoded here rather than pulled in (`js/gifenc.js`), so the page keeps
+working offline with no worker and nothing to download. A GIF carries at most
+256 colours, so frames are quantised: a palette is chosen by median cut over a
+sample of the whole run — not just the first frame — and a coarse lookup cube is
+filled in once so mapping each pixel afterwards is a single read rather than a
+search. Frames are drawn one at a time rather than recorded, so the result does
+not depend on the machine keeping up.
+
+Video goes through `MediaRecorder`, which records a live canvas, so **a minute
+of footage takes a minute to make**. Feeding frames faster would only produce a
+clip that played too fast, since a recorder stamps its frames by the wall clock.
+Where the browser can write MP4 it does; where it cannot it writes WebM and the
+button says so.
 
 ## Controls
 
-The frame is 16:9.
-
-**Grid** — point density (6–120 points across the frame, independent of how big
-the form is), dot size, **dot size variation** (the extent of the difference
-between the smallest and largest dot; at 0 every dot is the same size and only
-density carries the form), depth contrast (gamma on the height before it becomes
-size), density falloff (how much the form thins the points out), jitter and seed.
-
-**Wave** — wave height, how far the form displaces its rows; displacement mode,
-either *ridge* (rows ride over the form, reading as a surface) or *bulge* (rows
-open away from it); whether to hide what the surface covers; **pattern scale**,
-the size of one copy of the form; and **repeat**.
-
-Repeating goes through the **plane symmetry groups** — p1, p2, pm, pg, pmm,
-pgg, p4, p4m, p3, p6 and p6m — so a form is repeated under mirrors, glides and
-rotations rather than by translation alone.
-
-Folding a point down into a fundamental domain is the textbook construction,
-and it is right for a motif drawn to fill that domain. These forms are not: they
-fill the whole cell, so folding read only the slice that fell inside the wedge
-and threw the rest away, which left the rotation groups all but empty. The
-pattern is the strongest of a point's images under the group instead. That
-replicates the whole form and is just as invariant — a group element only
-permutes a point's images, so the strongest of them does not move. Every group
-is checked against its own generators and holds to floating-point exactness.
-
-Where a form already carries a symmetry, groups that differ only by it will
-coincide: a radially symmetric preset renders the same under p1, p2, p4 and the
-rest, which is correct rather than a fault.
-
-**Angle of flow** is a dial setting the direction the rows run. The pattern is
-drawn past the frame's edges and clipped, so at any angle it bleeds off all four
-sides rather than sitting inside them. **Field drift** additionally carries
-points along the preset's own field lines.
-
-**Colour** — solid dots in `#de2027`, `#687099`, `#c5eef9`, white or black, or
-the three-stop gradient `#de2027 → #687099 → #c5eef9`. The gradient can be
-mapped to light, horizontal, vertical, radial or angular position, and reversed.
-Four backgrounds.
-
-The angular mapping runs the ramp out and back rather than round the full
-circle, so both ends land on the same colour instead of meeting as a hard seam.
-
-**Image mode** — upload an image and its luminance drives dot size and density.
-
-**Distortion** is what makes the twelve mean something here: the form works as a
-displacement map, and the picture is read from a point pushed along the form's
-slope. It stretches down the flanks and gathers at the crests, so each preset
-bends the same photograph its own way. Blending two heights together can never
-do that — at best it dilutes one with the other, and at full image it leaves the
-form contributing nothing at all. Pushing the sampling point is structural, so
-the twelve stay distinct even when the tone comes entirely from the picture. The
-push is calibrated against how steep each preset actually gets at the current
-scale, so the control behaves the same whatever is loaded.
-
-Tone can come half from the image, only from inside the pattern, or entirely
-from the picture, with an amount slider and an invert toggle. The preset gallery
-keeps showing the underlying fields so it still works as a picker.
-
-**Export** — PNG or SVG at 1600×900, 2560×1440 or 3840×2160, or the settings as
-JSON.
-Geometry is generated fresh at the export size, so output is resolution
-independent and the SVG is true vector circles.
+**Motion** — speed in cycles per second, pattern scale, and the angle the
+pattern runs at. **Dots** — circle or square, grid density, dot size, size
+variation, contrast, and scatter. **Colour** — solid dots or the three-stop
+brand gradient, and a background that can be transparent, black, ink, red,
+slate, ice, paper or white. **Frame** — 16:9, 1:1, 4:5 or 9:16.
 
 ## Layout
 
 ```
 index.html            loads the vendored libraries, then js/ in order
 css/style.css
-js/fields.js          the twelve density + flow fields
+js/patterns.js        the six patterns, as fields that move
 js/color.js           palette, three-stop ramp, gradient mapping
-js/generate.js        height surface -> displaced rows -> dot list, and the renderers
-js/image.js           luminance sampler for image mode
-js/exporters.js       PNG / SVG / JSON download
-js/ui.js              canvas stage, preset thumbnails, control widgets
+js/generate.js        the dots for one moment, and the renderers
+js/gifenc.js          the GIF89a encoder
+js/record.js          stills, GIF and video
+js/ui.js              the animated stage, gallery and control widgets
 js/app.js             state, layout and mount
 vendor/               react, react-dom, htm
 ```

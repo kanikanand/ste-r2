@@ -75,6 +75,10 @@ body {
 
 /* ---------- presets ---------- */
 .thumbs { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.thumb canvas { width: 100%; display: block; border-radius: 2px; }
+.swatch-none { background: repeating-conic-gradient(#2a2a32 0% 25%, #16161c 0% 50%) 50%/10px 10px; }
+.job { color: var(--red); }
+.chip[disabled] { opacity: 0.4; cursor: default; }
 .thumb {
   display: flex;
   flex-direction: column;
