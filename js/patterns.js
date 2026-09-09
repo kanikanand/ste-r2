@@ -191,66 +191,85 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'adaptation',
       name: 'Adaptation',
-      form: 'Stacked bands that shift between a soft squiggle and a hard zigzag.',
-      blurb: 'The same run of bands relaxes into curves and tightens into angles, over and over.',
-      prepare: function (t) {
-        // Smooth at 0, sharp at the half, smooth again at 1 — one turn, so the
-        // change of character is itself the loop rather than something that
-        // has to be undone at the end.
-        return { m: 0.5 - 0.5 * Math.cos(TAU * t), t: t };
+      form: 'A flowing, folded ribbon revealed only through changes in dot scale.',
+      blurb: 'A winding band flexes across the field; the dots never move, they take turns being heavy.',
+      prepare: function (t, p) {
+        // A curve whose control points ride whole turns, so it returns exactly.
+        var a = TAU * t;
+        // Waypoints the band actually passes through. Bezier control points
+        // only pull the curve towards themselves, which left the ribbon almost
+        // straight; a Catmull-Rom spline goes through them, so the wind reads.
+        var pts = [
+          [-1.7, -0.55 + 0.2 * Math.sin(a)],
+          [-1.05, -0.62 + 0.18 * Math.sin(a)],
+          [-0.35, 0.5 + 0.26 * Math.cos(a)],
+          [0.35, -0.5 + 0.26 * Math.sin(a)],
+          [1.05, 0.62 + 0.18 * Math.cos(a)],
+          [1.7, 0.55 + 0.2 * Math.cos(a)]
+        ];
+        // Sampled once per frame into a polyline; each dot then only needs its
+        // distance to that, which is cheap.
+        var line = [];
+        for (var seg = 1; seg < pts.length - 2; seg++) {
+          var p0 = pts[seg - 1];
+          var p1 = pts[seg];
+          var p2 = pts[seg + 1];
+          var p3 = pts[seg + 2];
+          for (var i = 0; i < 20; i++) {
+            var u = i / 20;
+            var u2 = u * u;
+            var u3 = u2 * u;
+            line.push(
+              0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * u +
+                (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * u2 +
+                (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * u3),
+              0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * u +
+                (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * u2 +
+                (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * u3)
+            );
+          }
+        }
+        return { line: line, width: 0.3 + 0.06 * Math.sin(a) };
       },
       at: function (x, y, t, p, c) {
-        var fx = x / p.scale;
-        var fy = y / p.scale;
-        var ph = TAU * (fx * 0.55 - c.t);
-
-        // Two waves on one phase, not one wave bent harder. A sine carrying a
-        // third harmonic reads as a squiggle; the triangle of the same phase
-        // reads as folded. Crossfading them keeps every crest in place while
-        // its character changes, which is what makes the morph read as one
-        // band adapting rather than as a shape being replaced.
-        var soft = Math.sin(ph) + 0.34 * Math.sin(3 * ph + 1.1);
-        var hard = 1.15 * (2 / Math.PI) * Math.asin(Math.sin(ph));
-        // Amplitude morphs with the shape. Crossfading sine into triangle at a
-        // fixed amplitude is a change too small to read at this band width —
-        // the squiggle has to be shallow and busy before the fold can arrive
-        // as tall and spare.
-        var centre = (0.20 + 0.30 * c.m) * (soft + (hard - soft) * c.m);
-
-        // Stacked copies: one ribbon crossing the frame left the rest of it
-        // empty.
-        var pitch = 0.85;
-        var yy = fy - centre + pitch * 0.5;
-        var d = Math.abs(yy - pitch * Math.floor(yy / pitch) - pitch * 0.5);
-        return clamp01(0.08 + 1.1 * (1 - smoothstep(0.06, 0.26, d)));
+        var sx = x / p.scale;
+        var sy = y / p.scale;
+        var best = 1e9;
+        var line = c.line;
+        for (var i = 0; i < line.length; i += 2) {
+          var dx = line[i] - sx;
+          var dy = line[i + 1] - sy;
+          var d = dx * dx + dy * dy;
+          if (d < best) best = d;
+        }
+        return clamp01(0.08 + 1.05 * (1 - smoothstep(0, c.width, Math.sqrt(best))));
       }
     },
     {
       id: 'synchronise',
       name: 'Synchronise',
-      form: 'One continuous spiral, winding in and out of itself.',
-      blurb: 'Arms of a single curve sweep inward; the spiral tightens, holds, and opens again.',
+      form: 'Horizontal signals that drift, fall into a shared beat, and part again.',
+      blurb: 'Pulses travel at one speed but out of phase, align, hold, then separate.',
       prepare: function (t) {
-        // Tightness rides one turn, so the spiral ends as open as it began.
-        var breath = 0.5 - 0.5 * Math.cos(TAU * t);
-        return { k: 2.2 + 0.6 * breath, t: t };
+        // Alignment rises and falls once across the cycle, so the field ends
+        // as loose as it began.
+        return { sync: 0.5 - 0.5 * Math.cos(TAU * t), t: t };
       },
       at: function (x, y, t, p, c) {
-        var d = Math.hypot(x, y) / p.scale;
-        var a = Math.atan2(y, x);
-        // One figure across the whole frame, in place of a row of independent
-        // signals: the arms are the repetition, and they are all the same
-        // curve, so the field reads as one thing turning.
-        //
-        // ARMS must be a whole number. atan2 jumps by a full turn along the
-        // negative x axis, and only a whole number of arms turns that jump
-        // into no jump at all; a fractional count leaves a seam straight
-        // across the frame.
-        // One arm, wound several times over the radius. Three arms at a low
-        // winding rate read as a pinwheel — wide wedges meeting in the middle
-        // — where a single arm crossing its own track reads as a spiral.
-        var u = (a / TAU) + d * c.k - c.t;
-        return clamp01(0.08 + 1.2 * Math.pow(wave(u), 1.3));
+        // Pinned to the lattice: one pattern row per row of dots. Deriving it
+        // from anything but the real dot pitch puts the signals between the
+        // rows and the field reads as scatter.
+        var rowH = p.pitch || 2 / Math.max(4, p.grid);
+        var row = Math.floor((y + 4) / rowH);
+        var offset = (hash3(row, 2, 8) - 0.5) * 0.85 * (1 - c.sync);  // squeezed out as they lock
+        var pulse = wave(x * 0.8 * p.scale - c.t + offset);
+        // Long pulses, short dashes and quiet stretches within each row.
+        // Each row shaped differently: some long pulses, some short dashes,
+        // some barely there.
+        // Rows differ in how long their pulses run, not in how hard they snap:
+        // sharpen too far and the runs break into isolated dots.
+        var shape = hash3(row, 6, 4);
+        return clamp01(Math.pow(pulse, 0.75 + 1.5 * shape) * 1.3);
       }
     }
   ];
