@@ -1,259 +1,380 @@
 /* ============================================================================
  * patterns.js — six behaviours of one dot system.
  *
- * The circles are the base geometry. Everything else — the sense of mass, of a
- * centre, of a ribbon or a signal — comes from radius, local spacing and
- * selective absence. No connecting lines, no gradients inside a dot, no
- * shadows.
+ * The circles are the base geometry. Everything else — a cluster, a route, a
+ * front, a rhythm — comes from radius alone. No connecting lines, no gradients
+ * inside a dot, no shadows.
  *
- * Each behaviour is a function of place and time returning 0..1, and each is
- * periodic in time with a period of exactly one cycle. That single rule is what
- * lets any length of footage loop without a jump, and it constrains every
- * animated term: each must complete a whole number of turns per cycle. Nearly
- * every way this goes wrong is a term that completes half a turn, or a
- * cross-fade that eases back to the wrong end.
+ * All six run on the same irregular cluster graph (network.js): centres
+ * scattered without a lattice, joined to a few near neighbours by bent routes.
+ * What separates them is what they animate on it —
  *
- * A behaviour may also declare prepare(t, p): work done once per frame — a
- * curve sampled, clusters resolved — returned as a context passed to `at`.
+ *   Expansion     how much ground is occupied
+ *   Convergence   where activation is heading
+ *   Diffusion     which clusters are speaking, and when
+ *   Intelligence  a sequence passing along the routes
+ *   Adaptation    which routes exist at all, and how sharply they bend
+ *   Synchronise   whether the local rhythms agree
  *
- * Nothing here moves a dot. The lattice is fixed; a behaviour may only decide
- * how much of each cell its dot fills, so every apparent shift of density is a
- * shift of dot size.
+ * — rather than a shape sliding across the frame. None of them is an axis-wide
+ * band or an evenly spaced row of peaks, and no two clusters share a schedule.
  *
- * x and y run -1..1 over the frame's height, so a wide frame shows more of the
- * pattern rather than stretching it. p.pitch is the distance between
- * neighbouring dots in those same units, for behaviours that need to line up
- * with the lattice rather than float over it.
+ * Each behaviour resolves, once per frame, to a short list of discs in
+ * `prepare`: the clusters currently carrying weight and the short lengths of
+ * route currently carrying a pulse. `at` then only measures each dot against
+ * that list. Discs are packed flat as x, y, radius, amplitude.
+ *
+ * Every behaviour is periodic with a period of exactly one cycle, so any
+ * length of footage loops. That constrains every animated term: each must
+ * complete a whole number of turns per cycle.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
 (function (DG) {
   'use strict';
 
-  var TAU = Math.PI * 2;
+  var TAU = DG.TAU;
+  var clamp01 = DG.clamp01;
+  var smoothstep = DG.smoothstep;
+  var tri = DG.tri;
+  var hash3 = DG.hash3;
+  var noise2 = DG.noise2;
+  var loopNoise = DG.loopNoise;
 
-  var clamp01 = (DG.clamp01 = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; });
+  var pt = [0, 0];
 
-  function smoothstep(e0, e1, x) {
-    var t = clamp01((x - e0) / (e1 - e0));
-    return t * t * (3 - 2 * t);
+  function frac(v) { return v - Math.floor(v); }
+
+  /* A pulse's shape as it passes: quick to arrive, slower to leave. */
+  function envelope(u) {
+    if (u < 0 || u > 1) return 0;
+    return smoothstep(0, 0.22, u) * (1 - smoothstep(0.45, 1, u));
+  }
+
+  function pushDisc(out, x, y, r, amp) {
+    if (amp <= 0.004) return;
+    out.push(x, y, r, amp);
   }
 
   /*
-   * A triangle rather than a sine. A sine spends most of its range near its
-   * extremes, so dot sizes cluster at full and gone with little in between; a
-   * triangle spreads them evenly and the field grades properly.
+   * A run of route rendered as a few overlapping discs — the head of the pulse
+   * and a short tail behind it. This is the only way a connection is ever
+   * shown: the dots lying along it grow for as long as the pulse is over them.
    */
-  function wave(turns) {
-    var t = turns - Math.floor(turns);
-    return t < 0.5 ? t * 2 : 2 - t * 2;
+  function pushRun(out, net, e, s, amp, sharp, r) {
+    for (var k = 0; k < 3; k++) {
+      var ss = s - k * 0.075;
+      if (ss < 0 || ss > 1) continue;
+      DG.routePoint(net, e, ss, sharp, pt);
+      pushDisc(out, pt[0], pt[1], r * (1 - 0.16 * k), amp * (1 - 0.28 * k));
+    }
   }
 
-  function hash3(i, j, k) {
-    var h = Math.imul(i, 0x27d4eb2d) + Math.imul(j, 0x165667b1) + Math.imul(k, 0x9e3779b1);
-    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
-    h = Math.imul(h ^ (h >>> 12), 0x297a2d39);
-    h ^= h >>> 15;
-    return (h >>> 0) / 4294967296;
-  }
-
-  function noise2(x, y, seed) {
-    var x0 = Math.floor(x);
-    var y0 = Math.floor(y);
-    var fx = x - x0;
-    var fy = y - y0;
-    var sx = fx * fx * (3 - 2 * fx);
-    var sy = fy * fy * (3 - 2 * fy);
-    var a = hash3(x0, y0, seed);
-    var b = hash3(x0 + 1, y0, seed);
-    var c = hash3(x0, y0 + 1, seed);
-    var d = hash3(x0 + 1, y0 + 1, seed);
-    var top = a + (b - a) * sx;
-    return top + (c + (d - c) * sx - top) * sy;
-  }
-
-  /*
-   * Noise that loops. One layer drifts away across the cycle while a second
-   * drifts in to meet it, cross-faded STRAIGHT ACROSS. Easing the fade is the
-   * classic mistake: an eased curve returns to the layer it left rather than
-   * the one it is heading for, and the loop jumps.
-   */
-  function loopNoise(x, y, t, seed) {
-    var a = noise2(x + t * 1.7, y - t * 1.1, seed);
-    var b = noise2(x - (1 - t) * 1.7, y + (1 - t) * 1.1, seed);
-    return a * (1 - t) + b * t;
-  }
+  /* Timing spread: how far apart the clusters' own moments are allowed to sit. */
+  function stagger(p) { return 0.12 + 0.88 * (p.timing === undefined ? 0.6 : p.timing); }
 
   DG.PATTERNS = [
     {
       id: 'expansion',
       name: 'Expansion',
-      form: 'Dense fields growing in area, one behind the next, left to right.',
-      blurb: 'A front advances across the frame, gains ground, and hands over to the one behind it.',
-      at: function (x, y, t, p) {
-        // Repetition, not a single crossing. A diagonal coordinate gave one
-        // angled edge that swept the frame once and left it; a periodic one
-        // gives the same swell over and over, so any width of canvas is
-        // covered by the behaviour rather than by whatever the edge left
-        // behind.
-        //
-        // Two noise layers bend the front. The coarse one decides where it
-        // bulges and lags, the fine one keeps the boundary from reading as a
-        // drawn curve.
-        // Both layers are stretched along x and compressed along y. Noise that
-        // varies as fast across the frame as it does down it is nearly
-        // constant over any one column, and the front comes out as a straight
-        // vertical edge; the boundary can only wander if the warp changes
-        // faster down the frame than the front travels across it.
-        var warp = 0.55 * (loopNoise(x * 0.35 * p.scale, y * 2.2 * p.scale, t, 3) - 0.5) +
-          0.20 * (loopNoise(x * 0.9 * p.scale, y * 4.5 * p.scale, t, 8) - 0.5);
-        var u = x * 0.34 * p.scale - t + warp;
-        var f = u - Math.floor(u);
-        // Area accumulates through most of the repeat, then gives way. Both
-        // ends reach zero, so consecutive fronts meet in open ground instead
-        // of at a seam.
-        var body = smoothstep(0.02, 0.62, f) * (1 - smoothstep(0.82, 0.99, f));
-        return clamp01(0.1 + 1.1 * body);
+      form: 'Occupied ground growing outward through a network, then letting go.',
+      blurb: 'A front travels the routes from two corners of the field; area is taken, held, and released.',
+      prepare: function (t, p) {
+        var net = DG.buildNetwork(p);
+        var discs = [];
+        // One turn: the front advances over the first half and withdraws over
+        // the second, so the cycle closes on the ground it started from.
+        // Ground is already held at the start of the cycle; a loop that opens
+        // and closes on an empty frame spends its ends showing nothing.
+        var front = 0.14 + tri(t) * 1.12;
+        var soft = 0.30;
+
+        for (var i = 0; i < net.nodes.length; i++) {
+          var n = net.nodes[i];
+          var lit = 1 - smoothstep(front - soft * 0.4, front + soft, n.spread);
+          pushDisc(discs, n.x, n.y, net.rad * (0.7 + 0.42 * n.w), lit * (0.55 + 0.5 * n.w));
+        }
+        // Routes fill in behind the front, which is what turns a scatter of
+        // lit clusters into occupied area.
+        for (var e = 0; e < net.edges.length; e++) {
+          var ed = net.edges[e];
+          var sa = net.nodes[ed.a].spread;
+          var sb = net.nodes[ed.b].spread;
+          for (var k = 0; k <= DG.EDGE_SAMPLES; k++) {
+            var s = k / DG.EDGE_SAMPLES;
+            var here = sa + (sb - sa) * s;
+            var v = 1 - smoothstep(front - soft * 0.4, front + soft, here);
+            if (v <= 0.02) continue;
+            DG.routePoint(net, ed, s, 0, pt);
+            pushDisc(discs, pt[0], pt[1], net.link, v * 0.85);
+          }
+        }
+        return { discs: discs, floor: 0.19 };
       }
     },
     {
       id: 'convergence',
       name: 'Convergence',
-      form: 'Concentric rings closing on a centre.',
-      blurb: 'Rings travel inward and gather; the lattice underneath never moves.',
-      prepare: function (t) {
-        // One slow turn, so the cycle closes exactly where it opened. The
-        // rings tighten and open on this breath.
-        var breath = 0.5 - 0.5 * Math.cos(TAU * t);
-        return { k: 1.9 + 0.35 * breath };
-      },
-      at: function (x, y, t, p, c) {
-        var d = Math.hypot(x, y) / p.scale;
-        // Rings rather than one Gaussian well: the concentration recurs at
-        // every radius instead of sitting in the middle of the frame once, so
-        // the behaviour reaches the corners.
-        //
-        // +t, not -t. The phase has to move towards the centre for this to be
-        // convergence; outward is the same figure playing backwards.
-        var ring = wave(d * c.k + t);
-        var core = Math.exp(-(d * d) / (2 * 0.85 * 0.85));
-        return clamp01(0.08 + 1.15 * Math.pow(ring, 0.85) * (0.35 + 0.75 * core));
+      form: 'Activation arriving from every direction at one place in the field.',
+      blurb: 'Pulses launch from the outer clusters and run inward down the routes, meeting at the centre.',
+      prepare: function (t, p) {
+        var net = DG.buildNetwork(p);
+        var discs = [];
+        var sp = stagger(p);
+        var arrive = 0;
+
+        for (var e = 0; e < net.edges.length; e++) {
+          var ed = net.edges[e];
+          var A = net.nodes[ed.a];
+          var B = net.nodes[ed.b];
+          // Always downhill: the pulse leaves whichever end is further from
+          // the centre. Direction is the whole behaviour — the same figure
+          // running outward is not convergence, it is a bloom.
+          var out = A.inward > B.inward;
+          var from = out ? A : B;
+          // Launched so that the far reaches of the network set off first and
+          // the arrivals stack up rather than land together.
+          var launch = frac(1 - from.inward * 0.8 - ed.jitter * 0.1 * sp);
+          var u = frac(t - launch) / 0.34;
+          if (u > 1) continue;
+          var s = out ? 1 - u : u;
+          pushRun(discs, net, ed, s, envelope(u) * 1.15, 0, net.link);
+        }
+
+        for (var i = 0; i < net.nodes.length; i++) {
+          var n = net.nodes[i];
+          // A cluster brightens as the pulses that were sent towards it land.
+          var land = frac(t - frac(1 - n.inward * 0.8) - 0.30);
+          var hit = envelope(Math.min(1, land / 0.3));
+          var base = i === net.sink ? 0.6 : 0.3;
+          arrive = base + (0.85 - base * 0.4) * hit;
+          pushDisc(discs, n.x, n.y, net.rad * (0.62 + 0.4 * n.w), arrive * (0.6 + 0.5 * n.w));
+        }
+        return { discs: discs, floor: 0.19 };
       }
     },
     {
       id: 'diffusion',
       name: 'Diffusion',
-      form: 'A stable lattice turning porous, opening irregular white channels.',
-      blurb: 'Pockets of empty space migrate; dots shrink away ahead and regrow behind.',
-      at: function (x, y, t, p) {
-        // Fine enough that the gaps read as channels through a lattice rather
-        // than as one soft cloud over it.
-        var n = loopNoise(x * 2.2 * p.scale, y * 2.2 * p.scale, t, 11);
-        // A wide window, not a narrow one. Narrow, the noise crosses it in a
-        // couple of dots and the field splits into patches with a hard rim;
-        // wide, the same noise grades across five or six dots and the dense
-        // and open areas belong to one surface.
-        var visible = smoothstep(0.16, 0.74, n);
-        // A second, slower field so the surviving lattice is not uniformly
-        // heavy — held gentle, or it reinstates the patchiness the wide
-        // window just removed.
-        var swell = loopNoise(x * 1.0 * p.scale + 9, y * 1.0 * p.scale - 4, t, 27);
-        return clamp01(0.1 + visible * (0.8 + 0.32 * swell));
+      form: 'Clusters speaking in turn, each spilling a little way into its neighbourhood.',
+      blurb: 'Pockets of the field come forward and recede on their own schedules, never all at once.',
+      prepare: function (t, p) {
+        var net = DG.buildNetwork(p);
+        var discs = [];
+        var sp = stagger(p);
+
+        for (var i = 0; i < net.nodes.length; i++) {
+          var n = net.nodes[i];
+          // Each cluster's own moment, its own dwell. Identical timing across
+          // clusters is what makes a field of this kind read as one blinking
+          // shape instead of as a population.
+          var own = frac(n.beat * sp + i * 0.017);
+          var dwell = 0.34 + 0.3 * hash3(i, 3, p.seed);
+          var u = frac(t - own) / dwell;
+          var v = envelope(u);
+          // Never fully absent: the cluster subsides, it does not vanish, and
+          // the lattice keeps its grain.
+          pushDisc(discs, n.x, n.y, net.rad * (0.72 + 0.5 * n.w) * (0.8 + 0.3 * v), 0.22 + 0.85 * v);
+        }
+
+        for (var e = 0; e < net.edges.length; e++) {
+          var ed = net.edges[e];
+          var A = net.nodes[ed.a];
+          var oa = frac(A.beat * sp + ed.a * 0.017);
+          var u2 = frac(t - oa - 0.06) / 0.4;
+          if (u2 > 1) continue;
+          // A short way along the route only — enough to say the neighbours
+          // are joined, not enough to draw the join.
+          pushRun(discs, net, ed, u2 * 0.72, envelope(u2) * 0.8, 0, net.link * 0.92);
+        }
+        return { discs: discs, floor: 0.19 };
       }
     },
     {
       id: 'intelligence',
       name: 'Intelligence',
-      form: 'Clustered information — an abstract circuit, or glyphs that never resolve.',
-      blurb: 'Clusters light up in turn, one gaining as its neighbour recedes.',
-      prepare: function (t) { return { t: t }; },
-      at: function (x, y, t, p, c) {
-        // A stable map of grid-aligned cells. The map never changes; only which
-        // cells are awake does, so the field reads as sequence rather than as
-        // flicker.
-        var cell = 0.135 / p.scale;
-        var cx = Math.floor(x / cell);
-        var cy = Math.floor(y / cell);
-        var group = Math.floor(cx / 4) * 31 + Math.floor(cy / 3) * 7;
-        if (hash3(cx, cy, 5) < 0.28) return 0.06;         // blank cells
+      form: 'A signal crossing a network, cluster to cluster, along bent routes.',
+      blurb: 'One cluster fires, its neighbours answer a beat later, and the sequence travels the field.',
+      prepare: function (t, p) {
+        var net = DG.buildNetwork(p);
+        var discs = [];
+        var sp = stagger(p);
 
-        var quiet = 0.12 + 0.16 * hash3(cx, cy, 13);
-        var loud = 0.55 + 0.45 * hash3(cx, cy, 17);
+        function fireAt(i) {
+          var n = net.nodes[i];
+          // Position in the sequence comes from the graph, not from where the
+          // cluster happens to sit, so the signal follows the connections —
+          // including the ones that double back.
+          return frac(n.spread * 0.72 + n.beat * 0.22 * sp);
+        }
 
-        // Each cluster wakes at its own moment in the cycle, and neighbours are
-        // offset slightly so activity passes across the field.
-        var phase = hash3(group, 3, 9);
-        var u = (c.t - phase + 1) % 1;
-        var active = smoothstep(0, 0.18, u) * (1 - smoothstep(0.34, 0.62, u));
-        return clamp01(quiet + (loud - quiet) * active);
+        for (var i = 0; i < net.nodes.length; i++) {
+          var n = net.nodes[i];
+          var u = frac(t - fireAt(i)) / 0.30;
+          var v = envelope(u);
+          // The network stays legible between firings; only the sequence
+          // running over it comes and goes.
+          pushDisc(discs, n.x, n.y, net.rad * (0.6 + 0.42 * n.w) * (0.85 + 0.28 * v), 0.3 + 0.85 * v);
+        }
+
+        for (var e = 0; e < net.edges.length; e++) {
+          var ed = net.edges[e];
+          var ta = fireAt(ed.a);
+          var tb = fireAt(ed.b);
+          // The pulse runs from whichever end fired first towards the other,
+          // so the route carries the sequence rather than decorating it.
+          var forward = frac(tb - ta) < 0.5;
+          var start = forward ? ta : tb;
+          var u2 = frac(t - start) / 0.26;
+          if (u2 > 1) continue;
+          pushRun(discs, net, ed, forward ? u2 : 1 - u2, envelope(u2) * 1.05, 0, net.link);
+        }
+        return { discs: discs, floor: 0.19 };
       }
     },
     {
       id: 'adaptation',
       name: 'Adaptation',
-      form: 'Stacked bands that shift between a soft squiggle and a hard zigzag.',
-      blurb: 'The same run of bands relaxes into curves and tightens into angles, over and over.',
-      prepare: function (t) {
-        // Smooth at 0, sharp at the half, smooth again at 1 — one turn, so the
-        // change of character is itself the loop rather than something that
-        // has to be undone at the end.
-        return { m: 0.5 - 0.5 * Math.cos(TAU * t), t: t };
-      },
-      at: function (x, y, t, p, c) {
-        var fx = x / p.scale;
-        var fy = y / p.scale;
-        var ph = TAU * (fx * 0.55 - c.t);
+      form: 'A network rewiring: routes lapse, others take over, and the bends harden.',
+      blurb: 'Connections come and go on their own schedules while every route travels from smooth curve to sharp angle.',
+      prepare: function (t, p) {
+        var net = DG.buildNetwork(p);
+        var discs = [];
+        var sp = stagger(p);
+        // Smooth at the ends of the cycle, angular through the middle. The
+        // change of character is itself the loop, so nothing has to be undone.
+        var sharp = 0.5 - 0.5 * Math.cos(TAU * t);
 
-        // Two waves on one phase, not one wave bent harder. A sine carrying a
-        // third harmonic reads as a squiggle; the triangle of the same phase
-        // reads as folded. Crossfading them keeps every crest in place while
-        // its character changes, which is what makes the morph read as one
-        // band adapting rather than as a shape being replaced.
-        var soft = Math.sin(ph) + 0.34 * Math.sin(3 * ph + 1.1);
-        var hard = 1.15 * (2 / Math.PI) * Math.asin(Math.sin(ph));
-        // Amplitude morphs with the shape. Crossfading sine into triangle at a
-        // fixed amplitude is a change too small to read at this band width —
-        // the squiggle has to be shallow and busy before the fold can arrive
-        // as tall and spare.
-        var centre = (0.20 + 0.30 * c.m) * (soft + (hard - soft) * c.m);
+        for (var i = 0; i < net.nodes.length; i++) {
+          var n = net.nodes[i];
+          pushDisc(discs, n.x, n.y, net.rad * (0.66 + 0.4 * n.w), 0.5 + 0.42 * n.w);
+        }
 
-        // Stacked copies: one ribbon crossing the frame left the rest of it
-        // empty.
-        var pitch = 0.85;
-        var yy = fy - centre + pitch * 0.5;
-        var d = Math.abs(yy - pitch * Math.floor(yy / pitch) - pitch * 0.5);
-        return clamp01(0.08 + 1.1 * (1 - smoothstep(0.06, 0.26, d)));
+        for (var e = 0; e < net.edges.length; e++) {
+          var ed = net.edges[e];
+          // Each route holds for its own stretch of the cycle and lapses for
+          // the rest. Two hashed windows rather than one, so the wiring keeps
+          // changing instead of pulsing on and off together.
+          var open = frac(ed.jitter * sp);
+          var span = 0.34 + 0.3 * hash3(ed.a, ed.b, p.seed + 5);
+          var u = frac(t - open);
+          var live = smoothstep(0, 0.1, u) * (1 - smoothstep(span, span + 0.14, u));
+          if (live <= 0.02) continue;
+          for (var k = 0; k <= DG.EDGE_SAMPLES; k++) {
+            var s = k / DG.EDGE_SAMPLES;
+            DG.routePoint(net, ed, s, sharp, pt);
+            // Thinner towards the ends, so a route reads as growing out of its
+            // clusters rather than being pinned between them.
+            var taper = 0.55 + 0.45 * Math.sin(Math.PI * s);
+            pushDisc(discs, pt[0], pt[1], net.link * taper, live * 0.95);
+          }
+        }
+        return { discs: discs, floor: 0.19 };
       }
     },
     {
       id: 'synchronise',
       name: 'Synchronise',
-      form: 'One continuous spiral, winding in and out of itself.',
-      blurb: 'Arms of a single curve sweep inward; the spiral tightens, holds, and opens again.',
-      prepare: function (t) {
-        // Tightness rides one turn, so the spiral ends as open as it began.
-        var breath = 0.5 - 0.5 * Math.cos(TAU * t);
-        return { k: 2.2 + 0.6 * breath, t: t };
-      },
-      at: function (x, y, t, p, c) {
-        var d = Math.hypot(x, y) / p.scale;
-        var a = Math.atan2(y, x);
-        // One figure across the whole frame, in place of a row of independent
-        // signals: the arms are the repetition, and they are all the same
-        // curve, so the field reads as one thing turning.
-        //
-        // ARMS must be a whole number. atan2 jumps by a full turn along the
-        // negative x axis, and only a whole number of arms turns that jump
-        // into no jump at all; a fractional count leaves a seam straight
-        // across the frame.
-        // One arm, wound several times over the radius. Three arms at a low
-        // winding rate read as a pinwheel — wide wedges meeting in the middle
-        // — where a single arm crossing its own track reads as a spiral.
-        var u = (a / TAU) + d * c.k - c.t;
-        return clamp01(0.08 + 1.2 * Math.pow(wave(u), 1.3));
+      form: 'Local rhythms drifting apart, falling into step, and parting again.',
+      blurb: 'Every cluster keeps the same beat at its own offset; the offsets close up, hold, and open out.',
+      prepare: function (t, p) {
+        var net = DG.buildNetwork(p);
+        var discs = [];
+        var sp = stagger(p);
+        // Agreement rises and falls once across the cycle, so the field ends as
+        // loose as it began.
+        var sync = 0.5 - 0.5 * Math.cos(TAU * t);
+        // A whole number of beats per cycle. Anything else and the rhythm
+        // itself is what breaks the loop.
+        var RATE = 3;
+
+        for (var i = 0; i < net.nodes.length; i++) {
+          var n = net.nodes[i];
+          // The offsets are squeezed out as the field locks. Rates stay equal
+          // throughout: clusters running at genuinely different rates can be
+          // made to coincide, but never to keep step.
+          // Squeezed towards a shared beat but never all the way onto it. At
+          // a true unison every cluster is dark at the same instant and the
+          // whole field blinks; a residual keeps them a population.
+          var off = (n.beat - 0.5) * 0.9 * sp * (1 - 0.72 * sync);
+          // Clusters also differ in how sharply they strike, so even at their
+          // closest they are not the same event repeated.
+          var bite = 1.05 + 1.5 * hash3(i, 19, p.seed);
+          var beat = Math.pow(tri(RATE * t - off), bite);
+          // A cluster is always present and the beat rides on top of it. Let
+          // the beat carry the whole amplitude and the field goes dark every
+          // time the clusters agree — the moment the behaviour exists to show
+          // is the moment you would not be able to see.
+          pushDisc(discs, n.x, n.y, net.rad * (0.62 + 0.4 * n.w) * (0.82 + 0.3 * beat), 0.38 + 0.8 * beat);
+        }
+
+        for (var e = 0; e < net.edges.length; e++) {
+          var ed = net.edges[e];
+          var A = net.nodes[ed.a];
+          var B = net.nodes[ed.b];
+          var oa = (A.beat - 0.5) * 0.9 * sp * (1 - 0.72 * sync);
+          var ob = (B.beat - 0.5) * 0.9 * sp * (1 - 0.72 * sync);
+          // A route only carries anything while its two clusters are close to
+          // agreeing, so the network visibly knits together as they lock.
+          var agree = 1 - smoothstep(0.06, 0.34, Math.abs(oa - ob));
+          if (agree <= 0.02) continue;
+          var u = frac(RATE * t - (oa + ob) * 0.5);
+          pushRun(discs, net, ed, u, agree * envelope(Math.min(1, u / 0.55)) * 1.1, 0, net.link * 0.9);
+        }
+        return { discs: discs, floor: 0.19 };
       }
     }
   ];
+
+  /*
+   * One reader for all six. A dot takes the strongest disc covering it rather
+   * than the sum of them: adding overlapping clusters together drives whole
+   * neighbourhoods to full size and the local structure disappears into a slab.
+   */
+  function sample(x, y, t, p, c) {
+    var fx = x / p.scale;
+    var fy = y / p.scale;
+    if (p.distort > 0) {
+      // The same warp the clusters were placed through, so a dot and the
+      // network agree about where it is.
+      fx += p.distort * 0.42 * (noise2(fx * 0.7, fy * 0.7, p.seed + 61) - 0.5);
+      fy += p.distort * 0.42 * (noise2(fx * 0.7 + 4, fy * 0.7 - 2, p.seed + 73) - 0.5);
+    }
+    var d = c.discs;
+    var best = 0;
+    for (var i = 0; i < d.length; i += 4) {
+      var dx = fx - d[i];
+      var dy = fy - d[i + 1];
+      var r = d[i + 2];
+      var q = (dx * dx + dy * dy) / (r * r);
+      if (q >= 1) continue;
+      var f = 1 - q;
+      var v = d[i + 3] * f * f;
+      if (v > best) best = v;
+    }
+    return clamp01(c.floor + best);
+  }
+
+  /*
+   * Optional coherent displacement. Neighbouring dots move together and by a
+   * fraction of the gap — the lattice must stay readable, because it is what
+   * makes everything above legible as change rather than as noise.
+   */
+  function shift(x, y, t, p) {
+    if (!p.drift) return null;
+    // Returns a direction of roughly unit length and nothing more. The size of
+    // the move belongs to the generator, which is where the cap lives; scaling
+    // it here as well made the control quadratic, so its top setting reached
+    // half of what it claimed.
+    var a = (loopNoise(x * 0.8 + 3, y * 0.8 - 1, t, p.seed + 91) - 0.5) * 2.4;
+    var b = (loopNoise(x * 0.8 - 6, y * 0.8 + 4, t, p.seed + 97) - 0.5) * 2.4;
+    return [Math.max(-1, Math.min(1, a)), Math.max(-1, Math.min(1, b))];
+  }
+
+  DG.PATTERNS.forEach(function (pat) {
+    pat.at = sample;
+    pat.offset = shift;
+  });
 
   DG.PATTERNS_BY_ID = {};
   DG.PATTERNS.forEach(function (p) { DG.PATTERNS_BY_ID[p.id] = p; });

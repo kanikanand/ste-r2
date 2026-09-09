@@ -23,8 +23,17 @@ var DG = window.DG || (window.DG = {});
     { id: 60, label: '1 min' }
   ];
 
+  /*
+   * Someone who has asked their system for less motion should not be handed a
+   * canvas that starts animating. They get the same tool, opened on a still
+   * frame, with the Play button to hand.
+   */
+  function prefersStill() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
   function App() {
-    var paramsState = useState(Object.assign({}, DG.DEFAULTS, { paused: false }));
+    var paramsState = useState(Object.assign({}, DG.DEFAULTS, { paused: prefersStill() }));
     var params = paramsState[0];
     var setParams = paramsState[1];
     var jobState = useState(null);        // { what, progress }
@@ -146,6 +155,27 @@ var DG = window.DG || (window.DG = {});
                 <button type="button" class="ghost"
                   onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
               </div>
+            </section>
+
+            <section>
+              <h2>Network</h2>
+              <${DG.Slider} label="Clusters" value=${params.clusters} min=${4} max=${48} step=${1}
+                format=${function (v) { return v + ' centres'; }}
+                onChange=${function (v) { set({ clusters: v }); }} />
+              <${DG.Slider} label="Field distortion" value=${params.distort} min=${0} max=${1}
+                onChange=${function (v) { set({ distort: v }); }} />
+              <${DG.Slider} label="Timing spread" value=${params.timing} min=${0} max=${1}
+                onChange=${function (v) { set({ timing: v }); }} />
+              <${DG.Slider} label="Displacement" value=${params.drift} min=${0} max=${0.1} step=${0.005}
+                format=${function (v) { return Math.round(v * 100) + '% of gap'; }}
+                onChange=${function (v) { set({ drift: v }); }} />
+              <p class="hint">
+                Clusters are scattered across a field wider than the frame, so
+                the count includes centres just outside it. Displacement moves
+                neighbouring dots together and stops at a tenth of the gap —
+                past that the lattice stops reading, and so does everything
+                happening on it.
+              </p>
             </section>
 
             <section>
