@@ -27,6 +27,13 @@ var DG = window.DG || (window.DG = {});
     var paramsState = useState(Object.assign({}, DG.DEFAULTS, { paused: false }));
     var params = paramsState[0];
     var setParams = paramsState[1];
+    // GIF is the one export that can go either way, so it carries its own
+    // switch rather than borrowing the Background swatch: you should be able to
+    // pull a transparent GIF without first blanking the background you are
+    // looking at.
+    var clearGifState = useState(false);
+    var clearGif = clearGifState[0];
+    var setClearGif = clearGifState[1];
     var jobState = useState(null);        // { what, progress }
     var job = jobState[0];
     var setJob = jobState[1];
@@ -57,8 +64,12 @@ var DG = window.DG || (window.DG = {});
       var fail = function (e) { setJob(null); alert(e.message || String(e)); };
 
       if (kind === 'GIF') {
-        DG.exportGIF(params, style, seconds, { width: 480, fps: 12.5 }, onProgress)
-          .then(function (blob) { DG.download(blob, stem + '-' + seconds + 's.gif'); done(); })
+        var gifStyle = clearGif ? Object.assign({}, style, { background: null }) : style;
+        // Named apart, so downloading both leaves you with two files rather
+        // than one and a copy.
+        var gifName = stem + '-' + seconds + 's' + (clearGif ? '-clear' : '') + '.gif';
+        DG.exportGIF(params, gifStyle, seconds, { width: 480, fps: 12.5 }, onProgress)
+          .then(function (blob) { DG.download(blob, gifName); done(); })
           .catch(fail);
       } else {
         DG.exportVideo(params, style, seconds, { width: 1280, fps: 30 }, onProgress)
@@ -91,12 +102,17 @@ var DG = window.DG || (window.DG = {});
                 onClick=${function () { DG.exportPNG(params, style, clock.current, 2000, stem + '.png'); }}>PNG</button>
             </div>
 
-            <div class="dl-group" title="Looping footage. A transparent background is kept transparent.">
+            <div class="dl-group" title=${clearGif
+              ? 'Looping footage with no background. A GIF has one see-through palette entry, so a dot edge cannot fade into whatever sits behind it.'
+              : 'Looping footage, on the background you have chosen.'}>
               <span class="dl-label">GIF</span>
               ${DURATIONS.map(function (d) {
                 return html`<button key=${d.id} type="button" class="chip" disabled=${!!job}
                   onClick=${function () { runFootage('GIF', d.id); }}>${d.label}</button>`;
               })}
+              <button type="button" aria-pressed=${clearGif}
+                class=${'chip chip-toggle' + (clearGif ? ' is-active' : '')}
+                onClick=${function () { setClearGif(!clearGif); }}>No bg</button>
             </div>
 
             <div class="dl-group" title=${video && video.ext !== 'mp4'

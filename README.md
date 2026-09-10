@@ -60,6 +60,12 @@ something else.
 
 **GIF** and **MP4** at 10 seconds, 30 seconds or a minute.
 
+GIF also has a **No bg** switch, so a transparent GIF can be pulled without
+first blanking the background you are working on; it saves as `-clear`. A GIF
+has one palette entry nominated as see-through, so transparency is all or
+nothing per pixel — a dot's soft edge cannot fade into whatever sits behind it.
+MP4 has no alpha at all, so video always carries a background.
+
 GIF is encoded here rather than pulled in (`js/gifenc.js`), so the page keeps
 working offline with no worker and nothing to download. A GIF carries at most
 256 colours, so frames are quantised: a palette is chosen by median cut over a
