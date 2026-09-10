@@ -89,7 +89,9 @@ var DG = window.DG || (window.DG = {});
           DG.renderDots(ctx, DG.generateDots(params, width, height, t), {
             width: width,
             height: height,
-            background: style.background || '#000000',
+            // A GIF can hold one transparent index, so Transparent is honoured
+            // here rather than filled in with black as it used to be.
+            background: style.background,
             solid: style.solid,
             shape: style.shape,
             useGradient: style.useGradient
@@ -102,7 +104,7 @@ var DG = window.DG || (window.DG = {});
 
         setTimeout(function () {
           try {
-            var bytes = DG.encodeGIF(frames, width, height, 1000 / fps);
+            var bytes = DG.encodeGIF(frames, width, height, 1000 / fps, !style.background);
             if (onProgress) onProgress(1);
             resolve(new Blob([bytes], { type: 'image/gif' }));
           } catch (e) { reject(e); }

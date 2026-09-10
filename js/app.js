@@ -74,8 +74,8 @@ var DG = window.DG || (window.DG = {});
           <div class="brand">
             <span class="brand-mark"></span>
             <div>
-              <h1>Dotted Grid Motion</h1>
-              <p>Six patterns in constant flow</p>
+              <h1>Ingenuity Unleashed</h1>
+              <p>Five patterns in constant flow</p>
             </div>
           </div>
           <div class="topbar-actions">

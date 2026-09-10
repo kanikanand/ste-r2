@@ -1,5 +1,5 @@
 /* ============================================================================
- * patterns.js — six behaviours of one dot system.
+ * patterns.js — five behaviours of one dot system.
  *
  * The circles are the base geometry. Everything else — the sense of mass, of a
  * centre, of a ribbon or a signal — comes from radius, local spacing and
@@ -78,9 +78,17 @@ var DG = window.DG || (window.DG = {});
    * classic mistake: an eased curve returns to the layer it left rather than
    * the one it is heading for, and the loop jumps.
    */
-  function loopNoise(x, y, t, seed) {
-    var a = noise2(x + t * 1.7, y - t * 1.1, seed);
-    var b = noise2(x - (1 - t) * 1.7, y + (1 - t) * 1.1, seed);
+  function loopNoise(x, y, t, seed, drift) {
+    // `drift` scales how far the layers travel, and nothing else. It matters
+    // because the distance is fixed in noise space: over a coordinate that has
+    // been stretched to a third of its frequency, the same 1.7 becomes five
+    // field units a cycle, and the warp ends up racing the thing it is meant
+    // to be bending. The loop holds at any drift — at t = 0 the result is the
+    // first layer read at its own origin, and at t = 1 the second layer read
+    // at exactly the same place.
+    var d = drift === undefined ? 1 : drift;
+    var a = noise2(x + t * 1.7 * d, y - t * 1.1 * d, seed);
+    var b = noise2(x - (1 - t) * 1.7 * d, y + (1 - t) * 1.1 * d, seed);
     return a * (1 - t) + b * t;
   }
 
@@ -102,9 +110,16 @@ var DG = window.DG || (window.DG = {});
          * Three fronts rather than one. A single periodic coordinate can only
          * ever hold one speed, so every stripe it draws marches in lockstep and
          * the spacing between them never changes — which is a moving grating,
-         * not an expansion. Three layers at different whole numbers of turns
-         * per cycle drift against each other: they overtake, overlap into one
-         * broader field, and separate again.
+         * not an expansion. Three layers of different widths drift against each
+         * other: they overtake, overlap into one broader field, and separate
+         * again.
+         *
+         * The differing speeds come from the widths, not from the rates. A
+         * front travels its own repeat once per cycle, so its speed is one
+         * repeat per cycle — wide fronts cover more ground than narrow ones in
+         * the same time. Running the layers at two and three turns instead made
+         * the behaviour three to five times faster than any other, since a rate
+         * has to be a whole number and two is already double.
          *
          * Combined by taking the strongest, not by adding. Added, three
          * overlapping fronts saturate wherever any two meet and the merge is
@@ -113,8 +128,8 @@ var DG = window.DG || (window.DG = {});
         var best = 0;
         for (var n = 0; n < 3; n++) {
           var sd = 3 + n * 13;
-          var rate = 1 + n;                       // whole turns per cycle
-          var freq = 0.30 + 0.10 * n;
+          var rate = 1;                           // one whole turn per cycle
+          var freq = 0.50 + 0.15 * n;
 
           // Two noise layers bend the front. The coarse one decides where it
           // bulges and lags, the fine one keeps the boundary from reading as a
@@ -122,22 +137,37 @@ var DG = window.DG || (window.DG = {});
           // noise that varies as fast across the frame as it does down it is
           // nearly constant over any one column, and the front comes out as a
           // straight vertical edge.
-          var warp = 0.55 * (loopNoise(sx * 0.35, sy * 2.2, t, sd) - 0.5) +
-            0.20 * (loopNoise(sx * 0.9, sy * 4.5, t, sd + 5) - 0.5);
+          var warp = 0.55 * (loopNoise(sx * 0.35, sy * 2.2, t, sd, 0.25) - 0.5) +
+            0.20 * (loopNoise(sx * 0.9, sy * 4.5, t, sd + 5, 0.35) - 0.5);
 
           var u = sx * freq - rate * t + hash3(n, 1, 5) + warp;
           var f = u - Math.floor(u);
-          // A third of the repeat each, not most of it. One front could afford
-          // to be wide; three of them taken together cannot — at the old duty
-          // the union covered the frame and there was no open ground left for
-          // anything to advance into. Both ends still reach zero, so
+          // About a third of the repeat each, not most of it. One front could
+          // afford to be wide; three of them taken together cannot — at the old
+          // duty the union covered the frame and there was no open ground left
+          // for anything to advance into. Both ends still reach zero, so
           // consecutive fronts meet in clear space rather than at a seam.
-          var body = smoothstep(0.03, 0.16, f) * (1 - smoothstep(0.30, 0.46, f));
+          //
+          // Long ramps rather than hard edges. At one turn per cycle every dot
+          // traverses exactly one repeat, whatever the width of the fields, so
+          // the ramps are the only thing that sets how fast any one dot changes
+          // size — and that is most of what reads as speed. Over the old
+          // 0.13-wide edge a dot went from smallest to largest in an eighth of
+          // a cycle, where every other behaviour here takes about a half.
+          //
+          // Which also means the field width is free: it costs nothing in pace,
+          // so it is set as wide as the duty allows.
+          var body = smoothstep(0.02, 0.24, f) * (1 - smoothstep(0.30, 0.56, f));
 
           // A slow vertical envelope, so a front is a field with a top and a
           // bottom rather than a bar the full height of the frame. Without it
           // the density only ever varies horizontally.
-          var vy = 0.5 + 0.5 * Math.sin(TAU * (sy * (0.30 + 0.10 * n) + n * t + hash3(n, 2, 9)));
+          // The envelope sways rather than runs: its phase is displaced by a
+          // sine of the cycle instead of advancing with it, so where a front
+          // carries its weight drifts up and down slowly without adding to how
+          // fast the front itself crosses the frame.
+          var vy = 0.5 + 0.5 * Math.sin(TAU * (sy * (0.30 + 0.10 * n) +
+            0.28 * Math.sin(TAU * (t + hash3(n, 4, 19))) + hash3(n, 2, 9)));
           var v = body * (0.22 + 0.78 * vy);
           if (v > best) best = v;
         }
@@ -196,7 +226,10 @@ var DG = window.DG || (window.DG = {});
       at: function (x, y, t, p) {
         // Fine enough that the gaps read as channels through a lattice rather
         // than as one soft cloud over it.
-        var n = loopNoise(x * 2.2 * p.scale, y * 2.2 * p.scale, t, 11);
+        // Divided, like every other behaviour. Multiplying the coordinate by
+        // Pattern scale raises the frequency, so the slider ran backwards: its
+        // top gave the finest channels rather than the widest.
+        var n = loopNoise(x * 2.2 / p.scale, y * 2.2 / p.scale, t, 11);
         // A wide window, not a narrow one. Narrow, the noise crosses it in a
         // couple of dots and the field splits into patches with a hard rim;
         // wide, the same noise grades across five or six dots and the dense
@@ -205,7 +238,7 @@ var DG = window.DG || (window.DG = {});
         // A second, slower field so the surviving lattice is not uniformly
         // heavy — held gentle, or it reinstates the patchiness the wide
         // window just removed.
-        var swell = loopNoise(x * 1.0 * p.scale + 9, y * 1.0 * p.scale - 4, t, 27);
+        var swell = loopNoise(x * 1.0 / p.scale + 9, y * 1.0 / p.scale - 4, t, 27);
         return clamp01(0.1 + visible * (0.8 + 0.32 * swell));
       }
     },
@@ -219,7 +252,10 @@ var DG = window.DG || (window.DG = {});
         // A stable map of grid-aligned cells. The map never changes; only which
         // cells are awake does, so the field reads as sequence rather than as
         // flicker.
-        var cell = 0.135 / p.scale;
+        // Multiplied, because this is a cell SIZE and not a coordinate: the
+        // two go opposite ways. Dividing shrank the cells as the slider rose,
+        // which is the same inversion Diffusion had by the opposite arithmetic.
+        var cell = 0.135 * p.scale;
         var cx = Math.floor(x / cell);
         var cy = Math.floor(y / cell);
         var group = Math.floor(cx / 4) * 31 + Math.floor(cy / 3) * 7;

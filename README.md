@@ -1,9 +1,9 @@
-# Dotted Grid Motion
+# Ingenuity Unleashed
 
-Six dotted patterns in constant flow, with footage export. A companion to the
+Five dotted patterns in constant flow, with footage export. A companion to the
 still branch (`claude/dotted-grid-patterns-wn0ltz`), built motion first.
 
-![the six patterns](docs/patterns.png)
+![the patterns](docs/patterns.png)
 
 ## Run it
 
@@ -19,9 +19,9 @@ the filesystem. To serve it instead:
 npx http-server -p 8080 .
 ```
 
-## The six patterns
+## The five patterns
 
-Six behaviours of one dot system, not six unrelated graphics. The circles are
+Five behaviours of one dot system, not five unrelated graphics. The circles are
 the base geometry; radius, local spacing and selective absence do the rest.
 
 | Pattern | Emerging form | Motion |
@@ -87,7 +87,7 @@ slate, ice, paper or white. **Frame** — 16:9, 1:1, 4:5 or 9:16.
 ```
 index.html            loads the vendored libraries, then js/ in order
 css/style.css
-js/patterns.js        the six patterns, as fields that move
+js/patterns.js        the five patterns, as fields that move
 js/color.js           palette, three-stop ramp, gradient mapping
 js/generate.js        the dots for one moment, and the renderers
 js/gifenc.js          the GIF89a encoder

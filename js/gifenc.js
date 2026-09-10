@@ -172,19 +172,34 @@ var DG = window.DG || (window.DG = {});
   /*
    * frames: array of Uint8ClampedArray RGBA buffers, all width x height.
    * delayMs: how long each frame is held.
+   * transparent: keep clear pixels clear instead of filling them.
+   *
+   * A GIF has no alpha channel — it has one palette entry nominated as
+   * "see through". So transparency here is all or nothing per pixel: a dot's
+   * soft edge cannot fade into the page behind it, and the last index is spent
+   * on the hole rather than on a colour.
    */
-  DG.encodeGIF = function (frames, width, height, delayMs) {
+  DG.encodeGIF = function (frames, width, height, delayMs, transparent) {
+    // One slot reserved for the hole, so the colours get 255 rather than 256.
+    var CLEAR = 255;
+    var want = transparent ? 255 : 256;
+
     // Sample across the whole run so the palette suits every frame, not just
-    // the first.
+    // the first. Clear pixels are left out of the sample: they carry whatever
+    // colour happens to sit under a zero alpha, and letting that into the
+    // median cut spends real colours describing something nobody will see.
     var samples = [];
     var step = Math.max(1, Math.floor((width * height) / 4000)) * 4;
     for (var f = 0; f < frames.length; f += Math.max(1, Math.floor(frames.length / 12))) {
       var px = frames[f];
       for (var i = 0; i < px.length; i += step) {
+        if (transparent && px[i + 3] < 128) continue;
         samples.push(px[i], px[i + 1], px[i + 2]);
       }
     }
-    var palette = medianCut(new Uint8Array(samples), 256);
+    // A frame that is entirely clear would leave nothing to quantise.
+    if (!samples.length) samples.push(0, 0, 0);
+    var palette = medianCut(new Uint8Array(samples), want);
     var lut = buildLookup(palette);
 
     var out = [];
@@ -214,11 +229,15 @@ var DG = window.DG || (window.DG = {});
     for (var fr = 0; fr < frames.length; fr++) {
       var data = frames[fr];
       for (var p = 0, q = 0; p < indices.length; p++, q += 4) {
+        if (transparent && data[q + 3] < 128) { indices[p] = CLEAR; continue; }
         indices[p] = lut[((data[q] >> 3) << 10) | ((data[q + 1] >> 3) << 5) | (data[q + 2] >> 3)];
       }
-      str('!'); byte(0xf9); byte(4); byte(0);
+      // Disposal 2 — restore to background — clears the frame before the next
+      // one is drawn. Without it each frame is painted over the last, and every
+      // hole in the animation shows the frames behind it rather than the page.
+      str('!'); byte(0xf9); byte(4); byte(transparent ? 0x09 : 0);
       short(delay);
-      byte(0); byte(0);
+      byte(transparent ? CLEAR : 0); byte(0);
       str(',');
       short(0); short(0); short(width); short(height); byte(0);
       byte(8);
