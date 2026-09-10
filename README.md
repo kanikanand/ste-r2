@@ -30,7 +30,6 @@ the base geometry; radius, local spacing and selective absence do the rest.
 | Convergence | A soft central concentration, like a lens or a gravitational well. | The centre inhales — dots swell and draw in, then return. |
 | Diffusion | A stable lattice turning porous, opening irregular white channels. | Pockets of empty space migrate; dots shrink away ahead and regrow behind. |
 | Intelligence | Clustered information — an abstract circuit, or glyphs that never resolve. | Clusters light up in turn, one gaining as its neighbour recedes. |
-| Adaptation | A flowing, folded ribbon revealed only through changes in dot scale. | The band flexes across the field; the dots never move, they take turns being heavy. |
 | Synchronise | Horizontal signals that drift, lock to a shared beat, and part again. | Pulses travel at one speed but out of phase, align, hold, then separate. |
 
 ## How the motion works
@@ -48,14 +47,10 @@ half a turn, or a cross-fade easing back to the wrong end. The looping noise is
 cross-faded *straight across* for exactly that reason: an eased fade returns to
 the layer it left rather than the one it is heading for.
 
-Two behaviours need more than a value per dot, so a pattern may also declare:
-
-- `prepare(t, p)` — work done once per frame, returned as a context. *Adaptation*
-  samples its curve here; sampling it per dot would be wasteful.
-- `offset(...)` — a displacement, for the few cases where moving a dot says
-  something resizing it cannot. *Convergence* draws dots towards its centre in
-  proportion to how much they belong to it, capped well inside the gap so
-  neighbours never trade places.
+A pattern may also declare `prepare(t, p)` — work done once per frame,
+returned as a context. *Convergence* and *Synchronise* resolve their per-frame
+state there rather than recomputing it for every dot. Nothing displaces a dot:
+a behaviour only decides how much of its cell the dot fills.
 
 ## Downloads
 

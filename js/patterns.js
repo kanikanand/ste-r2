@@ -88,32 +88,60 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'expansion',
       name: 'Expansion',
-      form: 'Dense fields growing in area, one behind the next, left to right.',
-      blurb: 'A front advances across the frame, gains ground, and hands over to the one behind it.',
+      form: 'Fields advancing at different speeds, overtaking each other and merging into larger ground.',
+      blurb: 'Fronts cross the frame at their own rates; where they overlap they become one broader field, then draw apart again.',
       at: function (x, y, t, p) {
-        // Repetition, not a single crossing. A diagonal coordinate gave one
-        // angled edge that swept the frame once and left it; a periodic one
-        // gives the same swell over and over, so any width of canvas is
-        // covered by the behaviour rather than by whatever the edge left
-        // behind.
-        //
-        // Two noise layers bend the front. The coarse one decides where it
-        // bulges and lags, the fine one keeps the boundary from reading as a
-        // drawn curve.
-        // Both layers are stretched along x and compressed along y. Noise that
-        // varies as fast across the frame as it does down it is nearly
-        // constant over any one column, and the front comes out as a straight
-        // vertical edge; the boundary can only wander if the warp changes
-        // faster down the frame than the front travels across it.
-        var warp = 0.55 * (loopNoise(x * 0.35 * p.scale, y * 2.2 * p.scale, t, 3) - 0.5) +
-          0.20 * (loopNoise(x * 0.9 * p.scale, y * 4.5 * p.scale, t, 8) - 0.5);
-        var u = x * 0.34 * p.scale - t + warp;
-        var f = u - Math.floor(u);
-        // Area accumulates through most of the repeat, then gives way. Both
-        // ends reach zero, so consecutive fronts meet in open ground instead
-        // of at a seam.
-        var body = smoothstep(0.02, 0.62, f) * (1 - smoothstep(0.82, 0.99, f));
-        return clamp01(0.1 + 1.1 * body);
+        // Divided by scale, not multiplied: turning Pattern scale up has to
+        // make the fields larger. Multiplying raises the spatial frequency
+        // instead, and at the top of the slider the behaviour degenerates into
+        // a fine vertical grating.
+        var sx = x / p.scale;
+        var sy = y / p.scale;
+
+        /*
+         * Three fronts rather than one. A single periodic coordinate can only
+         * ever hold one speed, so every stripe it draws marches in lockstep and
+         * the spacing between them never changes — which is a moving grating,
+         * not an expansion. Three layers at different whole numbers of turns
+         * per cycle drift against each other: they overtake, overlap into one
+         * broader field, and separate again.
+         *
+         * Combined by taking the strongest, not by adding. Added, three
+         * overlapping fronts saturate wherever any two meet and the merge is
+         * exactly where the picture goes flat.
+         */
+        var best = 0;
+        for (var n = 0; n < 3; n++) {
+          var sd = 3 + n * 13;
+          var rate = 1 + n;                       // whole turns per cycle
+          var freq = 0.30 + 0.10 * n;
+
+          // Two noise layers bend the front. The coarse one decides where it
+          // bulges and lags, the fine one keeps the boundary from reading as a
+          // drawn curve. Both are stretched along x and compressed along y:
+          // noise that varies as fast across the frame as it does down it is
+          // nearly constant over any one column, and the front comes out as a
+          // straight vertical edge.
+          var warp = 0.55 * (loopNoise(sx * 0.35, sy * 2.2, t, sd) - 0.5) +
+            0.20 * (loopNoise(sx * 0.9, sy * 4.5, t, sd + 5) - 0.5);
+
+          var u = sx * freq - rate * t + hash3(n, 1, 5) + warp;
+          var f = u - Math.floor(u);
+          // A third of the repeat each, not most of it. One front could afford
+          // to be wide; three of them taken together cannot — at the old duty
+          // the union covered the frame and there was no open ground left for
+          // anything to advance into. Both ends still reach zero, so
+          // consecutive fronts meet in clear space rather than at a seam.
+          var body = smoothstep(0.03, 0.16, f) * (1 - smoothstep(0.30, 0.46, f));
+
+          // A slow vertical envelope, so a front is a field with a top and a
+          // bottom rather than a bar the full height of the frame. Without it
+          // the density only ever varies horizontally.
+          var vy = 0.5 + 0.5 * Math.sin(TAU * (sy * (0.30 + 0.10 * n) + n * t + hash3(n, 2, 9)));
+          var v = body * (0.22 + 0.78 * vy);
+          if (v > best) best = v;
+        }
+        return clamp01(0.1 + 1.15 * best);
       }
     },
     {
@@ -209,71 +237,23 @@ var DG = window.DG || (window.DG = {});
       }
     },
     {
-      id: 'adaptation',
-      name: 'Adaptation',
-      form: 'One broad horizontal wave whose arches all differ — tall and short, smooth and sharp, thick and thin.',
-      blurb: 'A wide band crosses the frame; each arch rises to its own height, holds its own shape, and moves at its own rate.',
-      prepare: function (t) {
-        return { t: t };
-      },
-      at: function (x, y, t, p, c) {
-        var fx = x / p.scale;
-        var fy = y / p.scale;
-
-        // Arches are fixed in place and change character where they stand,
-        // rather than the whole wave sliding past. A travelling wave has to be
-        // periodic in its own index to close its loop, which forces every arch
-        // to be identical — the one thing this behaviour must not be.
-        var u = fx * 0.5 + 8;
-        var i = Math.floor(u);
-        var s = u - i;
-
-        /*
-         * Each arch moves at its own RATE, not merely on its own phase. Give
-         * them all one turn per cycle and they rise and fall together whenever
-         * their phases happen to sit near each other — which they will, since
-         * only two or three arches are on screen at once, and three hashes are
-         * far too small a sample to look spread out. Different whole numbers
-         * of turns is what makes the movement read as uneven; whole numbers,
-         * so each still closes its own loop.
-         */
-        var rate = 1 + Math.floor(hash3(i, 23, 71) * 3);
-        var swing = 0.5 + 0.5 * Math.sin(TAU * (rate * c.t + hash3(i, 7, 33)));
-        var height = (0.40 + 0.62 * hash3(i, 3, 21)) * (0.5 + 0.7 * swing);
-
-        // The exponent is what separates a round arch from a peaked one. Below
-        // 1 the crest flattens into a shoulder; above it the arch draws to a
-        // point. It runs at its own rate too.
-        var srate = 1 + Math.floor(hash3(i, 29, 83) * 3);
-        var soft = 0.5 + 1.8 * hash3(i, 11, 45);
-        var edge = soft * (0.55 + 0.9 * (0.5 - 0.5 * Math.cos(TAU * (srate * c.t + hash3(i, 13, 57)))));
-        var lift = Math.pow(Math.sin(Math.PI * s), Math.max(0.35, edge));
-
-        // Alternating, so consecutive arches read as one wave rather than as a
-        // row of bumps. sin() reaches zero at both ends of every arch, so the
-        // band is continuous across the joins whatever the exponents do.
-        var centre = ((i & 1) ? -1 : 1) * height * lift;
-
-        // A broad band, and one that swells along its own length: the extra
-        // TAU * s term walks the bulge through the arch as the cycle turns, so
-        // the wave thickens and thins where it stands instead of only rising
-        // and falling.
-        var brate = 1 + Math.floor(hash3(i, 31, 95) * 3);
-        var bulge = 0.72 + 0.5 * (0.5 + 0.5 * Math.sin(TAU * (brate * c.t + hash3(i, 37, 101)) + TAU * s));
-        var band = (0.44 + 0.34 * hash3(i, 17, 69)) * bulge;
-
-        return clamp01(0.08 + 1.1 * (1 - smoothstep(band * 0.5, band, Math.abs(fy - centre))));
-      }
-    },
-    {
       id: 'synchronise',
       name: 'Synchronise',
       form: 'Horizontal signals that drift, fall into a shared beat, and part again.',
       blurb: 'Pulses travel at one speed but out of phase, align, hold, then separate.',
       prepare: function (t) {
-        // Alignment rises and falls once across the cycle, so the field ends
-        // as loose as it began.
-        return { sync: 0.5 - 0.5 * Math.cos(TAU * t), t: t };
+        /*
+         * Four stages, not a cosine. A raised cosine is only ever arriving at
+         * or leaving alignment, so there is no moment that reads as locked —
+         * the field just breathes. Two smoothsteps give the drift, the pull
+         * into step, a real plateau to hold on, and the separation.
+         *
+         * It closes its own loop: the first term is 0 at t = 0 and the second
+         * has fallen to 0 by t = 1, so the field is equally loose at both ends.
+         */
+        var u = t - Math.floor(t);
+        var sync = smoothstep(0.06, 0.34, u) * (1 - smoothstep(0.60, 0.94, u));
+        return { sync: sync, t: t };
       },
       at: function (x, y, t, p, c) {
         // Pinned to the lattice: one pattern row per row of dots. Deriving it
@@ -281,16 +261,17 @@ var DG = window.DG || (window.DG = {});
         // rows and the field reads as scatter.
         var rowH = p.pitch || 2 / Math.max(4, p.grid);
         var row = Math.floor((y + 4) / rowH);
-        // Squeezed towards a shared beat, but only ever towards it. Closing
-        // the offsets completely stacks every row's pulse in the same columns
-        // and the field turns into vertical bars — the rhythm stops being
-        // something you read across a row and becomes a grid.
-        var offset = (hash3(row, 2, 8) - 0.5) * 0.85 * (1 - 0.7 * c.sync);
-        // Rows also run at slightly different pitches, so their crests cannot
-        // line up into columns even at their closest. The coefficient on t is
-        // untouched, so every row still completes a whole turn per cycle.
-        var rate = 0.66 + 0.34 * hash3(row, 9, 12);
-        var pulse = wave(x * 0.8 * rate * p.scale - c.t + offset);
+        // The offsets close all the way. Holding a residual back keeps the
+        // field from ever banding, but it also means the rows never actually
+        // arrive — and arriving is the whole behaviour.
+        var offset = (hash3(row, 2, 8) - 0.5) * 0.9 * (1 - c.sync);
+        // One pitch for every row. Rows at different pitches cannot line up at
+        // any phase, however far their offsets close.
+        //
+        // Divided by scale, like every other behaviour: multiplying turns the
+        // top of the Pattern scale slider into a fine grating instead of a
+        // larger pattern.
+        var pulse = wave(x * 0.8 / p.scale - c.t + offset);
         // Long pulses, short dashes and quiet stretches within each row.
         // Each row shaped differently: some long pulses, some short dashes,
         // some barely there.
