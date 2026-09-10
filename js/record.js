@@ -33,7 +33,6 @@ var DG = window.DG || (window.DG = {});
       height: height,
       background: style.background,
       solid: style.solid,
-      shape: style.shape,
       useGradient: style.useGradient
     });
     download(new Blob([svg], { type: 'image/svg+xml' }), filename);
@@ -50,7 +49,6 @@ var DG = window.DG || (window.DG = {});
       height: height,
       background: null,
       solid: style.solid,
-      shape: style.shape,
       useGradient: style.useGradient
     });
     canvas.toBlob(function (blob) { if (blob) download(blob, filename); });
@@ -93,7 +91,6 @@ var DG = window.DG || (window.DG = {});
             // here rather than filled in with black as it used to be.
             background: style.background,
             solid: style.solid,
-            shape: style.shape,
             useGradient: style.useGradient
           });
           frames.push(ctx.getImageData(0, 0, width, height).data);
@@ -166,7 +163,6 @@ var DG = window.DG || (window.DG = {});
           height: height,
           background: style.background || '#000000',
           solid: style.solid,
-          shape: style.shape,
           useGradient: style.useGradient
         });
         if (onProgress) onProgress(elapsed / seconds);

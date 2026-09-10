@@ -42,10 +42,9 @@ var DG = window.DG || (window.DG = {});
       return {
         background: colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[1]),
         solid: colourOf(params.colorMode, DG.SOLIDS, DG.SOLIDS[0]),
-        useGradient: params.colorMode === 'gradient',
-        shape: params.shape
+        useGradient: params.colorMode === 'gradient'
       };
-    }, [params.background, params.colorMode, params.shape]);
+    }, [params.background, params.colorMode]);
 
     var stem = params.pattern + '-motion';
     var video = DG.videoType();
@@ -157,9 +156,6 @@ var DG = window.DG || (window.DG = {});
 
             <section>
               <h2>Dots</h2>
-              <${DG.Choice} label="Mark" value=${params.shape}
-                options=${[{ id: 'circle', label: 'Circle' }, { id: 'square', label: 'Square' }]}
-                onChange=${function (v) { set({ shape: v }); }} />
               <${DG.Slider} label="Grid density" value=${params.grid} min=${8} max=${120} step=${1}
                 format=${function (v) { return v + ' across'; }}
                 onChange=${function (v) { set({ grid: v }); }} />

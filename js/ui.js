@@ -73,7 +73,6 @@ var DG = window.DG || (window.DG = {});
             height: cur.size.h,
             background: cur.style.background,
             solid: cur.style.solid,
-            shape: cur.style.shape,
             useGradient: cur.style.useGradient
           });
         }
@@ -119,7 +118,6 @@ var DG = window.DG || (window.DG = {});
             height: h,
             background: cur.style.background || '#0b0b0e',
             solid: cur.style.solid,
-            shape: cur.style.shape,
             useGradient: cur.style.useGradient
           });
         }

@@ -76,11 +76,12 @@ button says so.
 
 ## Controls
 
-**Motion** — speed in cycles per second, pattern scale, and the angle the
-pattern runs at. **Dots** — circle or square, grid density, dot size, size
-variation, contrast, and scatter. **Colour** — solid dots or the three-stop
-brand gradient, and a background that can be transparent, black, ink, red,
-slate, ice, paper or white. **Frame** — 16:9, 1:1, 4:5 or 9:16.
+In panel order. **Frame** — 16:9, 1:1, 4:5 or 9:16. **Background** —
+transparent, black, ink, red, slate, ice, paper or white. **Dot colour** — a
+solid or the three-stop brand gradient, mapped by position. **Dots** — grid
+density, dot size, size variation, contrast, and scatter; the dots are always
+circles. **Motion** — speed in cycles per second and pattern scale.
+**Angle** — the direction the pattern runs.
 
 ## Layout
 

@@ -35,7 +35,6 @@ var DG = window.DG || (window.DG = {});
     speed: 1,             // cycles per second
     angle: 0,             // turns the pattern under the lattice
     seed: 1,
-    shape: 'circle',      // circle | square
     colorMode: 'slate',   // a solid by default: colour is a treatment, not the form
     gradientMap: 'y',
     gradientReverse: false,
@@ -121,29 +120,19 @@ var DG = window.DG || (window.DG = {});
       ctx.fillRect(0, 0, opts.width, opts.height);
     }
     if (!opts.useGradient) ctx.fillStyle = opts.solid;
-    var square = opts.shape === 'square';
     for (var i = 0; i < dots.length; i++) {
       var d = dots[i];
       if (opts.useGradient) ctx.fillStyle = d.color;
-      if (square) {
-        ctx.fillRect(d.x - d.r, d.y - d.r, d.r * 2, d.r * 2);
-      } else {
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
   };
 
   DG.dotsToSVG = function (dots, opts) {
-    var square = opts.shape === 'square';
     var body = dots.map(function (d) {
       var fill = opts.useGradient ? ' fill="' + d.color + '"' : '';
-      if (square) {
-        return '<rect x="' + (d.x - d.r).toFixed(2) + '" y="' + (d.y - d.r).toFixed(2) +
-          '" width="' + (d.r * 2).toFixed(2) + '" height="' + (d.r * 2).toFixed(2) + '"' + fill + '/>';
-      }
       return '<circle cx="' + d.x.toFixed(2) + '" cy="' + d.y.toFixed(2) + '" r="' + d.r.toFixed(2) + '"' + fill + '/>';
     }).join('');
     return [
