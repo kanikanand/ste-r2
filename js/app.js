@@ -49,9 +49,10 @@ var DG = window.DG || (window.DG = {});
       return {
         background: colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[1]),
         solid: colourOf(params.colorMode, DG.SOLIDS, DG.SOLIDS[0]),
-        useGradient: params.colorMode === 'gradient'
+        useGradient: params.colorMode === 'gradient',
+        alpha: params.dotAlpha
       };
-    }, [params.background, params.colorMode]);
+    }, [params.background, params.colorMode, params.dotAlpha]);
 
     var stem = params.pattern + '-motion';
     var video = DG.videoType();
@@ -179,6 +180,9 @@ var DG = window.DG || (window.DG = {});
                 onChange=${function (v) { set({ dotScale: v }); }} />
               <${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
                 onChange=${function (v) { set({ sizeVariation: v }); }} />
+              <${DG.Slider} label="Opacity" value=${params.dotAlpha} min=${0.05} max=${1}
+                format=${function (v) { return Math.round(v * 100) + '%'; }}
+                onChange=${function (v) { set({ dotAlpha: v }); }} />
               <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
                 onChange=${function (v) { set({ contrast: v }); }} />
               <div class="row">

@@ -85,8 +85,12 @@ button says so.
 In panel order. **Frame** — 16:9, 1:1, 4:5 or 9:16. **Background** —
 transparent, black, ink, red, slate, ice, paper or white. **Dot colour** — a
 solid or the three-stop brand gradient, mapped by position. **Dots** — grid
-density, dot size, size variation, contrast, and scatter; the dots are always
-circles. **Motion** — speed in cycles per second and pattern scale.
+density, dot size, size variation, opacity, contrast, and scatter; the dots
+are always circles. Opacity fades the dots over the background, never the
+background itself, and travels into SVG as `fill-opacity` and into PNG as real
+alpha. A GIF has no partial alpha, so a transparent GIF draws whatever
+survives its cut solid — the cut follows the artwork's own peak, so lowering
+the opacity thins the dots rather than emptying the file. **Motion** — speed in cycles per second and pattern scale.
 **Angle** — the direction the pattern runs.
 
 ## Layout

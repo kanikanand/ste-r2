@@ -33,7 +33,8 @@ var DG = window.DG || (window.DG = {});
       height: height,
       background: style.background,
       solid: style.solid,
-      useGradient: style.useGradient
+      useGradient: style.useGradient,
+      alpha: style.alpha
     });
     download(new Blob([svg], { type: 'image/svg+xml' }), filename);
   };
@@ -49,7 +50,8 @@ var DG = window.DG || (window.DG = {});
       height: height,
       background: null,
       solid: style.solid,
-      useGradient: style.useGradient
+      useGradient: style.useGradient,
+      alpha: style.alpha
     });
     canvas.toBlob(function (blob) { if (blob) download(blob, filename); });
   };
@@ -91,7 +93,8 @@ var DG = window.DG || (window.DG = {});
             // here rather than filled in with black as it used to be.
             background: style.background,
             solid: style.solid,
-            useGradient: style.useGradient
+            useGradient: style.useGradient,
+            alpha: style.alpha
           });
           frames.push(ctx.getImageData(0, 0, width, height).data);
           i++;
@@ -163,7 +166,8 @@ var DG = window.DG || (window.DG = {});
           height: height,
           background: style.background || '#000000',
           solid: style.solid,
-          useGradient: style.useGradient
+          useGradient: style.useGradient,
+          alpha: style.alpha
         });
         if (onProgress) onProgress(elapsed / seconds);
         requestAnimationFrame(frame);

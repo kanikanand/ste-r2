@@ -29,6 +29,7 @@ var DG = window.DG || (window.DG = {});
     grid: 44,             // dots across the width
     dotScale: 0.8,        // largest dot, against the gap between dots
     sizeVariation: 0.85,  // difference between the smallest and largest dot
+    dotAlpha: 1,          // how opaque the dots are drawn, over the background
     contrast: 1,          // gamma on the pattern before it becomes size
     scatter: 0,           // randomly thin the dots where the pattern is dark
     scale: 1,             // size of the pattern against the frame height
@@ -119,6 +120,9 @@ var DG = window.DG || (window.DG = {});
       ctx.fillStyle = opts.background;
       ctx.fillRect(0, 0, opts.width, opts.height);
     }
+    // After the background, never before: set on the whole context it would
+    // fade the ground as well, and a half-opaque black on a white page is grey.
+    if (opts.alpha !== undefined) ctx.globalAlpha = opts.alpha;
     if (!opts.useGradient) ctx.fillStyle = opts.solid;
     for (var i = 0; i < dots.length; i++) {
       var d = dots[i];
@@ -139,7 +143,11 @@ var DG = window.DG || (window.DG = {});
       '<svg xmlns="http://www.w3.org/2000/svg" width="' + opts.width + '" height="' + opts.height +
         '" viewBox="0 0 ' + opts.width + ' ' + opts.height + '">',
       opts.background ? '<rect width="' + opts.width + '" height="' + opts.height + '" fill="' + opts.background + '"/>' : '',
-      '<g' + (opts.useGradient ? '' : ' fill="' + opts.solid + '"') + '>' + body + '</g>',
+      // fill-opacity on the group rather than a colour with alpha, so the
+      // dots stay editable as flat fills wherever the file is opened.
+      '<g' + (opts.useGradient ? '' : ' fill="' + opts.solid + '"') +
+        (opts.alpha !== undefined && opts.alpha < 1 ? ' fill-opacity="' + opts.alpha + '"' : '') +
+        '>' + body + '</g>',
       '</svg>'
     ].join('');
   };

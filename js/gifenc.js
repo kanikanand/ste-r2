@@ -184,16 +184,40 @@ var DG = window.DG || (window.DG = {});
     var CLEAR = 255;
     var want = transparent ? 255 : 256;
 
+    var stride = Math.max(1, Math.floor(frames.length / 12));
+    var step = Math.max(1, Math.floor((width * height) / 4000)) * 4;
+    var f, i, px;
+
+    /*
+     * Where to cut between kept and see-through. Half of the most opaque pixel
+     * in the footage, rather than a flat 128 — the artwork's own midpoint.
+     *
+     * A fixed 128 works only while the dots are drawn fully opaque. Turn the
+     * Opacity control down and every pixel in the frame falls below it, so a
+     * transparent GIF comes out very nearly empty: at 50% it kept a quarter of
+     * the ink it should have. Following the peak means the dot is cut at the
+     * same point on its edge whatever its opacity — though what survives the
+     * cut is drawn solid either way, since a GIF has no partial alpha.
+     */
+    var cut = 128;
+    if (transparent) {
+      var peak = 0;
+      for (f = 0; f < frames.length; f += stride) {
+        px = frames[f];
+        for (i = 3; i < px.length; i += step) if (px[i] > peak) peak = px[i];
+      }
+      cut = Math.max(8, Math.min(128, Math.round(peak / 2)));
+    }
+
     // Sample across the whole run so the palette suits every frame, not just
     // the first. Clear pixels are left out of the sample: they carry whatever
     // colour happens to sit under a zero alpha, and letting that into the
     // median cut spends real colours describing something nobody will see.
     var samples = [];
-    var step = Math.max(1, Math.floor((width * height) / 4000)) * 4;
-    for (var f = 0; f < frames.length; f += Math.max(1, Math.floor(frames.length / 12))) {
-      var px = frames[f];
-      for (var i = 0; i < px.length; i += step) {
-        if (transparent && px[i + 3] < 128) continue;
+    for (f = 0; f < frames.length; f += stride) {
+      px = frames[f];
+      for (i = 0; i < px.length; i += step) {
+        if (transparent && px[i + 3] < cut) continue;
         samples.push(px[i], px[i + 1], px[i + 2]);
       }
     }
@@ -229,7 +253,7 @@ var DG = window.DG || (window.DG = {});
     for (var fr = 0; fr < frames.length; fr++) {
       var data = frames[fr];
       for (var p = 0, q = 0; p < indices.length; p++, q += 4) {
-        if (transparent && data[q + 3] < 128) { indices[p] = CLEAR; continue; }
+        if (transparent && data[q + 3] < cut) { indices[p] = CLEAR; continue; }
         indices[p] = lut[((data[q] >> 3) << 10) | ((data[q + 1] >> 3) << 5) | (data[q + 2] >> 3)];
       }
       // Disposal 2 — restore to background — clears the frame before the next
