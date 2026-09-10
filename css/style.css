@@ -222,6 +222,7 @@ input[type='file'] { padding: 6px; width: 100%; }
   border: 1px solid var(--line);
 }
 .swatch-wide { width: 60px; border-radius: 13px; }
+.ramp-preview { height: 10px; border-radius: 5px; border: 1px solid var(--line); }
 .swatch.is-active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text); }
 
 /* ---------- image ---------- */

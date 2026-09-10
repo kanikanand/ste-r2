@@ -54,17 +54,18 @@ a behaviour only decides how much of its cell the dot fills.
 
 ## Downloads
 
-**SVG** and **PNG** take the frame showing at the moment you press them — SVG
-**with** the background, PNG **without**, so the still drops straight onto
-something else.
+**SVG** and **PNG** take the frame showing at the moment you press them.
 
 **GIF** and **MP4** at 10 seconds, 30 seconds or a minute.
 
-GIF also has a **No bg** switch, so a transparent GIF can be pulled without
-first blanking the background you are working on; it saves as `-clear`. A GIF
-has one palette entry nominated as see-through, so transparency is all or
+Everything exports **with** the background you can see, unless the **No bg**
+switch in the bar is pressed — then SVG, PNG and GIF are all saved without one,
+named `-clear`. It is separate from the Background swatch, so a still or a loop
+can be pulled without losing a background you still want on screen.
+
+Video is the exception: MP4 has no alpha, so it always carries a ground. A GIF
+has one palette entry nominated as see-through, so its transparency is all or
 nothing per pixel — a dot's soft edge cannot fade into whatever sits behind it.
-MP4 has no alpha at all, so video always carries a background.
 
 GIF is encoded here rather than pulled in (`js/gifenc.js`), so the page keeps
 working offline with no worker and nothing to download. A GIF carries at most
@@ -83,8 +84,12 @@ button says so.
 ## Controls
 
 In panel order. **Frame** — 16:9, 1:1, 4:5 or 9:16. **Background** —
-transparent, black, ink, red, slate, ice, paper or white. **Dot colour** — a
-solid or the three-stop brand gradient, mapped by position. **Dots** — grid
+transparent, black, ink, red, slate, ice, paper, white, or the brand gradient
+running top to bottom. **Dot colour** — a
+solid or the three-stop brand gradient, mapped by position. Whenever a gradient
+is in play, three sliders set where its colours sit along the ramp; the dots
+and the background share one set of positions, since they are the same three
+colours and letting them drift apart gives you two gradients on one page. **Dots** — grid
 density, dot size, size variation, opacity, contrast, and scatter; the dots
 are always circles. Opacity fades the dots over the background, never the
 background itself, and travels into SVG as `fill-opacity` and into PNG as real

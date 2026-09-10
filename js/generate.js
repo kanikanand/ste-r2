@@ -38,6 +38,7 @@ var DG = window.DG || (window.DG = {});
     seed: 1,
     colorMode: 'slate',   // a solid by default: colour is a treatment, not the form
     gradientMap: 'y',
+    stops: [0, 0.5, 1],   // where the three ramp colours sit, 0..1
     gradientReverse: false,
     background: 'paper'
   };
@@ -68,7 +69,7 @@ var DG = window.DG || (window.DG = {});
     var sin = Math.sin(a);
     var phase = t - Math.floor(t);
 
-    var ramp = DG.buildRamp();
+    var ramp = DG.buildRamp(96, p.stops);
     var useGradient = p.colorMode === 'gradient';
     var dots = [];
 
@@ -116,7 +117,17 @@ var DG = window.DG || (window.DG = {});
   DG.renderDots = function (ctx, dots, opts) {
     ctx.save();
     ctx.clearRect(0, 0, opts.width, opts.height);
-    if (opts.background) {
+    if (opts.bgGradient) {
+      // Top to bottom, matching the default mapping of the dot ramp, so a
+      // gradient background and gradient dots read as one field rather than
+      // as two ramps crossing.
+      var g = ctx.createLinearGradient(0, 0, 0, opts.height);
+      for (var st = 0; st < opts.bgGradient.length; st++) {
+        g.addColorStop(opts.bgGradient[st][1], opts.bgGradient[st][0]);
+      }
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, opts.width, opts.height);
+    } else if (opts.background) {
       ctx.fillStyle = opts.background;
       ctx.fillRect(0, 0, opts.width, opts.height);
     }
@@ -139,10 +150,25 @@ var DG = window.DG || (window.DG = {});
       var fill = opts.useGradient ? ' fill="' + d.color + '"' : '';
       return '<circle cx="' + d.x.toFixed(2) + '" cy="' + d.y.toFixed(2) + '" r="' + d.r.toFixed(2) + '"' + fill + '/>';
     }).join('');
+    // A real gradient definition, not a flattened fill: the stops stay editable
+    // wherever the file is opened.
+    var defs = '';
+    var ground = '';
+    if (opts.bgGradient) {
+      defs = '<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">' +
+        opts.bgGradient.map(function (st) {
+          return '<stop offset="' + (st[1] * 100).toFixed(1) + '%" stop-color="' + st[0] + '"/>';
+        }).join('') + '</linearGradient></defs>';
+      ground = '<rect width="' + opts.width + '" height="' + opts.height + '" fill="url(#bg)"/>';
+    } else if (opts.background) {
+      ground = '<rect width="' + opts.width + '" height="' + opts.height + '" fill="' + opts.background + '"/>';
+    }
+
     return [
       '<svg xmlns="http://www.w3.org/2000/svg" width="' + opts.width + '" height="' + opts.height +
         '" viewBox="0 0 ' + opts.width + ' ' + opts.height + '">',
-      opts.background ? '<rect width="' + opts.width + '" height="' + opts.height + '" fill="' + opts.background + '"/>' : '',
+      defs,
+      ground,
       // fill-opacity on the group rather than a colour with alpha, so the
       // dots stay editable as flat fills wherever the file is opened.
       '<g' + (opts.useGradient ? '' : ' fill="' + opts.solid + '"') +

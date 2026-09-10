@@ -74,7 +74,8 @@ var DG = window.DG || (window.DG = {});
             background: cur.style.background,
             solid: cur.style.solid,
             useGradient: cur.style.useGradient,
-            alpha: cur.style.alpha
+            alpha: cur.style.alpha,
+            bgGradient: cur.style.bgGradient
           });
         }
         raf = requestAnimationFrame(tick);
@@ -120,7 +121,8 @@ var DG = window.DG || (window.DG = {});
             background: cur.style.background || '#0b0b0e',
             solid: cur.style.solid,
             useGradient: cur.style.useGradient,
-            alpha: cur.style.alpha
+            alpha: cur.style.alpha,
+            bgGradient: cur.style.bgGradient
           });
         }
         raf = requestAnimationFrame(tick);
@@ -212,18 +214,57 @@ var DG = window.DG || (window.DG = {});
    * frame, near the top, and the dot colour with everything else that shapes a
    * dot.
    */
+  /*
+   * Where the three ramp colours sit. One set of positions serves the dot ramp
+   * and the gradient background alike — they are the same three colours, and
+   * letting them drift apart gives you two different gradients on one page.
+   *
+   * Each slider is bounded by its neighbours rather than left free and sorted
+   * afterwards: sorting after the fact makes a dragged stop jump past the one
+   * it met, which feels like the control fighting you.
+   */
+  DG.StopControls = function StopControls(props) {
+    var stops = DG.tidyStops(props.stops);
+    var set = props.set;
+    var names = ['Red', 'Slate', 'Ice'];
+
+    function move(i, v) {
+      var next = stops.slice();
+      next[i] = v;
+      set({ stops: DG.tidyStops(next) });
+    }
+
+    return html`
+      <div class="sub-block">
+        <div class="ramp-preview" style=${{ background: DG.cssGradient('to right', stops) }}></div>
+        ${stops.map(function (v, i) {
+          return html`<${DG.Slider} key=${i} label=${names[i]} value=${v}
+            min=${i === 0 ? 0 : stops[i - 1] + 0.01}
+            max=${i === stops.length - 1 ? 1 : stops[i + 1] - 0.01}
+            step=${0.01}
+            format=${function (x) { return Math.round(x * 100) + '%'; }}
+            onChange=${function (x) { move(i, x); }} />`;
+        })}
+      </div>`;
+  };
+
   DG.BackgroundControl = function BackgroundControl(props) {
     var params = props.params;
     var set = props.set;
+    var isGradientBg = params.background === 'gradient';
     return html`
+      <${React.Fragment}>
       <div class="swatches">
         ${DG.BACKGROUNDS.map(function (b) {
           return html`<button key=${b.id} type="button" title=${b.label}
-            class=${'swatch' + (params.background === b.id ? ' is-active' : '') + (b.value ? '' : ' swatch-none')}
-            style=${b.value ? { background: b.value } : {}}
+            class=${'swatch' + (params.background === b.id ? ' is-active' : '') +
+              (b.value || b.gradient ? '' : ' swatch-none') + (b.gradient ? ' swatch-wide' : '')}
+            style=${b.gradient ? { background: DG.cssGradient('to bottom', params.stops) } : (b.value ? { background: b.value } : {})}
             onClick=${function () { set({ background: b.id }); }}></button>`;
         })}
-      </div>`;
+      </div>
+      ${isGradientBg && html`<${DG.StopControls} stops=${params.stops} set=${set} />`}
+    <//>`;
   };
 
   DG.DotColourControl = function DotColourControl(props) {
@@ -242,7 +283,7 @@ var DG = window.DG || (window.DG = {});
           })}
           <button type="button" title="Gradient"
             class=${'swatch swatch-wide' + (isGradient ? ' is-active' : '')}
-            style=${{ background: DG.cssGradient() }}
+            style=${{ background: DG.cssGradient('to right', params.stops) }}
             onClick=${function () { set({ colorMode: 'gradient' }); }}></button>
         </div>
         ${isGradient && html`
@@ -255,7 +296,8 @@ var DG = window.DG || (window.DG = {});
                 onChange=${function (e) { set({ gradientReverse: e.target.checked }); }} />
               <span>Reverse ramp</span>
             </label>
-          </div>`}
+          </div>
+          <${DG.StopControls} stops=${params.stops} set=${set} />`}
       <//>`;
   };
 

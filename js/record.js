@@ -25,7 +25,11 @@ var DG = window.DG || (window.DG = {});
 
   /* ---- stills, at the moment the button is pressed ---------------------- */
 
-  /* SVG keeps the background. */
+  /*
+   * Both stills follow whatever background the style carries, so the No bg
+   * switch decides for them. PNG used to drop it unconditionally, which meant
+   * there was no way to get a PNG of what you were actually looking at.
+   */
   DG.exportSVG = function (params, style, t, width, filename) {
     var height = Math.round(width / DG.frameRatio(params.frame));
     var svg = DG.dotsToSVG(DG.generateDots(params, width, height, t), {
@@ -34,12 +38,12 @@ var DG = window.DG || (window.DG = {});
       background: style.background,
       solid: style.solid,
       useGradient: style.useGradient,
-      alpha: style.alpha
+      alpha: style.alpha,
+      bgGradient: style.bgGradient
     });
     download(new Blob([svg], { type: 'image/svg+xml' }), filename);
   };
 
-  /* PNG leaves it out, so the frame drops straight onto something else. */
   DG.exportPNG = function (params, style, t, width, filename) {
     var height = Math.round(width / DG.frameRatio(params.frame));
     var canvas = document.createElement('canvas');
@@ -48,10 +52,11 @@ var DG = window.DG || (window.DG = {});
     DG.renderDots(canvas.getContext('2d'), DG.generateDots(params, width, height, t), {
       width: width,
       height: height,
-      background: null,
+      background: style.background,
       solid: style.solid,
       useGradient: style.useGradient,
-      alpha: style.alpha
+      alpha: style.alpha,
+      bgGradient: style.bgGradient
     });
     canvas.toBlob(function (blob) { if (blob) download(blob, filename); });
   };
@@ -94,7 +99,8 @@ var DG = window.DG || (window.DG = {});
             background: style.background,
             solid: style.solid,
             useGradient: style.useGradient,
-            alpha: style.alpha
+            alpha: style.alpha,
+            bgGradient: style.bgGradient
           });
           frames.push(ctx.getImageData(0, 0, width, height).data);
           i++;
@@ -167,7 +173,8 @@ var DG = window.DG || (window.DG = {});
           background: style.background || '#000000',
           solid: style.solid,
           useGradient: style.useGradient,
-          alpha: style.alpha
+          alpha: style.alpha,
+          bgGradient: style.bgGradient
         });
         if (onProgress) onProgress(elapsed / seconds);
         requestAnimationFrame(frame);

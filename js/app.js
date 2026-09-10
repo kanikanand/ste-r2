@@ -27,13 +27,13 @@ var DG = window.DG || (window.DG = {});
     var paramsState = useState(Object.assign({}, DG.DEFAULTS, { paused: false }));
     var params = paramsState[0];
     var setParams = paramsState[1];
-    // GIF is the one export that can go either way, so it carries its own
-    // switch rather than borrowing the Background swatch: you should be able to
-    // pull a transparent GIF without first blanking the background you are
-    // looking at.
-    var clearGifState = useState(false);
-    var clearGif = clearGifState[0];
-    var setClearGif = clearGifState[1];
+    // One switch for every export, rather than each format having its own
+    // fixed habit: exports carry the background you are looking at unless this
+    // is pressed. It is separate from the Background swatch so a still or a
+    // loop can be pulled without a background you still want on screen.
+    var clearBgState = useState(false);
+    var clearBg = clearBgState[0];
+    var setClearBg = clearBgState[1];
     var jobState = useState(null);        // { what, progress }
     var job = jobState[0];
     var setJob = jobState[1];
@@ -46,13 +46,24 @@ var DG = window.DG || (window.DG = {});
     var pattern = DG.getPattern(params.pattern);
 
     var style = useMemo(function () {
+      var bg = null;
+      for (var i = 0; i < DG.BACKGROUNDS.length; i++) {
+        if (DG.BACKGROUNDS[i].id === params.background) bg = DG.BACKGROUNDS[i];
+      }
       return {
-        background: colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[1]),
+        background: bg && bg.gradient ? null : colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[1]),
+        bgGradient: bg && bg.gradient ? DG.gradientStops(params.stops) : null,
         solid: colourOf(params.colorMode, DG.SOLIDS, DG.SOLIDS[0]),
         useGradient: params.colorMode === 'gradient',
         alpha: params.dotAlpha
       };
-    }, [params.background, params.colorMode, params.dotAlpha]);
+    }, [params.background, params.colorMode, params.dotAlpha, params.stops]);
+
+    // What the exports actually draw on. Video is left out of it: MP4 has no
+    // alpha, so it always carries a ground.
+    var exportStyle = useMemo(function () {
+      return clearBg ? Object.assign({}, style, { background: null, bgGradient: null }) : style;
+    }, [style, clearBg]);
 
     var stem = params.pattern + '-motion';
     var video = DG.videoType();
@@ -65,11 +76,10 @@ var DG = window.DG || (window.DG = {});
       var fail = function (e) { setJob(null); alert(e.message || String(e)); };
 
       if (kind === 'GIF') {
-        var gifStyle = clearGif ? Object.assign({}, style, { background: null }) : style;
         // Named apart, so downloading both leaves you with two files rather
         // than one and a copy.
-        var gifName = stem + '-' + seconds + 's' + (clearGif ? '-clear' : '') + '.gif';
-        DG.exportGIF(params, gifStyle, seconds, { width: 480, fps: 12.5 }, onProgress)
+        var gifName = stem + '-' + seconds + 's' + (clearBg ? '-clear' : '') + '.gif';
+        DG.exportGIF(params, exportStyle, seconds, { width: 480, fps: 12.5 }, onProgress)
           .then(function (blob) { DG.download(blob, gifName); done(); })
           .catch(fail);
       } else {
@@ -95,25 +105,27 @@ var DG = window.DG || (window.DG = {});
               ${params.paused ? 'Play' : 'Pause'}
             </button>
 
-            <div class="dl-group" title="The frame showing when you press it — SVG with the background, PNG without.">
+            <button type="button" aria-pressed=${clearBg}
+              class=${'chip chip-toggle' + (clearBg ? ' is-active' : '')}
+              title=${clearBg
+                ? 'SVG, PNG and GIF are saved with no background, as -clear. Video always carries one — MP4 has no alpha.'
+                : 'Exports carry the background you can see. Press for no background.'}
+              onClick=${function () { setClearBg(!clearBg); }}>No bg</button>
+
+            <div class="dl-group" title="The frame showing when you press it.">
               <span class="dl-label">Still</span>
               <button type="button" class="chip"
-                onClick=${function () { DG.exportSVG(params, style, clock.current, 2000, stem + '.svg'); }}>SVG</button>
+                onClick=${function () { DG.exportSVG(params, exportStyle, clock.current, 2000, stem + (clearBg ? '-clear' : '') + '.svg'); }}>SVG</button>
               <button type="button" class="chip"
-                onClick=${function () { DG.exportPNG(params, style, clock.current, 2000, stem + '.png'); }}>PNG</button>
+                onClick=${function () { DG.exportPNG(params, exportStyle, clock.current, 2000, stem + (clearBg ? '-clear' : '') + '.png'); }}>PNG</button>
             </div>
 
-            <div class="dl-group" title=${clearGif
-              ? 'Looping footage with no background. A GIF has one see-through palette entry, so a dot edge cannot fade into whatever sits behind it.'
-              : 'Looping footage, on the background you have chosen.'}>
+            <div class="dl-group" title="Looping footage. A GIF has one see-through palette entry, so with No bg on, a dot edge cannot fade into whatever sits behind it.">
               <span class="dl-label">GIF</span>
               ${DURATIONS.map(function (d) {
                 return html`<button key=${d.id} type="button" class="chip" disabled=${!!job}
                   onClick=${function () { runFootage('GIF', d.id); }}>${d.label}</button>`;
               })}
-              <button type="button" aria-pressed=${clearGif}
-                class=${'chip chip-toggle' + (clearGif ? ' is-active' : '')}
-                onClick=${function () { setClearGif(!clearGif); }}>No bg</button>
             </div>
 
             <div class="dl-group" title=${video && video.ext !== 'mp4'
