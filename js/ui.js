@@ -199,22 +199,40 @@ var DG = window.DG || (window.DG = {});
           <circle cx=${cx} cy=${cy} r="4" class="dial-knob"></circle>
         </svg>
         <div class="dial-meta">
-          <span class="ctrl-label">Angle</span>
-          <input type="number" min="0" max="359" value=${value}
+          <input type="number" min="0" max="359" value=${value} aria-label="Angle in degrees"
             onChange=${function (e) { onChange((((parseInt(e.target.value, 10) || 0) % 360) + 360) % 360); }} />
           <span class="unit">deg</span>
         </div>
       </div>`;
   };
 
-  DG.ColourControls = function ColourControls(props) {
+  /*
+   * Background and dot colour are two components rather than one, because the
+   * panel wants them in different places: the background belongs with the
+   * frame, near the top, and the dot colour with everything else that shapes a
+   * dot.
+   */
+  DG.BackgroundControl = function BackgroundControl(props) {
+    var params = props.params;
+    var set = props.set;
+    return html`
+      <div class="swatches">
+        ${DG.BACKGROUNDS.map(function (b) {
+          return html`<button key=${b.id} type="button" title=${b.label}
+            class=${'swatch' + (params.background === b.id ? ' is-active' : '') + (b.value ? '' : ' swatch-none')}
+            style=${b.value ? { background: b.value } : {}}
+            onClick=${function () { set({ background: b.id }); }}></button>`;
+        })}
+      </div>`;
+  };
+
+  DG.DotColourControl = function DotColourControl(props) {
     var params = props.params;
     var set = props.set;
     var isGradient = params.colorMode === 'gradient';
 
     return html`
       <${React.Fragment}>
-        <span class="ctrl-label">Dot colour</span>
         <div class="swatches">
           ${DG.SOLIDS.map(function (s) {
             return html`<button key=${s.id} type="button" title=${s.label}
@@ -238,15 +256,7 @@ var DG = window.DG || (window.DG = {});
               <span>Reverse ramp</span>
             </label>
           </div>`}
-        <span class="ctrl-label">Background</span>
-        <div class="swatches">
-          ${DG.BACKGROUNDS.map(function (b) {
-            return html`<button key=${b.id} type="button" title=${b.label}
-              class=${'swatch' + (params.background === b.id ? ' is-active' : '') + (b.value ? '' : ' swatch-none')}
-              style=${b.value ? { background: b.value } : {}}
-              onClick=${function () { set({ background: b.id }); }}></button>`;
-          })}
-        </div>
       <//>`;
   };
+
 })(DG);

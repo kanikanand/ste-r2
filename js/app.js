@@ -83,10 +83,32 @@ var DG = window.DG || (window.DG = {});
             <button type="button" onClick=${function () { set({ paused: !params.paused }); }}>
               ${params.paused ? 'Play' : 'Pause'}
             </button>
-            <button type="button" class="primary"
-              onClick=${function () { DG.exportSVG(params, style, clock.current, 2000, stem + '.svg'); }}>SVG</button>
-            <button type="button"
-              onClick=${function () { DG.exportPNG(params, style, clock.current, 2000, stem + '.png'); }}>PNG</button>
+
+            <div class="dl-group" title="The frame showing when you press it — SVG with the background, PNG without.">
+              <span class="dl-label">Still</span>
+              <button type="button" class="chip"
+                onClick=${function () { DG.exportSVG(params, style, clock.current, 2000, stem + '.svg'); }}>SVG</button>
+              <button type="button" class="chip"
+                onClick=${function () { DG.exportPNG(params, style, clock.current, 2000, stem + '.png'); }}>PNG</button>
+            </div>
+
+            <div class="dl-group" title="Looping footage. A transparent background is kept transparent.">
+              <span class="dl-label">GIF</span>
+              ${DURATIONS.map(function (d) {
+                return html`<button key=${d.id} type="button" class="chip" disabled=${!!job}
+                  onClick=${function () { runFootage('GIF', d.id); }}>${d.label}</button>`;
+              })}
+            </div>
+
+            <div class="dl-group" title=${video && video.ext !== 'mp4'
+              ? 'This browser records WebM rather than MP4. Recorded as it plays, so a minute takes a minute.'
+              : 'Recorded as it plays, so a minute takes a minute.'}>
+              <span class="dl-label">${video ? (video.ext === 'mp4' ? 'MP4' : 'WebM') : 'Video'}</span>
+              ${DURATIONS.map(function (d) {
+                return html`<button key=${d.id} type="button" class="chip" disabled=${!!job || !video}
+                  onClick=${function () { runFootage('Video', d.id); }}>${d.label}</button>`;
+              })}
+            </div>
           </div>
         </header>
 
@@ -113,17 +135,24 @@ var DG = window.DG || (window.DG = {});
 
           <aside class="panel panel-controls">
             <section>
-              <h2>Motion</h2>
-              <${DG.Slider} label="Speed" value=${params.speed} min=${0.05} max=${3}
-                format=${function (v) { return v.toFixed(2) + ' cyc/s'; }}
-                onChange=${function (v) { set({ speed: v }); }} />
-              <${DG.Slider} label="Pattern scale" value=${params.scale} min=${0.2} max=${4}
-                onChange=${function (v) { set({ scale: v }); }} />
-              <${DG.AngleDial} value=${params.angle} onChange=${function (v) { set({ angle: v }); }} />
-              <p class="hint">
-                Every pattern repeats over one cycle, so footage is recorded over
-                whole cycles and loops without a jump.
-              </p>
+              <h2>Frame</h2>
+              <div class="chips">
+                ${DG.FRAMES.map(function (f) {
+                  return html`<button key=${f.id} type="button"
+                    class=${'chip' + (params.frame === f.id ? ' is-active' : '')}
+                    onClick=${function () { set({ frame: f.id }); }}>${f.label}</button>`;
+                })}
+              </div>
+            </section>
+
+            <section>
+              <h2>Background</h2>
+              <${DG.BackgroundControl} params=${params} set=${set} />
+            </section>
+
+            <section>
+              <h2>Dot colour</h2>
+              <${DG.DotColourControl} params=${params} set=${set} />
             </section>
 
             <section>
@@ -149,44 +178,25 @@ var DG = window.DG || (window.DG = {});
             </section>
 
             <section>
-              <h2>Colour</h2>
-              <${DG.ColourControls} params=${params} set=${set} />
-              <span class="ctrl-label">Frame</span>
-              <div class="chips">
-                ${DG.FRAMES.map(function (f) {
-                  return html`<button key=${f.id} type="button"
-                    class=${'chip' + (params.frame === f.id ? ' is-active' : '')}
-                    onClick=${function () { set({ frame: f.id }); }}>${f.label}</button>`;
-                })}
-              </div>
-            </section>
-
-            <section>
-              <h2>Footage</h2>
-              <span class="ctrl-label">GIF</span>
-              <div class="chips">
-                ${DURATIONS.map(function (d) {
-                  return html`<button key=${d.id} type="button" class="chip" disabled=${!!job}
-                    onClick=${function () { runFootage('GIF', d.id); }}>${d.label}</button>`;
-                })}
-              </div>
-              <span class="ctrl-label">${video ? (video.ext === 'mp4' ? 'MP4' : 'WebM') : 'Video'}</span>
-              <div class="chips">
-                ${DURATIONS.map(function (d) {
-                  return html`<button key=${d.id} type="button" class="chip" disabled=${!!job || !video}
-                    onClick=${function () { runFootage('Video', d.id); }}>${d.label}</button>`;
-                })}
-              </div>
+              <h2>Motion</h2>
+              <${DG.Slider} label="Speed" value=${params.speed} min=${0.05} max=${3}
+                format=${function (v) { return v.toFixed(2) + ' cyc/s'; }}
+                onChange=${function (v) { set({ speed: v }); }} />
+              <${DG.Slider} label="Pattern scale" value=${params.scale} min=${0.2} max=${4}
+                onChange=${function (v) { set({ scale: v }); }} />
               <p class="hint">
-                SVG and PNG take the frame showing the moment you press them —
-                SVG with the background, PNG without.
-                ${video && video.ext !== 'mp4' ? ' This browser records WebM rather than MP4.' : ''}
-                Video is recorded as it plays, so a minute takes a minute.
+                Every pattern repeats over one cycle, so footage is recorded over
+                whole cycles and loops without a jump.
               </p>
             </section>
 
+            <section>
+              <h2>Angle</h2>
+              <${DG.AngleDial} value=${params.angle} onChange=${function (v) { set({ angle: v }); }} />
+            </section>
+
             <button type="button" class="ghost wide"
-              onClick=${function () { setParams(Object.assign({}, DG.DEFAULTS, { paused: false, pattern: params.pattern })); }}>
+              onClick=${function () { setParams(Object.assign({}, DG.DEFAULTS, { paused: params.paused, pattern: params.pattern })); }}>
               Reset controls
             </button>
           </aside>

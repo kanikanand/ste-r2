@@ -43,8 +43,28 @@ body {
 }
 .topbar h1 { margin: 0; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; }
 .topbar p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
-.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.topbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
 .readout { color: var(--muted); margin-right: 4px; }
+
+/*
+ * Every download sits in the bar, grouped by what it produces. The groups are
+ * separated by a rule rather than by extra space: with three of them in a row,
+ * space alone stops reading as a boundary and the whole bar looks like one
+ * long run of buttons.
+ */
+.dl-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+}
+.dl-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 
 /* ---------- layout ---------- */
 .layout {
@@ -212,6 +232,11 @@ input[type='file'] { padding: 6px; width: 100%; }
   .canvas-area { order: -1; }
   .thumbs { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); }
   .stage { min-height: min(56vw, 460px); }
+}
+
+@media (max-width: 900px) {
+  /* Stacked, the rules would sit above each group rather than beside it. */
+  .dl-group { padding-left: 0; border-left: 0; }
 }
 
 @media (max-width: 560px) {
