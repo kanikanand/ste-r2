@@ -180,10 +180,6 @@ var DG = window.DG || (window.DG = {});
                 onChange=${function (v) { set({ speed: v }); }} />
               <${DG.Slider} label="Pattern scale" value=${params.scale} min=${0.2} max=${4}
                 onChange=${function (v) { set({ scale: v }); }} />
-              <p class="hint">
-                Every pattern repeats over one cycle, so footage is recorded over
-                whole cycles and loops without a jump.
-              </p>
             </section>
 
             <section>
