@@ -112,6 +112,21 @@ var DG = window.DG || (window.DG = {});
       GRADIENT_STOPS.map(function (c, i) { return c + ' ' + Math.round(pos[i] * 100) + '%'; }).join(', ') + ')';
   };
 
+  /*
+   * Black or white, whichever the pill's own ground can carry. Relative
+   * luminance rather than a plain average: the eye takes far more of its
+   * brightness from green than from blue, and an average calls mid-blue light
+   * when it reads as dark.
+   */
+  DG.readableOn = function (hex) {
+    var c = hexToRgb(hex).map(function (v) {
+      var x = v / 255;
+      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+    });
+    var L = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    return L > 0.36 ? '#0a0a0a' : '#ffffff';
+  };
+
   DG.gradientCoord = function (map, dot) {
     switch (map) {
       case 'x': return (dot.nx + 1) / 2;

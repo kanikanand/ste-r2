@@ -39,7 +39,11 @@ var DG = window.DG || (window.DG = {});
       solid: style.solid,
       useGradient: style.useGradient,
       alpha: style.alpha,
-      bgGradient: style.bgGradient
+      bgGradient: style.bgGradient,
+      highlight: style.highlight,
+      labelFill: style.labelFill,
+      labelText: style.labelText,
+      labels: DG.generateLabels(params, width, height, t)
     });
     download(new Blob([svg], { type: 'image/svg+xml' }), filename);
   };
@@ -56,7 +60,11 @@ var DG = window.DG || (window.DG = {});
       solid: style.solid,
       useGradient: style.useGradient,
       alpha: style.alpha,
-      bgGradient: style.bgGradient
+      bgGradient: style.bgGradient,
+      highlight: style.highlight,
+      labelFill: style.labelFill,
+      labelText: style.labelText,
+      labels: DG.generateLabels(params, width, height, t)
     });
     canvas.toBlob(function (blob) { if (blob) download(blob, filename); });
   };
@@ -85,14 +93,19 @@ var DG = window.DG || (window.DG = {});
     var ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     function paint(i) {
-      DG.renderDots(ctx, DG.generateDots(params, width, height, (i / total) * cycles), {
+      var t = (i / total) * cycles;
+      DG.renderDots(ctx, DG.generateDots(params, width, height, t), {
         width: width,
         height: height,
         background: style.background,
         solid: style.solid,
         useGradient: style.useGradient,
         alpha: style.alpha,
-        bgGradient: style.bgGradient
+        bgGradient: style.bgGradient,
+        highlight: style.highlight,
+        labelFill: style.labelFill,
+        labelText: style.labelText,
+        labels: DG.generateLabels(params, width, height, t)
       });
       return ctx.getImageData(0, 0, width, height).data;
     }
@@ -199,7 +212,11 @@ var DG = window.DG || (window.DG = {});
           solid: style.solid,
           useGradient: style.useGradient,
           alpha: style.alpha,
-          bgGradient: style.bgGradient
+          bgGradient: style.bgGradient,
+          highlight: style.highlight,
+          labelFill: style.labelFill,
+          labelText: style.labelText,
+          labels: DG.generateLabels(params, width, height, t)
         });
         if (onProgress) onProgress(elapsed / seconds);
         requestAnimationFrame(frame);

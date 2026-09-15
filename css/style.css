@@ -253,3 +253,14 @@ input[type='file'] { padding: 6px; width: 100%; }
   .topbar { flex-wrap: wrap; }
   .thumbs { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---------- country picker ---------- */
+.picker { display: flex; gap: 6px; }
+.picker input { flex: 1; min-width: 0; }
+.chips-wrap { flex-wrap: wrap; }
+.chip-pick { display: inline-flex; align-items: center; gap: 6px; }
+.chip-pick .x { color: var(--muted); }
+.chip-pick:hover .x { color: var(--red); }
+.panel-presets .note { margin: 0; color: var(--muted); line-height: 1.5; }
+.stage-canvas { cursor: grab; touch-action: none; }
+.stage-canvas:active { cursor: grabbing; }
