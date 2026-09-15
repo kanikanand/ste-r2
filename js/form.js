@@ -51,7 +51,7 @@ var DG = window.DG || (window.DG = {});
     morph: 0,             // 0 a sphere, 1 the star
     breathe: 0,           // how far the morph swings on its own over the loop
     spike: 0.85,          // how far past the sphere the points reach
-    sharp: 2.2,           // how sharply the spokes taper to their points
+    sharp: 1.4,           // how sharply the spokes taper to their points
     fluid: 0.2,           // how much of the cloud is carried off in the flow
 
     dist: 3.2,            // camera distance, in form radii; under 1 is inside
@@ -60,7 +60,7 @@ var DG = window.DG || (window.DG = {});
     tilt: 12,             // the lean drag has given it
 
     speed: 1 / 24,        // turns a second
-    orbit: 2,             // whole turns a particle makes along its orbit per cycle
+    orbit: 0,             // whole turns a particle makes along its orbit per cycle
 
     colorMode: 'gradient',
     gradientMap: 'depth',
@@ -216,9 +216,12 @@ var DG = window.DG || (window.DG = {});
    * into a petal, which is what made the star read as a flower. A star point
    * is a cone, so this draws a cone.
    *
-   * Sharpness is the base width: low and the spokes are stubby wedges, high
-   * and they are needles. Where the cone is narrower than the core ball the
-   * ball shows through, which is the join at the centre.
+   * Sharpness is the base width: low and the spokes are broad wedges, high and
+   * they are needles, and the useful part of that range is the low end — the
+   * default sits near a twenty-degree half-angle, which is a star you could
+   * cut out of paper rather than a set of spines. Where the cone is narrower
+   * than the core ball the ball shows through, which is the join at the
+   * centre.
    */
   function spokeRadius(c, p) {
     var h = 1 + 0.55 * clamp01(p.spike);
@@ -418,19 +421,30 @@ var DG = window.DG || (window.DG = {});
         var w1 = flowNoise(dx * 1.15, dy * 1.15, dz * 1.15, phase, 11) - 0.5;
         var w2 = flowNoise(dx * 3.1 + 5, dy * 3.1 - 2, dz * 3.1 + 7, phase, 23) - 0.5;
         var grain = hash(i, 63) - 0.5;
-        var swell = 1 + fluid * (0.52 * w1 + 0.26 * w2 + 0.34 * grain);
-        px *= swell; py *= swell; pz *= swell;
+
+        /*
+         * The nudge is a distance, not a percentage. Scaling the radius
+         * instead stretches a spike in proportion to how long it already is,
+         * so the points grow sparse dotted tails and the star reads far
+         * sharper than it is drawn. A distance roughens the whole surface by
+         * about as much wherever it is, which is what makes the spikes
+         * irregular without making them longer. It still leans a little on
+         * the radius, or the core — a quarter of the size of the tips —
+         * would take the same nudge as a shock.
+         */
+        var nudge = fluid * (0.40 * w1 + 0.20 * w2 + 0.26 * grain) * Math.pow(r, 0.35);
+        px += dx * nudge; py += dy * nudge; pz += dz * nudge;
 
         // Sideways as well, or the scatter is only ever a thickness and the
         // rows the particles were placed in stay legible through it.
-        var side = fluid * 0.13 * r;
+        var side = fluid * 0.1 * r;
         px += (hash(i, 111) - 0.5) * side;
         py += (hash(i, 127) - 0.5) * side;
         pz += (hash(i, 149) - 0.5) * side;
 
-        // Far enough out on the swell, the dot thins — a particle standing off
-        // the surface carries less of it.
-        lift = clamp01((swell - 1) * 1.6);
+        // Pushed out past the surface, the dot thins — a particle standing
+        // off it carries less of it.
+        lift = clamp01(nudge * 3);
       }
 
       orient(px, py, pz, cosH, sinH, cosT, sinT, v3);

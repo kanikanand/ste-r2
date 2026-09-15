@@ -23,8 +23,11 @@ a point at the end. Every smooth falloff tried before it — a cosine raised to 
 power, an ellipse, a spheroid — is widest somewhere along its length and rounds
 off into a petal, which is what made the star read as a flower. A star point is
 a cone, so this draws a cone. **Reach** is how far past the sphere they run,
-**Sharpness** the base width: low and they are stubby wedges, high and they are
-needles. Where the cone is narrower than the core ball, the ball shows through.
+**Sharpness** the base width: low and they are broad wedges, high and they are
+needles, and the useful part of that range is the low end — the default sits
+near a twenty-degree half-angle, a star you could cut out of paper rather than
+a set of spines. Where the cone is narrower than the core ball, the ball shows
+through.
 
 The axes matter more than anything else here. An earlier build made the points
 out of longitude, so they ringed one waist and the silhouette was a star from
@@ -51,10 +54,16 @@ makes the edges irregular and the surface a scatter rather than a skin. A
 drifting field coarse enough to take in a whole spoke moves the surface in and
 out, so the spikes come out at different lengths and thicknesses from one
 another and from themselves a moment later, and on top of that each particle
-carries its own fixed offset, in and out and sideways. Everything is a fraction
-of the radius the particle is already at, so a spike is roughened along its
-length rather than snapped off, and the star is still a star at the top of the
-range. **Breathe** swings the morph on its own over the cycle.
+carries its own fixed offset, in and out and sideways.
+
+The nudge is a distance, not a percentage. Scaling the radius instead stretches
+a spike in proportion to how long it already is, so the points grow sparse
+dotted tails and the star reads far sharper than it is drawn; a distance
+roughens the whole surface by about as much wherever it is. Measured across the
+range, the star holds six points in the silhouette and a tips-to-waist ratio
+near two and a half at every setting, with the furthest-moved particle
+travelling a fifth of the form's radius at the top of it. **Breathe** swings the
+morph on its own over the cycle.
 
 ## The particles
 
@@ -63,12 +72,19 @@ them in rows, and rows are what this should not have: the form is meant to read
 as a cloud held in a shape, so the placement has to be even without being
 regular, and the golden angle is the one arrangement that is both.
 
-They are not pinned to the surface. Each turns about its own axis at its own
-whole number of turns per cycle, so they slide across the form at different
-rates and in different directions instead of drifting as one sheet. **Orbit**
-is the number those turns are drawn from — whole ones only, because a fraction
-of a turn would leave a particle somewhere other than where it started and the
-loop would jump there.
+They need not be pinned to the surface. Each can turn about its own axis at its
+own whole number of turns per cycle, so they slide across the form at different
+rates and in different directions instead of drifting as one sheet. **Orbit** is
+the number those turns are drawn from — whole ones only, because a fraction of a
+turn would leave a particle somewhere other than where it started and the loop
+would jump there.
+
+It is held by default, and that is the more useful setting. A particle turning
+about its own axis lands somewhere the golden angle did not put it, so the even
+placement that gives the form its texture — the curving rows, the clean
+gradient of sizes — is scrambled by the very first turn. Held, the whole cloud
+turns as one body and the lattice survives; the movement comes from Spin
+carrying the form round and from the field under Fluidity drifting across it.
 
 ## The camera
 

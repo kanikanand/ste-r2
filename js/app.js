@@ -168,7 +168,7 @@ var DG = window.DG || (window.DG = {});
               onChange=${function (v) { set({ breathe: v }); }} />
             <${DG.Slider} label="Reach" value=${params.spike} min=${0} max=${1}
               onChange=${function (v) { set({ spike: v }); }} />
-            <${DG.Slider} label="Sharpness" value=${params.sharp} min=${1} max=${12}
+            <${DG.Slider} label="Sharpness" value=${params.sharp} min=${0.6} max=${8}
               onChange=${function (v) { set({ sharp: v }); }} />
             <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1}
               format=${function (v) { return v < 0.005 ? 'smooth' : Math.round(v * 100) + '% scattered'; }}
@@ -177,9 +177,10 @@ var DG = window.DG || (window.DG = {});
               The star is four spokes crossing at one centre — eight points — with
               their axes spread through space rather than round one waist, so it reads
               as a star from any angle. Each spoke is a cone: Reach is how far the
-              points run, Sharpness how wide they start. Fluidity leaves the form where
-              it is and scatters the particles across it, roughening the points rather
-              than blowing them apart.
+              points run, Sharpness how wide they start — the low end of that is where
+              a star lives. Fluidity leaves the form where it is and scatters the
+              particles across it, roughening the points rather than blowing them
+              apart or drawing them out.
             </p>
           </aside>
 
@@ -251,8 +252,8 @@ var DG = window.DG || (window.DG = {});
                 format=${function (v) { return Math.round(v) + ' s a turn'; }}
                 onChange=${function (v) { set({ speed: 1 / v }); }} />
               <${DG.Slider} label="Orbit" value=${params.orbit} min=${0} max=${4} step=${1}
-                format=${function (v) { return v < 1 ? 'held' : v === 1 ? 'one turn a cycle'
-                  : 'up to ' + v + ' turns a cycle'; }}
+                format=${function (v) { return v < 1 ? 'held — rows intact'
+                  : v === 1 ? 'one turn a cycle' : 'up to ' + v + ' turns a cycle'; }}
                 onChange=${function (v) { set({ orbit: v }); }} />
               <p class="note">
                 Drag to turn the form and lean it. Distance is in form radii — below 1 the
