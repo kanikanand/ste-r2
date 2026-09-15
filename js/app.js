@@ -169,20 +169,17 @@ var DG = window.DG || (window.DG = {});
             <${DG.Slider} label="Reach" value=${params.spike} min=${0} max=${1}
               format=${function (v) { return Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ spike: v }); }} />
-            <${DG.Slider} label="Body" value=${params.body} min=${0} max=${1}
-              format=${function (v) { return Math.round(v * 100) + '%'; }}
-              onChange=${function (v) { set({ body: v }); }} />
             <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1}
               format=${function (v) { return v < 0.005 ? 'still' : Math.round(v * 100) + '% alive'; }}
               onChange=${function (v) { set({ fluid: v }); }} />
             <p class="note">
-              One shape, not two. Four axes carry a spoke out to a point at either
-              end, and Morph is how wide those spokes are — wide enough and the eight
-              of them swallow each other and it is a globe, narrow and it is a star.
-              The tips stay where they are between the two. Reach is how thin the
-              spokes get, Body how much is left between the points. Fluidity leans,
-              stretches and thickens each spoke on its own schedule, so the form
-              pulses unevenly rather than breathing as one.
+              A sphere drawn as circles and an eight-pointed star drawn as four long
+              ellipses are the same construction — an ellipse is a circle flattened.
+              So this is four rings crossing at one centre, and Morph is how flat they
+              are: round and the four are one globe, flat and their eight ends are the
+              points. The long axes never change, so the tips stay put. Reach is how
+              flat they go. Fluidity leans, stretches and flattens each ring on its own
+              schedule, and wanders its section as it goes round.
             </p>
           </aside>
 

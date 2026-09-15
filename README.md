@@ -9,33 +9,32 @@ Open `index.html`. No build, no server, no network.
 
 ## The form
 
-There is one shape here, not two. Four axes through a common centre carry a
-spoke out to a point at either end — eight points — and every spoke stands on
-the same ball.
+The diagram draws a sphere as circles and an eight-pointed star as four long
+ellipses crossing at one centre. An ellipse is a circle that has been
+flattened, so both pictures are the same construction at two settings of one
+control, and that is how this is built. There is no globe shape and no star
+shape to mix between.
 
-**Morph** is how wide the spokes are, and nothing else. At the wide end the ball
-has swollen to the full reach of the points and the eight of them are one globe;
-at the narrow end they draw back into a star. A spoke is a cone, solved rather
-than shaped by a falloff: a ray leaving the centre at angle θ to its axis meets
-a cone of height h and base half-width w where `r·sinθ = w(1 − r·cosθ/h)`, so
-`r = w / (sinθ + w·cosθ/h)` — straight sides, and a point at the end. Whatever
-the width, a cone of height h still ends at h, so **the tips do not move between
-the globe and the star**. What the morph does is draw the body back between
-points that were always there. Mixing two radii instead — a sphere's and a
-star's — moves everything at once, and reads as the whole thing inflating and
-deflating.
+A ring is everything at some angle round one axis. Flattening it means
+squashing across that axis by a factor *b* while the axis itself keeps its
+length: a particle placed in direction **d** on the ring of axis **L** goes to
+`L(d·L) + b(d − L(d·L))`. At *b* = 1 nothing moves at all — checked to the last
+bit of a double, so the globe is exactly the even placement the particles were
+given. Below it, each ring becomes a long ellipse, the four cross at the
+centre, and their eight ends are the points of the star.
 
-The cone is never allowed to be wider than it is tall. One that is reaches
-furthest at the rim of its base rather than at its point, and eight of those
-bulge sideways into a lumpy solid half again the size of the globe they are
-supposed to be making. With the cap in place the wide end is a globe of radius
-exactly 1, measured over twenty thousand directions.
+**Morph** is *b*, and **Reach** is how far down it goes. Two things follow from
+writing it this way. The long axes never change length, so the tips of the star
+sit where the globe's surface was and the morph is the body drawing in rather
+than the whole thing inflating and deflating. And the ends of the points are
+the ends of ellipses — rounded, the way the diagram draws them — rather than
+the cones an earlier build welded on, which were sharper than anything in the
+reference.
 
-Every smooth falloff tried in place of the cone — a cosine raised to a power, a
-smoothstep of the same, an ellipse, a spheroid — is widest somewhere along its
-length and rounds off into a petal rather than a point. **Reach** is how thin the
-spokes get at full morph, **Body** how much round body is left between them once
-they have.
+Each particle keeps one ring for its whole life, by index rather than by
+whichever axis is nearest. Four complete rings crossing each other is the
+picture; handing each particle to its nearest axis instead gives four
+quarter-rings that meet at seams and never cross at all.
 
 The axes matter more than anything else here. An earlier build made the points
 out of longitude, so they ringed one waist and the silhouette was a star from
@@ -44,31 +43,26 @@ the four are spread through space instead of around a circle: they are made to
 repel one another, both ends of each counted, from a handful of starting
 arrangements, and the arrangement that settles lowest is kept. For four axes the
 answer is the diagonals of a cube, which is as far apart as eight points can
-get. Five or six of them show in the silhouette from any angle, the rest
+get. Four to six of them show in the silhouette from any angle, the rest
 pointing at the camera or away from it — which is what a star that is genuinely
 three-dimensional does, and the reason there is no longer a front to face.
 
-Crowding particles towards the spoke axes to fill the points out was tried and
-is a trap: the pull has to send particles on either side of the line between two
-spokes towards different axes, which tears a bare wedge along every one of those
-lines and empties the core as well. Instead the dot grows with the radius it
-sits at. A particle out at a spike stands for more surface than one in the body
-— the same slice of directions covers area going as the square of the radius —
-which is this project's own rule, density carried by dot size, applied to a
-solid rather than to a flat field.
+The dot grows with the radius it sits at. A particle out at a point stands for
+more surface than one at the waist — the same slice of directions covers area
+going as the square of the radius — which is this project's own rule, density
+carried by dot size, applied to a solid rather than to a flat field.
 
-**Fluidity** distorts the spokes, not the particles. Each of the eight leans off
-its axis, stretches and thickens on its own schedule — three cosines at one, two
-and three turns a cycle, each given its own starting place, so what it traces is
-uneven and never quite repeats inside the loop but closes exactly at the end of
-it — and the ball breathes under them. The form is never symmetrical and never
-still in the same way twice: at 0.6 the surface itself travels 0.14 of the form's
-radius over a cycle on average and half of it at the extreme, while the star
-holds five or six points in the silhouette at every setting. A last small grain,
-fixed per particle, stops the shell looking like a skin drawn on a solid; it is
-a distance rather than a percentage of the radius, because scaling the radius
-stretches a spike in proportion to how long it already is and the points grow
-sparse dotted tails.
+**Fluidity** distorts the rings, not the particles. Each leans off its axis,
+stretches and flattens on its own schedule — three cosines at one, two and
+three turns a cycle, each with its own starting place, so the trace is uneven
+and never quite repeats inside the loop but closes exactly at the end of it —
+and because a ring is a family of ellipses round one axis rather than a single
+one, its section wanders as it goes round, so no two ellipses in the same ring
+are quite alike. The star still reads as a star at every setting. A last small
+grain, fixed per particle, stops the shell looking like a skin drawn on a
+solid; it is a distance rather than a percentage of the radius, because scaling
+the radius stretches a point in proportion to how far out it already is and the
+ends grow sparse dotted tails.
 
 **Breathe** swings the morph on its own over the cycle.
 
