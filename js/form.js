@@ -8,14 +8,15 @@
  *
  * Three things make this different from the globe:
  *
- *   The surface is a radius, not a constant. Every direction has a distance
- *   from the centre, one for the sphere and one for the star, and the Morph
- *   control mixes them. Every value in between is a real shape rather than a
- *   cross-fade between two pictures.
+ *   The star is built the way the diagram builds it: from elongated ellipses
+ *   laid over one another through a common centre. Four of them, turned so
+ *   their long axes are spread evenly through space, make eight points — and
+ *   because the axes point in eight genuinely different directions rather than
+ *   ringing one waist, the star reads as a star from wherever you stand.
  *
  *   The particles are not fixed to it. Each one slides along its own orbit,
  *   so the surface is a place they pass through rather than a grid they are
- *   pinned to.
+ *   pinned to, and Fluidity lifts a share of them off it altogether.
  *
  *   The camera has a position. The globe was orthographic, which cannot go
  *   anywhere; this is a perspective view with a distance, so it can be pushed
@@ -47,25 +48,18 @@ var DG = window.DG || (window.DG = {});
 
     morph: 0,             // 0 a sphere, 1 the star
     breathe: 0,           // how far the morph swings on its own over the loop
-    points: 8,            // points on the star
-    spike: 0.85,          // how far the points reach
-    sharp: 3.2,           // how drawn-out they are
-    fluid: 0.35,          // the surface's own drift
+    points: 8,            // points on the star — two per ellipse
+    spike: 0.85,          // how far past the sphere the points reach
+    sharp: 3.2,           // how narrow the ellipses are between them
+    fluid: 0.2,           // how much of the cloud is carried off in the flow
 
     dist: 3.2,            // camera distance, in form radii; under 1 is inside
     lens: 1,              // how wide the lens is
     heading: 0,           // where the drag has turned the form to
-    /*
-     * Looking down the axis, near enough. The star's points ring the waist, so
-     * its silhouette is a star from the pole and a spiked disc from the side —
-     * and the form turns about that same axis, which from here is the star
-     * rotating in the plane of the picture rather than tipping away. Drag the
-     * tilt off and the third dimension is right there; this is only where it
-     * opens.
-     */
-    tilt: 78,
+    tilt: 12,             // the lean drag has given it
+
     speed: 1 / 24,        // turns a second
-    orbit: 0.5,           // how far particles slide along the surface
+    orbit: 2,             // whole turns a particle makes along its orbit per cycle
 
     colorMode: 'gradient',
     gradientMap: 'depth',
@@ -84,7 +78,7 @@ var DG = window.DG || (window.DG = {});
     return (h >>> 0) / 4294967296;
   }
 
-  /* Value noise on the sphere's own coordinates, cross-faded so it loops. */
+  /* Value noise on the form's own coordinates, cross-faded so it loops. */
   function noise3(x, y, z, seed) {
     var xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
     var xf = x - xi, yf = y - yi, zf = z - zi;
@@ -106,48 +100,150 @@ var DG = window.DG || (window.DG = {});
    * easing the fade would send it back to the layer it left rather than the one
    * it is heading for, and the loop would jump.
    */
-  function fluidNoise(x, y, z, t, seed) {
+  function flowNoise(x, y, z, t, seed) {
     var a = noise3(x + t * 1.6, y - t * 1.1, z + t * 0.7, seed);
     var b = noise3(x - (1 - t) * 1.6, y + (1 - t) * 1.1, z - (1 - t) * 0.7, seed);
     return a * (1 - t) + b * t;
   }
 
-  /*
-   * The star's radius in a given direction. Eight points around the equator by
-   * default, from |cos| of four turns of longitude: a cosine of four gives
-   * eight extremes, and the absolute value turns the troughs into points too.
+  /* ------------------------------------------------------------------------
+   * The star, built from overlapping ellipses.
    *
-   * The latitude term is what keeps it a solid rather than a cookie cutter.
-   * Without it the points run from pole to pole as ridges and the form reads as
-   * a fluted column; falling away towards the poles leaves the points around
-   * the waist, and it is their silhouette that makes the star.
+   * The diagram draws an eight-pointed star as four long ellipses crossing at
+   * one centre, each turned a little further round. Spun into three dimensions
+   * an ellipse becomes a prolate spheroid — a cigar — and the star is the
+   * volume they all share the outside of: in any direction, the surface is
+   * whichever cigar reaches furthest that way. Four cigars, eight ends, eight
+   * points.
+   *
+   * The earlier build made the points out of longitude, so they ringed the
+   * equator and the silhouette was only a star from the pole. Here the long
+   * axes are spread evenly through space instead of around one circle, so
+   * there is no privileged angle to view it from.
+   * ---------------------------------------------------------------------- */
+  var axisCache = {};   // by point count: the search is slow, and there are few
+
+  /*
+   * Spreading the ellipses. Their long axes want to be as far from one another
+   * as axes can get, and an axis has two ends, so what is really being spread
+   * is twice as many points: four ellipses are eight star points, and they
+   * should end up on the diagonals of a cube.
+   *
+   * A spiral is even over a whole sphere but not over half of one, and with
+   * only four axes to place, the difference is the whole point — a spiral
+   * leaves two of them leaning together, and that projects as a five-pointed
+   * star however you turn it. So the axes are made to repel each other, both
+   * ends of each counted, from a handful of starting arrangements, and the
+   * arrangement that settles lowest is the one kept. It runs once per point
+   * count and is cached; the answer for four is the cube.
    */
-  function starRadius(nx, ny, nz, p) {
-    var lon = Math.atan2(nz, nx);
-    var lat = Math.asin(Math.max(-1, Math.min(1, ny)));
-    var lobe = Math.abs(Math.cos(lon * p.points / 2));
-    var waist = Math.pow(Math.cos(lat), 1.6);
-    return 1 + p.spike * Math.pow(lobe, p.sharp) * waist;
+  function relax(a, count) {
+    var k, j;
+    var passes = 700;
+    for (var pass = 0; pass < passes; pass++) {
+      // The step shrinks as it goes, so the axes travel freely at first and
+      // settle precisely at the end instead of jittering around the answer.
+      var step = 0.008 * (1 - 0.94 * pass / passes);
+      var f = new Float64Array(count * 3);
+      for (k = 0; k < count; k++) {
+        for (j = 0; j < count; j++) {
+          if (j === k) continue;
+          for (var e = -1; e <= 1; e += 2) {
+            var dx = a[k * 3] - e * a[j * 3];
+            var dy = a[k * 3 + 1] - e * a[j * 3 + 1];
+            var dz = a[k * 3 + 2] - e * a[j * 3 + 2];
+            var l2 = Math.max(1e-9, dx * dx + dy * dy + dz * dz);
+            var w = 1 / (l2 * Math.sqrt(l2));
+            f[k * 3] += dx * w; f[k * 3 + 1] += dy * w; f[k * 3 + 2] += dz * w;
+          }
+        }
+      }
+      for (k = 0; k < count; k++) {
+        var nx = a[k * 3] + f[k * 3] * step;
+        var ny = a[k * 3 + 1] + f[k * 3 + 1] * step;
+        var nz = a[k * 3 + 2] + f[k * 3 + 2] * step;
+        var ln = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+        a[k * 3] = nx / ln; a[k * 3 + 1] = ny / ln; a[k * 3 + 2] = nz / ln;
+      }
+    }
+    return a;
+  }
+
+  function energy(a, count) {
+    var e = 0;
+    for (var k = 0; k < count; k++) {
+      for (var j = 0; j < count; j++) {
+        if (j === k) continue;
+        for (var s = -1; s <= 1; s += 2) {
+          var dx = a[k * 3] - s * a[j * 3];
+          var dy = a[k * 3 + 1] - s * a[j * 3 + 1];
+          var dz = a[k * 3 + 2] - s * a[j * 3 + 2];
+          e += 1 / Math.max(1e-6, Math.sqrt(dx * dx + dy * dy + dz * dz));
+        }
+      }
+    }
+    return e;
+  }
+
+  function ellipseAxes(count) {
+    if (axisCache[count]) return axisCache[count];
+    var best = null, bestE = Infinity;
+    for (var attempt = 0; attempt < 6; attempt++) {
+      var a = new Float64Array(count * 3);
+      for (var k = 0; k < count; k++) {
+        // Deterministic starts, so the form is the same every time it is drawn.
+        var z = hash(k + attempt * 97, 5) * 2 - 1;
+        var th = hash(k + attempt * 97, 11) * TAU;
+        var rad = Math.sqrt(Math.max(0, 1 - z * z));
+        a[k * 3] = Math.cos(th) * rad;
+        a[k * 3 + 1] = z;
+        a[k * 3 + 2] = Math.sin(th) * rad;
+      }
+      relax(a, count);
+      var e = energy(a, count);
+      if (e < bestE - 1e-9) { bestE = e; best = a; }
+    }
+    axisCache[count] = best;
+    return best;
   }
 
   /*
-   * Where the surface sits in a direction, for a given morph and moment.
+   * How far one spheroid reaches in a given direction. Long axis a, the two
+   * short ones b: the point where the ray leaves the surface is at
+   * 1 / sqrt(along²/a² + across²/b²). A radius, not a displacement, which is
+   * what lets Morph mix the two shapes as radii and keep every setting in
+   * between a solid in its own right.
+   */
+  function starRadius(nx, ny, nz, p) {
+    var rings = Math.max(2, Math.round(p.points / 2));
+    var axes = ellipseAxes(rings);
+    var a = 1 + 0.55 * clamp01(p.spike);          // the tips, past the sphere
+    var b = a * 0.62 / (1 + 0.55 * Math.max(0, p.sharp));  // the narrow part
+    var ia2 = 1 / (a * a);
+    var ib2 = 1 / (b * b);
+    var best = 0;
+    for (var k = 0; k < rings; k++) {
+      var al = nx * axes[k * 3] + ny * axes[k * 3 + 1] + nz * axes[k * 3 + 2];
+      var along2 = al * al;
+      var r = 1 / Math.sqrt(along2 * ia2 + (1 - along2) * ib2);
+      if (r > best) best = r;
+    }
+    return best;
+  }
+
+  /*
+   * Where the surface sits in a direction, for a given morph.
    *
    * The two shapes are mixed as radii rather than as positions, which is what
    * keeps every setting in between a shape in its own right: a point on the
    * half-morphed form is on the surface of a real solid, not halfway along a
-   * line between two of them.
+   * line between two of them. Nothing here moves on its own — the flow that
+   * Fluidity drives is a thing that happens to the particles, not to the shape
+   * they are sitting on.
    */
-  DG.surfaceAt = function (nx, ny, nz, morph, t, p) {
-    var r = 1 + (starRadius(nx, ny, nz, p) - 1) * morph;
-    if (p.fluid > 0) {
-      // Two octaves, the coarse one swelling whole regions and the fine one
-      // rippling across them.
-      var f = fluidNoise(nx * 1.7, ny * 1.7, nz * 1.7, t, 11) - 0.5;
-      var g = fluidNoise(nx * 4.1 + 3, ny * 4.1 - 2, nz * 4.1 + 5, t, 29) - 0.5;
-      r *= 1 + p.fluid * (0.42 * f + 0.18 * g);
-    }
-    return r;
+  DG.surfaceAt = function (nx, ny, nz, morph, p) {
+    if (morph <= 0) return 1;
+    return 1 + (starRadius(nx, ny, nz, p) - 1) * morph;
   };
 
   /*
@@ -212,6 +308,24 @@ var DG = window.DG || (window.DG = {});
     var spacing = Math.sqrt(4 * Math.PI / n);
     var baseR = spacing * 0.5 * p.dotScale;
 
+    // Turns per cycle to draw from — whole ones only, see the orbit below.
+    var spin = Math.max(0, Math.round(p.orbit));
+
+    /*
+     * The flow. Fluidity is not something the surface does; it is how much of
+     * the cloud has let go of it. A share of the particles equal to the
+     * setting is released and carried along a drifting field.
+     *
+     * Two things make that read as flow rather than as the form going grainy.
+     * Which particles go is decided mostly by a drifting field rather than
+     * one by one, so whole patches of surface peel away together; and the
+     * field that carries them is coarse, so the patch stays a patch as it
+     * travels. What leaves is a stream with a head and a tail, because the
+     * particles at the edge of the share are only just released and trail the
+     * ones fully in it.
+     */
+    var fluid = clamp01(p.fluid);
+
     var ramp = DG.buildRamp(96, p.stops);
     var useGradient = p.colorMode === 'gradient';
     var v3 = [0, 0, 0];
@@ -225,14 +339,21 @@ var DG = window.DG || (window.DG = {});
       if (p.scatter > 0 && hash(i, p.seed) < p.scatter) continue;
 
       /*
-       * The orbit. Each particle turns about its own axis at its own whole
-       * number of turns per cycle, so they slide across the form at different
-       * rates and in different directions instead of drifting as one sheet.
-       * Whole numbers, or the loop will not close.
+       * The orbit. Each particle turns about its own axis, from its own
+       * starting point, so they slide across the form at different rates and
+       * in different directions instead of drifting as one sheet. The turn
+       * count is a whole number
+       * and the setting is what it is drawn from, because a fraction of a
+       * turn would leave the particle somewhere other than where it started
+       * and the loop would jump there.
        */
-      if (p.orbit > 0) {
-        var turns = 1 + Math.floor(hash(i, 91) * 3);
-        var ang = TAU * turns * phase * p.orbit;
+      if (spin > 0) {
+        var turns = 1 + Math.floor(hash(i, 91) * spin);
+        // Each particle starts somewhere different along its orbit. Without
+        // that they all leave from the lattice they were placed on and arrive
+        // back at it together, and the loop has one frame a cycle where the
+        // whole cloud snaps into focus.
+        var ang = TAU * turns * (phase + hash(i, 73));
         var ax = hash(i, 17) * 2 - 1, ay = hash(i, 31) * 2 - 1, az = hash(i, 47) * 2 - 1;
         var al = Math.sqrt(ax * ax + ay * ay + az * az) || 1;
         ax /= al; ay /= al; az /= al;
@@ -245,9 +366,48 @@ var DG = window.DG || (window.DG = {});
         dx = rx; dy = ry; dz = rz;
       }
 
-      var r = DG.surfaceAt(dx, dy, dz, morph, phase, p);
+      var r = DG.surfaceAt(dx, dy, dz, morph, p);
+      var px = dx * r, py = dy * r, pz = dz * r;
+      var lift = 0;
 
-      orient(dx * r, dy * r, dz * r, cosH, sinH, cosT, sinT, v3);
+      if (fluid > 0) {
+        /*
+         * Which particles go: a drifting field decides, so patches leave
+         * together, with a little per-particle luck so the edge of a patch
+         * frays rather than tearing along a line. Smooth noise sits close to
+         * its middle far more often than it reaches either end, so it is
+         * stretched onto the full range first — without that, raising the
+         * setting only ever shakes the surface instead of lifting anything
+         * off it.
+         */
+        var field = clamp01((flowNoise(px * 0.7 + 13, py * 0.7 - 7, pz * 0.7 + 21, phase, 101) - 0.12) / 0.64);
+        // The field raises and lowers the waterline as it drifts across the
+        // form; each particle has its own fixed height. Where the water is
+        // high a whole patch is under it and goes; where it is low almost
+        // nothing does, and the particles that only just went trail the ones
+        // that went deepest.
+        var lifted = fluid * (0.35 + 1.3 * field) - hash(i, 63);
+        if (lifted > 0) {
+          lift = clamp01(lifted / 0.3);
+          var amp = 1.9 * lift * lift;
+          // Where they go: read at the particle's place on the form, coarse
+          // enough that a patch travels as one.
+          var c1 = flowNoise(px * 0.6, py * 0.6, pz * 0.6, phase, 11) - 0.5;
+          var c2 = flowNoise(px * 0.6 + 5, py * 0.6 - 3, pz * 0.6 + 7, phase, 23) - 0.5;
+          var c3 = flowNoise(px * 0.6 - 4, py * 0.6 + 6, pz * 0.6 - 2, phase, 37) - 0.5;
+          var f1 = flowNoise(px * 2.2 + 2, py * 2.2 + 9, pz * 2.2 - 6, phase, 53) - 0.5;
+          var f2 = flowNoise(px * 2.2 - 8, py * 2.2 + 1, pz * 2.2 + 4, phase, 71) - 0.5;
+          var f3 = flowNoise(px * 2.2 + 3, py * 2.2 - 5, pz * 2.2 + 8, phase, 89) - 0.5;
+          // Outward as well as along, so a stream lifts off the surface
+          // instead of sliding around it.
+          var out = 0.55 * amp * lift;
+          px += amp * (2.0 * c1 + 0.45 * f1) + dx * out;
+          py += amp * (2.0 * c2 + 0.45 * f2) + dy * out;
+          pz += amp * (2.0 * c3 + 0.45 * f3) + dz * out;
+        }
+      }
+
+      orient(px, py, pz, cosH, sinH, cosT, sinT, v3);
 
       // Perspective, from a camera sitting back along z. Everything closer than
       // the near plane is dropped — which is most of the form once the camera
@@ -264,10 +424,13 @@ var DG = window.DG || (window.DG = {});
        * Nearer is bigger, and it is the only depth cue here — no shading, no
        * fog. The size follows the same perspective divide as the position, so a
        * particle at half the distance is twice the size, which is what the eye
-       * reads as distance.
+       * reads as distance. A particle well out in the flow is drawn a little
+       * finer, so a stream reads as the cloud thinning rather than as a second
+       * cloud of the same weight.
        */
       var d = {
-        x: sx, y: sy, r: baseR * scale, z: -zc, zc: zc,
+        i: i,                                  // which particle, so frames line up
+        x: sx, y: sy, r: baseR * scale * (1 - 0.3 * lift), z: -zc, zc: zc,
         nx: (sx - cx) / (Math.min(width, height) * 0.5),
         ny: (sy - cy) / (Math.min(width, height) * 0.5)
       };
@@ -276,15 +439,31 @@ var DG = window.DG || (window.DG = {});
       if (zc > zFar) zFar = zc;
     }
 
+    // Farthest first, so a near particle covers a far one rather than the other
+    // way about. It happens before the sizing because the sizing wants to know
+    // the order too.
+    dots.sort(function (a, b) { return a.z - b.z; });
+
     /*
      * Depth is measured against what is actually in view, not against a fixed
      * window. The camera can sit three radii back or half a radius inside, and
      * those are completely different ranges of distance — a fixed window reads
      * the whole of one of them as "far", which is why the inside view came out
-     * uniformly dim. Taking the near and far of the frame itself means the
-     * nearest particle is always full size and the farthest always smallest,
-     * wherever the camera is standing.
+     * uniformly dim. Taking the range from the frame itself means the nearest
+     * particle is always full size and the farthest always smallest, wherever
+     * the camera is standing.
+     *
+     * The range is taken a few per cent in from each end rather than at the
+     * very edges. One particle carried right up to the lens by the flow would
+     * otherwise set the near end single-handed and push the whole form into
+     * the far half of the scale, which reads as the form dimming every time
+     * something drifts past the camera.
      */
+    var m = dots.length;
+    if (m > 20) {
+      zFar = dots[Math.floor((m - 1) * 0.03)].zc;
+      zNear = dots[Math.floor((m - 1) * 0.97)].zc;
+    }
     var zSpan = Math.max(0.001, zFar - zNear);
     for (var k = 0; k < dots.length; k++) {
       var dk = dots[k];
@@ -300,12 +479,7 @@ var DG = window.DG || (window.DG = {});
         dk.color = ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(gv * (ramp.length - 1))))];
       }
     }
-    dots = dots.filter(function (x) { return x.r >= 0.09; });
-
-    // Farthest first, so a near particle covers a far one rather than the other
-    // way about.
-    dots.sort(function (a, b) { return a.z - b.z; });
-    return dots;
+    return dots.filter(function (x) { return x.r >= 0.09; });
   };
 
   /* No labels on this one; the renderers ask, so the answer is none. */

@@ -15,21 +15,33 @@ positions, which is what makes every setting between them a shape in its own
 right — a point on the half-morphed form is on the surface of a real solid
 rather than halfway along a line between two of them.
 
-The star's radius comes from `|cos|` of four turns of longitude: a cosine of
-four gives eight extremes, and the absolute value turns the troughs into points
-as well. A latitude term falls away towards the poles — without it the points
-run pole to pole as ridges and the form reads as a fluted column; with it they
-ring the waist, and it is their silhouette that makes the star.
+The star is built the way the diagram builds it: from long ellipses laid over
+one another through a common centre. Spun into three dimensions an ellipse
+becomes a prolate spheroid, and the star is the volume they all share the
+outside of — in any direction, the surface is whichever spheroid reaches
+furthest that way. Four spheroids, eight ends, eight points. **Points** sets
+how many, two to an ellipse; **Reach** how far past the sphere the tips go,
+and **Sharpness** how narrow the ellipses are between them.
 
-Which means the star reads as a star from the **pole**, and as a spiked disc
-from the side, so the view opens looking most of the way down the axis. The
-form turns about that same axis, which from there is the star rotating in the
-plane of the picture rather than tipping away. Drag the tilt off and the third
-dimension is right there.
+The long axes matter more than anything else here. An earlier build made the
+points out of longitude, so they ringed one waist and the silhouette was a
+star from the pole and a spiked disc from the side — one good angle and no
+others. Here the axes are spread through space instead of around a circle:
+they are made to repel one another, both ends of each counted, from a handful
+of starting arrangements, and the arrangement that settles lowest is kept. For
+four ellipses the answer is the diagonals of a cube, which is as far apart as
+eight points can get. Five or six of them show in the silhouette from any
+angle, the rest pointing at the camera or away from it — which is what a star
+that is genuinely three-dimensional does, and the reason there is no longer a
+front to face.
 
-**Fluidity** adds two octaves of looping noise to the radius — the coarse one
-swelling whole regions, the fine one rippling across them. **Breathe** swings
-the morph on its own over the cycle.
+**Fluidity** does nothing to the shape. It is how much of the cloud has let go
+of it: a drifting field raises and lowers a waterline across the form, each
+particle has its own height, and what goes under is lifted off and carried on
+a coarse flow. Patches leave together and travel together, the particles that
+only just went trailing the ones that went deepest, so the cloud scatters as
+streams with a head and a tail rather than as a shell going grainy.
+**Breathe** swings the morph on its own over the cycle.
 
 ## The particles
 
@@ -41,7 +53,9 @@ regular, and the golden angle is the one arrangement that is both.
 They are not pinned to the surface. Each turns about its own axis at its own
 whole number of turns per cycle, so they slide across the form at different
 rates and in different directions instead of drifting as one sheet. **Orbit**
-sets how far they travel.
+is the number those turns are drawn from — whole ones only, because a fraction
+of a turn would leave a particle somewhere other than where it started and the
+loop would jump there.
 
 ## The camera
 
@@ -54,8 +68,11 @@ Depth is measured against what is actually in the frame rather than a fixed
 window. Three radii back and half a radius inside are completely different
 ranges of distance, and a fixed window reads the whole of one of them as far
 away — which is why the inside view came out uniformly dim before. Taking the
-near and far of the frame itself means the nearest particle is always full size
-wherever the camera is standing.
+range from the frame itself means the nearest particle is always full size
+wherever the camera is standing. The range stops a few per cent in from each
+end: one particle carried right up to the lens by the flow would otherwise set
+the near end single-handed and push the whole form into the far half of the
+scale.
 
 ## Loop, and downloads
 

@@ -70,7 +70,7 @@ var DG = window.DG || (window.DG = {});
       return clearBg ? Object.assign({}, style, { background: null, bgGradient: null }) : style;
     }, [style, clearBg]);
 
-    var stem = 'globe';
+    var stem = 'form';
     var video = DG.videoType();
 
     function runFootage(kind, seconds) {
@@ -166,18 +166,21 @@ var DG = window.DG || (window.DG = {});
             <${DG.Slider} label="Breathe" value=${params.breathe} min=${0} max=${1}
               format=${function (v) { return v < 0.005 ? 'held' : Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ breathe: v }); }} />
-            <${DG.Slider} label="Points" value=${params.points} min=${3} max=${16} step=${1}
+            <${DG.Slider} label="Points" value=${params.points} min=${4} max=${16} step=${2}
+              format=${function (v) { return v + ' \u2022 ' + (v / 2) + ' ellipses'; }}
               onChange=${function (v) { set({ points: v }); }} />
-            <${DG.Slider} label="Reach" value=${params.spike} min=${0.1} max=${2}
+            <${DG.Slider} label="Reach" value=${params.spike} min=${0} max=${1}
               onChange=${function (v) { set({ spike: v }); }} />
             <${DG.Slider} label="Sharpness" value=${params.sharp} min=${0.6} max=${8}
               onChange=${function (v) { set({ sharp: v }); }} />
-            <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1.2}
-              format=${function (v) { return v < 0.005 ? 'still' : v.toFixed(2); }}
+            <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1}
+              format=${function (v) { return v < 0.005 ? 'held' : Math.round(v * 100) + '% adrift'; }}
               onChange=${function (v) { set({ fluid: v }); }} />
             <p class="note">
-              Morph mixes the two radii, so every setting between them is a shape in its
-              own right rather than a fade between two pictures.
+              The star is four long ellipses crossing at one centre, their axes spread
+              through space rather than round one waist, so it reads as a star from any
+              angle. Fluidity lets go of that share of the particles and lets the flow
+              carry them off it.
             </p>
           </aside>
 
@@ -247,8 +250,9 @@ var DG = window.DG || (window.DG = {});
               <${DG.Slider} label="Spin" value=${Math.round(1 / params.speed)} min=${10} max=${100} step=${1}
                 format=${function (v) { return Math.round(v) + ' s a turn'; }}
                 onChange=${function (v) { set({ speed: 1 / v }); }} />
-              <${DG.Slider} label="Orbit" value=${params.orbit} min=${0} max=${2}
-                format=${function (v) { return v < 0.005 ? 'fixed' : v.toFixed(2) + '×'; }}
+              <${DG.Slider} label="Orbit" value=${params.orbit} min=${0} max=${4} step=${1}
+                format=${function (v) { return v < 1 ? 'held' : v === 1 ? 'one turn a cycle'
+                  : 'up to ' + v + ' turns a cycle'; }}
                 onChange=${function (v) { set({ orbit: v }); }} />
               <p class="note">
                 Drag to turn the form and lean it. Distance is in form radii — below 1 the
