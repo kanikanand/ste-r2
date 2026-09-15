@@ -15,28 +15,26 @@ flattened, so both pictures are the same construction at two settings of one
 control, and that is how this is built. There is no globe shape and no star
 shape to mix between.
 
-A ring is everything at some angle round one axis. Flattening it means
-squashing across that axis by a factor *b* while the axis itself keeps its
-length: a particle placed in direction **d** on the ring of axis **L** goes to
-`L(d·L) + b(d − L(d·L))`. At *b* = 1 nothing moves at all — checked to the last
-bit of a double, so the globe is exactly the even placement the particles were
-given. Below it, each ring becomes a long ellipse, the four cross at the
-centre, and their eight ends are the points of the star.
+A ring is everything at some angle round one axis, and it has two half-axes.
+**Reach** is the long one, how far out the ends go; **Morph** is the short one,
+how far the ring is squashed across. A particle placed in direction **d** on the
+ring of axis **L** goes to `L(d·L)·a + (d − L(d·L))·b`, with *a* from Reach and
+*b* from Morph. They answer to different controls on purpose: tying Reach to the
+flat end of the morph, as it was, left it doing nothing at all on a round globe.
+This way a round globe with Reach up is four fat crossing rings rather than one
+sphere, a flat set with Reach down is a compact star, and every pairing of the
+two is its own shape.
 
-**Morph** is *b*, and **Reach** is how far down it goes. The long axes never
-change length, so the tips of the star sit where the globe's surface was and the
-morph is the body drawing in rather than the whole thing inflating and
-deflating. The ends of the points are the ends of ellipses — rounded, the way
-the diagram draws them — rather than the cones an earlier build welded on, which
-were sharper than anything in the reference.
+With both at rest the transform is the identity — checked to the last bit of a
+double — so the globe is exactly the even placement the particles were given.
 
 **Inflate** is how much of a ring is occupied. A ring is a family of ellipses
 round one axis, and pulling every particle's angle round that axis in towards
-the family's own plane leaves them all on a single ellipse — which is the
-diagram exactly: four curves, and at full round four great circles, a wireframe
-globe. Letting the angle back out fills the family in until the ring is a whole
-shell. It tells on the points hardest, since that is where the ellipses are
-furthest apart.
+the family's own plane gathers them onto one ellipse, which is the diagram. But
+it never closes all the way: sent to the plane exactly, every particle lands on
+one curve and the form comes out drawn in dotted lines. A floor under the spread
+leaves a band of scattered dots along the curve instead — which is what the
+wireframe is for. **The line is where the form is, not what it is made of.**
 
 Each particle keeps one ring for its whole life, by index rather than by
 whichever axis is nearest. Four complete rings crossing each other is the
@@ -57,6 +55,21 @@ more surface than one at the waist — the same slice of directions covers area
 going as the square of the radius — which is this project's own rule, density
 carried by dot size, applied to a solid rather than to a flat field.
 
+## Fields, not rows
+
+The golden angle is even, but even has a grain: it is built of spirals, and any
+stretch across them — flattening a ring, lengthening it, or gathering the
+particles into a band — brings those spirals out as visible lines of dots. Dots
+are meant to read as a field, so every particle is shaken off its placement, and
+by more of it exactly where the stretching is: with how far from round the ring
+has been drawn, and with how tightly Inflate has gathered it.
+
+The amounts were read off a sweep rather than guessed. Below about one spacing
+the spirals are still legible; above about two and a half the field starts to
+clump and thin in patches, which is a different kind of wrong. A round sphere
+clears at about one, a stretched ring wants nearer two, and a gathered band more
+again — which is what the three terms are.
+
 ## Fluidity, and keeping it in the frame
 
 **Fluidity** does two things, and the second only really arrives at the top of
@@ -66,18 +79,29 @@ starting place, so the trace is uneven and never quite repeats inside the loop
 but closes exactly at the end of it — and its section wanders as it goes round,
 so no two ellipses in the same ring are alike. Then a field of seven long waves
 takes hold of the whole cloud and kneads it: gently at first, and by the top of
-the range far enough to lose the star altogether and leave an amoeba wandering a
-field half again the size of the form it came from. A particle travels well over
-a frame's width across a cycle at the top of the range.
+the range far enough to lose the star and leave an amoeba wandering a larger
+field.
 
-Which is what makes framing a real problem rather than a detail, and worth
-saying how it is solved. None of that distortion is symmetrical, so the cloud
-both wanders off centre and grows, and a particle that has drifted towards the
-lens arrives as a saucer, because the perspective divide runs away there.
-Holding the distortion back to whatever keeps it in shot would mean no amoeba;
-instead five hundred particles are put through the same arithmetic before the
-frame is drawn, and what comes back is where the cloud's middle has got to and
-how large the rest of it can be drawn.
+Nearly all of the work at the top is the field rather than the ring settings,
+and deliberately so. Driving the ring lengths and flattenings hard enough to
+destroy the form destroys everything else with it — the bands, the points,
+whatever Reach and Inflate had been set to — and what is left is the same blob
+whatever those were. Two things keep the rest legible instead. The field bends
+space smoothly rather than per-ring; and each of its waves pushes **across** its
+own direction of travel rather than along it. A wave that pushes along itself
+piles the cloud up at one end and thins it at the other, and seven of those
+agree often enough to drag the whole thing into a smear — the same smear
+whatever the rings underneath were set to. Pushing across shears the cloud
+without squeezing it, so it kneads and stays a blob, and a band is still a band
+and a point still a point, bent.
+
+Which is what makes framing a real problem rather than a detail. None of the
+distortion is symmetrical, so the cloud both wanders off centre and grows, and a
+particle that has drifted towards the lens arrives as a saucer, because the
+perspective divide runs away there. Holding the distortion back to whatever keeps
+it in shot would mean no amoeba; instead five hundred particles are put through
+the same arithmetic before the frame is drawn, and what comes back is where the
+cloud's middle has got to and how large the rest of it can be drawn.
 
 That measurement is on the picture, not in space. A bound on the radius is not a
 bound on the picture — two particles the same distance from the middle land in
@@ -85,16 +109,19 @@ quite different places if one is nearer the lens. For one particle it is exact:
 at scale *s* it lands at `s·focal·X / (d − s·Z)`, so keeping that inside a target
 *W* gives `s = W·d / (focal·|X| + W·Z)`. The third tightest of those is taken
 rather than the tightest, because one particle should not decide how large the
-whole cloud is drawn, and a couple spilling past the edge costs nothing.
+whole cloud is drawn, and a couple spilling past the edge costs nothing. The
+target is a good deal more than the calm form's own width, so the amoeba gets a
+larger field to wander — but never more than the frame itself has, since a small
+form with plenty of room to grow into can otherwise be given more room than the
+picture holds.
 
-Two things were wrong before this worked. Pinning the field's value at the
-origin is not enough on its own: waves long enough to be coherent still agree
-across the body of the cloud and carry all of it one way, which reads as the
-form sliding out of frame rather than kneading, so the field's average over a
-shell is taken out as well. And the sample walked the particle list in steps of
-sixteen — a particle's ring is its index modulo four, so it only ever measured
-one ring of the four, and came back confident about a cloud a quarter the size
-of the one being drawn. The step is odd now.
+Two things were wrong before this worked. Pinning the field's value at the origin
+is not enough on its own: waves long enough to be coherent still agree across the
+body of the cloud, so the field's average over a shell is taken out as well. And
+the sample walked the particle list in steps of sixteen — a particle's ring is
+its index modulo four, so it only ever measured one ring of the four, and came
+back confident about a cloud a quarter the size of the one being drawn. The step
+is odd now.
 
 ## The particles
 

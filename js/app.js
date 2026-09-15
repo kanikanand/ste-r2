@@ -161,10 +161,10 @@ var DG = window.DG || (window.DG = {});
           <aside class="panel panel-presets">
             <h2>Form</h2>
             <${DG.Slider} label="Morph" value=${params.morph} min=${0} max=${1}
-              format=${function (v) { return v < 0.005 ? 'globe' : v > 0.995 ? 'star' : Math.round(v * 100) + '%'; }}
+              format=${function (v) { return v < 0.005 ? 'round' : v > 0.995 ? 'flat' : Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ morph: v }); }} />
             <${DG.Slider} label="Inflate" value=${params.inflate} min=${0} max=${1}
-              format=${function (v) { return v < 0.005 ? 'wireframe' : v > 0.995 ? 'solid'
+              format=${function (v) { return v < 0.005 ? 'bands' : v > 0.995 ? 'shells'
                 : Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ inflate: v }); }} />
             <${DG.Slider} label="Reach" value=${params.spike} min=${0} max=${1}
@@ -180,7 +180,8 @@ var DG = window.DG || (window.DG = {});
             <${DG.Stage} params=${params} style=${style} set=${set}
               onFrame=${function (t) { clock.current = t; }} />
             <div class="caption">
-              <h2>${params.dist < 1 ? 'Inside the form' : params.morph < 0.02 ? 'Globe'
+              <h2>${params.dist < 1 ? 'Inside the form'
+                : params.morph < 0.02 && params.spike < 0.02 ? 'Globe'
                 : params.morph > 0.98 ? 'Star' : 'Between'}</h2>
               <p>Drag to turn and lean. Distance below 1 goes inside.</p>
             </div>

@@ -50,10 +50,10 @@ var DG = window.DG || (window.DG = {});
     scatter: 0,
     seed: 1,
 
-    morph: 0,             // 0 the globe, 1 the star: how flat the rings are
-    inflate: 1,           // 0 four bare wireframe curves, 1 four full shells
-    spike: 0.7,           // how flat the rings get at full morph
-    fluid: 0.2,           // 0 the form held, 1 an amoeba in a field twice its size
+    morph: 0.35,          // how far the rings are squashed across: 0 round, 1 a star
+    inflate: 0.6,         // 0 four scattered bands along the rings, 1 four full shells
+    spike: 0.6,           // how far out the rings' long axes reach
+    fluid: 0.25,          // 0 the form held, 1 an amoeba kneading a larger field
 
     dist: 3.2,            // camera distance, in form radii; under 1 is inside
     lens: 1,              // how wide the lens is
@@ -254,9 +254,18 @@ var DG = window.DG || (window.DG = {});
    * the range. Each ring leans off its axis, stretches and flattens on its own
    * schedule, and its section wanders as it goes round, so no two ellipses in
    * the same ring are quite alike. Then a field of long slow waves takes hold
-   * of the whole cloud and carries it about — gently at first, and by the top
-   * of the range far enough to lose the star altogether and leave an amoeba
-   * wandering a field twice the size of the form it came from.
+   * of the whole cloud and kneads it — gently at first, and by the top of the
+   * range far enough to lose the star and leave an amoeba wandering a field
+   * half again the size of the form it came from.
+   *
+   * Nearly all the work at the top is the field rather than the ring settings,
+   * and deliberately so. Driving the ring lengths and flattenings hard enough
+   * to destroy the form destroys everything else with it — the bands, the
+   * points, whatever Reach and Inflate had been set to — and what is left is
+   * the same blob whatever those were. The field bends space smoothly instead,
+   * and its waves push across their own travel rather than along it, so they
+   * shear the cloud without squeezing it: a band is still a band and a point
+   * is still a point, bent.
    * ---------------------------------------------------------------------- */
   var RING_STRIDE = 17;
   var WAVES = 7;          // the long waves that turn the form into an amoeba
@@ -267,9 +276,17 @@ var DG = window.DG || (window.DG = {});
     var frames = spokeFrames(RINGS);
     var fluid = clamp01(p.fluid);
 
-    // The flat end of the morph: how thin an ellipse gets once it is one.
-    var flat = 0.62 - 0.32 * clamp01(p.spike);
-    var b = 1 + (flat - 1) * morph;
+    /*
+     * The two halves of the ellipse, and they answer to different controls so
+     * that no setting of one can switch the other off. Reach is the long axis
+     * — how far out the ends go — and Morph is the short one, how far the ring
+     * is squashed across. Tying Reach to the flat end of the morph, as it was,
+     * left it doing nothing at all on a round globe; this way a round globe
+     * with the Reach up is four fat crossing rings rather than one sphere, and
+     * every pairing of the two is its own shape.
+     */
+    var a = 1 + 0.42 * clamp01(p.spike);
+    var b = 1 + (0.30 - 1) * morph;
 
     // The ring distortion comes on gently and the field that makes an amoeba
     // hardly at all until the setting is well up, so the low half of the
@@ -280,7 +297,7 @@ var DG = window.DG || (window.DG = {});
     var f = new Float64Array(RINGS * RING_STRIDE);
     for (var k = 0; k < RINGS; k++) {
       var o = k * RING_STRIDE;
-      var lean = 0.26 * fluid + 0.55 * soft;
+      var lean = 0.26 * fluid + 0.10 * soft;
       var la = lean * loopWave(k, 3, t);
       var lb = lean * loopWave(k, 17, t);
       var lx = axes[k * 3] + la * frames[k * 6] + lb * frames[k * 6 + 3];
@@ -305,8 +322,8 @@ var DG = window.DG || (window.DG = {});
       f[o + 7] = lz * px - lx * pz;
       f[o + 8] = lx * py - ly * px;
 
-      f[o + 9] = Math.max(0.15, 1 + (0.16 * fluid + 0.75 * soft) * loopWave(k, 29, t));
-      f[o + 10] = Math.max(0.03, b * (1 + (0.34 * fluid + 1.1 * soft) * loopWave(k, 41, t)));
+      f[o + 9] = Math.max(0.15, a * (1 + (0.16 * fluid + 0.12 * soft) * loopWave(k, 29, t)));
+      f[o + 10] = Math.max(0.03, b * (1 + (0.34 * fluid + 0.18 * soft) * loopWave(k, 41, t)));
 
       /*
        * How the section wanders round the ring: one, two and three swells a
@@ -314,7 +331,7 @@ var DG = window.DG || (window.DG = {});
        * loop still closes. Written as sine and cosine weights, so the particle
        * loop never needs an angle — only the cosine and sine it already has.
        */
-      var amp = 0.30 * fluid + 0.9 * soft;
+      var amp = 0.30 * fluid + 0.20 * soft;
       for (var h = 1; h <= 3; h++) {
         var ang = TAU * (h * t + hash(k, 60 + h));
         var w = amp * (0.62 / h) * (0.6 + 0.4 * hash(k, 70 + h));
@@ -330,7 +347,7 @@ var DG = window.DG || (window.DG = {});
      * at whole numbers of turns a cycle, so the whole field comes back.
      */
     var waves = new Float64Array(WAVES * WAVE_STRIDE);
-    var reach = 1.15 * soft * fluid;
+    var reach = 1.45 * soft * fluid;
     for (var j = 0; j < WAVES; j++) {
       var q = j * WAVE_STRIDE;
       var kz = hash(j, 201) * 2 - 1;
@@ -341,13 +358,28 @@ var DG = window.DG || (window.DG = {});
       waves[q + 1] = kz * kf;
       waves[q + 2] = Math.sin(kth) * kr * kf;
 
-      var uz = hash(j, 207) * 2 - 1;
-      var ur = Math.sqrt(Math.max(0, 1 - uz * uz));
-      var uth = hash(j, 209) * TAU;
-      var amp2 = reach * (0.5 + 0.5 * hash(j, 211)) / Math.sqrt(WAVES);
-      waves[q + 3] = Math.cos(uth) * ur * amp2;
-      waves[q + 4] = uz * amp2;
-      waves[q + 5] = Math.sin(uth) * ur * amp2;
+      /*
+       * Which way it pushes: across its own direction of travel, never along
+       * it. A wave that pushes along itself piles the cloud up at one end and
+       * thins it at the other, and seven of those agree often enough to drag
+       * the whole thing into a smear — which is the same smear whatever the
+       * rings underneath were set to. Pushing across instead shears the cloud
+       * without squeezing it, so it kneads and stays a blob, and the bands and
+       * points are bent rather than erased.
+       */
+      var rz = hash(j, 207) * 2 - 1;
+      var rr = Math.sqrt(Math.max(0, 1 - rz * rz));
+      var rth = hash(j, 209) * TAU;
+      var rx = Math.cos(rth) * rr, ry = rz, rzz = Math.sin(rth) * rr;
+      var ux = waves[q + 1] * rzz - waves[q + 2] * ry;
+      var uy = waves[q + 2] * rx - waves[q] * rzz;
+      var uz = waves[q] * ry - waves[q + 1] * rx;
+      var ul = Math.sqrt(ux * ux + uy * uy + uz * uz);
+      if (ul < 1e-6) { ux = 1; uy = 0; uz = 0; ul = 1; }
+      var amp2 = reach * (0.5 + 0.5 * hash(j, 211)) / (Math.sqrt(WAVES) * ul);
+      waves[q + 3] = ux * amp2;
+      waves[q + 4] = uy * amp2;
+      waves[q + 5] = uz * amp2;
 
       var turns = 1 + Math.floor(hash(j, 213) * 3);
       var ph = TAU * (turns * t + hash(j, 215));
@@ -385,6 +417,8 @@ var DG = window.DG || (window.DG = {});
     f.waves = waves;
     f.mean = [mx, my, mz];
     f.drifting = reach > 0;
+    // How far from round the ring is, which is what stretches the lattice.
+    f.aniso = 1 - Math.min(a, b) / Math.max(a, b);
     return f;
   };
 
@@ -441,10 +475,16 @@ var DG = window.DG || (window.DG = {});
          * folds to the nearer half-turn first — the ellipse occupies both
          * sides of the axis, so a particle behind it should collapse onto the
          * back of the curve, not travel all the way round to the front.
+         *
+         * It never closes all the way. Sent to the plane exactly, every
+         * particle in the ring lands on one curve and the form is drawn in
+         * dotted lines; a floor under the spread leaves a band of scattered
+         * dots along the curve instead, which is what the wireframe is for —
+         * the line is where the form is, not what it is made of.
          */
         var ang = Math.atan2(s1, c1);
         var m = Math.round(ang / Math.PI);
-        var psi = (ang - m * Math.PI) * inflate;
+        var psi = (ang - m * Math.PI) * (0.14 + 0.86 * inflate);
         var sign = (m & 1) ? -1 : 1;
         c1 = sign * Math.cos(psi);
         s1 = sign * Math.sin(psi);
@@ -536,8 +576,11 @@ var DG = window.DG || (window.DG = {});
      * it a smaller, denser version of itself.
      */
     var room = view[6];
-    wideCalm = Math.max(1, wideCalm) * room;
-    highCalm = Math.max(1, highCalm) * room;
+    // Never past the frame's own edge, whatever the calm form's size was: a
+    // small form with plenty of room to grow into can still be given more room
+    // than the picture has.
+    wideCalm = Math.min(Math.max(1, wideCalm) * room, view[7]);
+    highCalm = Math.min(Math.max(1, highCalm) * room, view[8]);
 
     /*
      * Then the largest the whole cloud can be drawn and still sit inside that.
@@ -664,17 +707,56 @@ var DG = window.DG || (window.DG = {});
     var frame4 = [0, 0, 0, 1];
     if (fluid > 0) {
       DG.framing(dirs, n, form, DG.buildForm(Object.assign({}, p, { fluid: 0 }), morph, phase),
-                 inflate, [cosH, sinH, cosT, sinT, p.dist, focal, 1 + 0.34 * fluid * fluid], frame4);
+                 inflate, [cosH, sinH, cosT, sinT, p.dist, focal, 1 + 0.34 * fluid * fluid,
+                           width * 0.47, height * 0.47], frame4);
     }
     var midX = frame4[0], midY = frame4[1], midZ = frame4[2], shrink = frame4[3];
     var dots = [];
     var zNear = Infinity;
     var zFar = -Infinity;
 
+    /*
+     * How far a particle is shaken off the lattice it was placed on, as a
+     * fraction of the spacing between neighbours.
+     *
+     * The golden angle is even, but even has a grain: it is built of spirals,
+     * and any stretch across them — flattening a ring, lengthening it, or
+     * crowding the particles into a band — brings those spirals out as visible
+     * lines of dots. Dots are meant to read as a field, so there is a shake on
+     * always, and more of it exactly where the stretching is: with how far from
+     * round the ring has been drawn, and with how tightly Inflate has gathered
+     * it. Scattering is what makes a field; rows of dots are a lattice showing
+     * through.
+     *
+     * The amounts were read off a sweep rather than guessed. Below about one
+     * spacing the spirals are still legible; above about two and a half the
+     * field starts to clump and thin in patches, which is a different kind of
+     * wrong. A round sphere clears at about one, a stretched ring wants nearer
+     * two, and a gathered band more again — which is what the three terms are.
+     */
+    var jitter = spacing * Math.min(2.1, 1.1 + 1.05 * form.aniso + 0.7 * (1 - inflate));
+
     for (var i = 0; i < n; i++) {
       var dx = dirs[i * 3], dy = dirs[i * 3 + 1], dz = dirs[i * 3 + 2];
 
       if (p.scatter > 0 && hash(i, p.seed) < p.scatter) continue;
+
+      if (jitter > 0) {
+        // Sideways to the direction it is looking, so the particle stays on
+        // the sphere and only its place on it moves.
+        var ja = hash(i, 131) * TAU, jr = jitter * Math.sqrt(hash(i, 137));
+        var ux = dy, uy = -dx, uz = 0;
+        var ul = Math.sqrt(ux * ux + uy * uy);
+        if (ul < 1e-6) { ux = 1; uy = 0; ul = 1; }
+        ux /= ul; uy /= ul;
+        var vx = dy * uz - dz * uy, vy = dz * ux - dx * uz, vz = dx * uy - dy * ux;
+        var jc = Math.cos(ja) * jr, js = Math.sin(ja) * jr;
+        dx += ux * jc + vx * js;
+        dy += uy * jc + vy * js;
+        dz += uz * jc + vz * js;
+        var jl = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+        dx /= jl; dy /= jl; dz /= jl;
+      }
 
       /*
        * The orbit. Each particle turns about its own axis, from its own
