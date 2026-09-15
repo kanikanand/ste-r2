@@ -26,11 +26,11 @@ the base geometry; radius, local spacing and selective absence do the rest.
 
 | Pattern | Emerging form | Motion |
 |---|---|---|
-| Expansion | A directional field growing from fine grain into visual mass. | A broad swell travels diagonally from the heavy corner. |
-| Convergence | A soft central concentration, like a lens or a gravitational well. | The centre inhales — dots swell and draw in, then return. |
+| Expansion | Fields advancing at different speeds, overtaking each other and merging into larger ground. | Fronts cross the frame at their own rates; where they overlap they become one broader field, then draw apart again. |
+| Convergence | Concentric rings closing on a centre, unevenly spaced and unevenly drawn. | Rings run steadily inward and gather — some broad, some fine, bunching at some radii and opening at others. |
 | Diffusion | A stable lattice turning porous, opening irregular white channels. | Pockets of empty space migrate; dots shrink away ahead and regrow behind. |
 | Intelligence | Clustered information — an abstract circuit, or glyphs that never resolve. | Clusters light up in turn, one gaining as its neighbour recedes. |
-| Synchronise | Horizontal signals that drift, lock to a shared beat, and part again. | Pulses travel at one speed but out of phase, align, hold, then separate. |
+| Synchronise | Horizontal signals that drift, fall into a shared beat, and part again. | Pulses travel at one speed but out of phase, align, hold, then separate. |
 
 ## How the motion works
 

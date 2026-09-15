@@ -171,19 +171,47 @@ var DG = window.DG || (window.DG = {});
           var v = body * (0.22 + 0.78 * vy);
           if (v > best) best = v;
         }
-        return clamp01(0.1 + 1.15 * best);
+
+        /*
+         * The three fronts on their own only ever give you three fronts: they
+         * overlap where they happen to cross and the result is a handful of
+         * regions all about one front wide. What turns those into ground is a
+         * slow field deciding how far each part of the frame lets them spread.
+         *
+         * It works on the threshold rather than on the value. Where the field
+         * is high the threshold drops, so the faint shoulders of neighbouring
+         * fronts clear it too and separate regions join into one large one;
+         * where it is low only the cores survive and the ground opens back up.
+         * Adding the field to the value instead would just raise the whole
+         * frame towards grey, which is a fog, not an expansion.
+         *
+         * Wide and slow: at this frequency one lobe spans most of the frame,
+         * so what grows is a region rather than a texture, and the drift is
+         * held back so it wanders rather than sweeps.
+         */
+        var grow = loopNoise(sx * 0.24, sy * 0.34, t, 71, 0.22);
+        var lo = 0.34 - 0.30 * grow;
+        return clamp01(0.1 + 1.15 * smoothstep(lo, lo + 0.30, best));
       }
     },
     {
       id: 'convergence',
       name: 'Convergence',
       form: 'Concentric rings closing on a centre, unevenly spaced and unevenly drawn.',
-      blurb: 'Rings travel inward and gather — some broad, some fine, bunching at some radii and opening at others.',
+      blurb: 'Rings run steadily inward and gather — some broad, some fine, bunching at some radii and opening at others.',
       prepare: function (t) {
-        // One slow turn, so the cycle closes exactly where it opened. The
-        // rings tighten and open on this breath.
-        var breath = 0.5 - 0.5 * Math.cos(TAU * t);
-        return { k: 1.9 + 0.35 * breath };
+        /*
+         * The form is fixed and only the phase moves. A breath on the spacing
+         * used to open and close the rings over the cycle, which is what made
+         * this read as pulsation: the figure was changing shape in place while
+         * the phase crept inward by a single ring, so the breathing was the
+         * larger of the two motions and the travel disappeared under it.
+         *
+         * RINGS is how many ring-widths the phase advances per cycle, and it
+         * has to be a whole number or the loop will not close. One gave a
+         * twitch; four reads as sustained inward travel.
+         */
+        return { k: 1.9, t: t };
       },
       at: function (x, y, t, p, c) {
         var d = Math.hypot(x, y) / p.scale;
@@ -203,7 +231,7 @@ var DG = window.DG || (window.DG = {});
         // The warp's slope has to stay positive or rings fold through each
         // other: 1 - (0.26 * 1.7) - (0.10 * 3.3) leaves 0.23 in hand.
         var warp = d + 0.26 * Math.sin(d * 1.7 + 1.1) + 0.10 * Math.sin(d * 3.3 - 0.4);
-        var ring = wave(warp * c.k + t);
+        var ring = wave(warp * c.k + 2 * c.t);
         // A wide range, which it can afford now that the centre's weight is
         // added rather than multiplied: a high exponent narrows a ring without
         // draining it, so every ring still reaches full size at its crest and
