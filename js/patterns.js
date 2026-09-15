@@ -156,26 +156,25 @@ var DG = window.DG || (window.DG = {});
           var f = u - Math.floor(u);
 
           /*
-           * The front takes more of its repeat as the cycle turns, and gives it
-           * back. That is where the growth into larger ground comes from: a
-           * wide front reaches its neighbours and three of them merge into one
-           * region, then narrow again and leave it.
+           * The width holds. An earlier version had each front swell and narrow
+           * on its own whole turn, to grow into larger ground — but a width
+           * that opens and closes is a pulse, and three of them pulsing out of
+           * step is the erratic part: the fronts stopped reading as travelling
+           * and started reading as throbbing. It is the same mistake the rings
+           * in Convergence used to make, a breath on the form drowning out the
+           * travel.
            *
-           * It has to be the front that grows, not a field laid over the top.
-           * A slow noise threshold does produce larger regions, but it produces
-           * them in place and in every direction at once, which is Diffusion —
-           * and with one of those over the top of the fronts the two behaviours
-           * became hard to tell apart. Widening the front keeps the growth
-           * travelling with it.
+           * It is also no longer needed. The merging into larger ground now
+           * comes from the three scales above: the broad field moves several
+           * times faster than the small ones, runs them down and takes them in,
+           * which is growth you can follow across the frame rather than growth
+           * that happens everywhere at once.
            *
-           * Each layer swells on its own whole turn, so they reach their widest
-           * at different moments and the merge is never all three at once.
+           * The one thing that still varies is where along its length a front
+           * is thicker, which is slow and spatial rather than a beat.
            */
-          var grow = wave(t + hash3(n, 9, 3));
-          // Uneven down the frame, so a front bulges in places rather than
-          // thickening like a ruler. Varying mostly with y keeps it a front.
           var lump = loopNoise(sy * 0.5, sx * 0.15 + n * 7, t, 91 + n, 0.2);
-          var w = Math.max(0.10, Math.min(0.85, 0.16 + 0.46 * grow * (0.55 + 0.9 * lump)));
+          var w = 0.34 * (0.62 + 0.76 * lump);
           var edge = 0.30 * w;
           // Ramps proportional to the width, so a narrow front is as soft at
           // its edges as a wide one. Both ends still reach zero, so consecutive
