@@ -18,6 +18,28 @@ var DG = window.DG || (window.DG = {});
     { id: '9:16', label: '9 : 16', ratio: 9 / 16 }
   ];
 
+  /*
+   * Download sizes. The height is the fixed thing and the width follows the
+   * frame's ratio, so the same tier gives a consistent object height whether
+   * the frame is 16:9 or 9:16 — a wide frame is wider, not shorter.
+   */
+  DG.SIZES = [
+    { id: 'S', label: 'S', height: 540 },
+    { id: 'M', label: 'M', height: 810 },
+    { id: 'L', label: 'L', height: 1080 }
+  ];
+
+  DG.sizeHeight = function (id) {
+    for (var i = 0; i < DG.SIZES.length; i++) if (DG.SIZES[i].id === id) return DG.SIZES[i].height;
+    return DG.SIZES[DG.SIZES.length - 1].height;
+  };
+
+  /* The pixel dimensions a download comes out at. */
+  DG.exportSize = function (sizeId, frameId, height) {
+    var h = height || DG.sizeHeight(sizeId);
+    return { width: Math.round(h * DG.frameRatio(frameId)), height: h };
+  };
+
   DG.frameRatio = function (id) {
     for (var i = 0; i < DG.FRAMES.length; i++) if (DG.FRAMES[i].id === id) return DG.FRAMES[i].ratio;
     return 16 / 9;
@@ -39,6 +61,7 @@ var DG = window.DG || (window.DG = {});
     colorMode: 'slate',   // a solid by default: colour is a treatment, not the form
     gradientMap: 'y',
     stops: [0, 0.5, 1],   // where the three ramp colours sit, 0..1
+    size: 'L',            // download size: S, M or L
     gradientReverse: false,
     background: 'paper'
   };

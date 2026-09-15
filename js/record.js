@@ -30,8 +30,8 @@ var DG = window.DG || (window.DG = {});
    * switch decides for them. PNG used to drop it unconditionally, which meant
    * there was no way to get a PNG of what you were actually looking at.
    */
-  DG.exportSVG = function (params, style, t, width, filename) {
-    var height = Math.round(width / DG.frameRatio(params.frame));
+  DG.exportSVG = function (params, style, t, height, filename) {
+    var width = Math.round(height * DG.frameRatio(params.frame));
     var svg = DG.dotsToSVG(DG.generateDots(params, width, height, t), {
       width: width,
       height: height,
@@ -44,8 +44,8 @@ var DG = window.DG || (window.DG = {});
     download(new Blob([svg], { type: 'image/svg+xml' }), filename);
   };
 
-  DG.exportPNG = function (params, style, t, width, filename) {
-    var height = Math.round(width / DG.frameRatio(params.frame));
+  DG.exportPNG = function (params, style, t, height, filename) {
+    var width = Math.round(height * DG.frameRatio(params.frame));
     var canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -72,11 +72,25 @@ var DG = window.DG || (window.DG = {});
    * GIF is drawn frame by frame rather than recorded, so it does not depend on
    * the machine keeping up — every frame lands exactly where it should.
    */
+  /*
+   * Every frame of a GIF is held in memory until the palette has been chosen
+   * over the whole run, so the cost is frames x pixels x 4 bytes and a long
+   * one at a large size will simply run the tab out of memory. The requested
+   * height is therefore held to a total-pixel budget: a ten-second GIF gets
+   * the size you asked for, a minute-long one is brought back to roughly what
+   * it has always been.
+   */
+  var GIF_PIXEL_BUDGET = 100e6;
+
   DG.exportGIF = function (params, style, seconds, opts, onProgress) {
     var fps = opts.fps || 12.5;
-    var width = opts.width || 480;
-    var height = Math.round(width / DG.frameRatio(params.frame));
+    var ratio = DG.frameRatio(params.frame);
     var total = Math.max(2, Math.round(seconds * fps));
+    var height = Math.max(180, Math.min(
+      opts.height || 540,
+      Math.floor(Math.sqrt(GIF_PIXEL_BUDGET / (total * ratio)))
+    ));
+    var width = Math.round(height * ratio);
     var cycles = cyclesFor(seconds, params.speed);
 
     var canvas = document.createElement('canvas');
@@ -141,8 +155,8 @@ var DG = window.DG || (window.DG = {});
     var type = DG.videoType();
     if (!type) return Promise.reject(new Error('This browser cannot record video.'));
 
-    var width = opts.width || 1280;
-    var height = Math.round(width / DG.frameRatio(params.frame));
+    var height = opts.height || 1080;
+    var width = Math.round(height * DG.frameRatio(params.frame));
     var fps = opts.fps || 30;
     var cycles = cyclesFor(seconds, params.speed);
 
@@ -152,7 +166,12 @@ var DG = window.DG || (window.DG = {});
     var ctx = canvas.getContext('2d');
     var stream = canvas.captureStream(fps);
     var chunks = [];
-    var rec = new MediaRecorder(stream, { mimeType: type.mime, videoBitsPerSecond: opts.bitrate || 8e6 });
+    // Scaled to the frame rather than fixed. A flat 8 Mbit was generous for the
+    // 720-high recording this used to make and thin for a 1080-high one, which
+    // is exactly the size the L option now asks for.
+    var bitrate = opts.bitrate ||
+      Math.max(4e6, Math.min(24e6, Math.round(width * height * fps * 0.2)));
+    var rec = new MediaRecorder(stream, { mimeType: type.mime, videoBitsPerSecond: bitrate });
     rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
 
     return new Promise(function (resolve, reject) {

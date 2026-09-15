@@ -79,11 +79,11 @@ var DG = window.DG || (window.DG = {});
         // Named apart, so downloading both leaves you with two files rather
         // than one and a copy.
         var gifName = stem + '-' + seconds + 's' + (clearBg ? '-clear' : '') + '.gif';
-        DG.exportGIF(params, exportStyle, seconds, { width: 480, fps: 12.5 }, onProgress)
+        DG.exportGIF(params, exportStyle, seconds, { height: DG.sizeHeight(params.size), fps: 12.5 }, onProgress)
           .then(function (blob) { DG.download(blob, gifName); done(); })
           .catch(fail);
       } else {
-        DG.exportVideo(params, style, seconds, { width: 1280, fps: 30 }, onProgress)
+        DG.exportVideo(params, style, seconds, { height: DG.sizeHeight(params.size), fps: 30 }, onProgress)
           .then(function (r) { DG.download(r.blob, stem + '-' + seconds + 's.' + r.ext); done(); })
           .catch(fail);
       }
@@ -105,6 +105,19 @@ var DG = window.DG || (window.DG = {});
               ${params.paused ? 'Play' : 'Pause'}
             </button>
 
+            <div class="dl-group" title=${'Height is fixed per size and the width follows the frame — ' +
+              (function () {
+                var d = DG.exportSize(params.size, params.frame);
+                return d.width + ' x ' + d.height + ' at ' + params.frame + '. A long GIF is held to a smaller size, since every frame is kept in memory while its palette is chosen.';
+              })()}>
+              <span class="dl-label">Size</span>
+              ${DG.SIZES.map(function (z) {
+                return html`<button key=${z.id} type="button"
+                  class=${'chip' + (params.size === z.id ? ' is-active' : '')}
+                  onClick=${function () { set({ size: z.id }); }}>${z.label}</button>`;
+              })}
+            </div>
+
             <button type="button" aria-pressed=${clearBg}
               class=${'chip chip-toggle' + (clearBg ? ' is-active' : '')}
               title=${clearBg
@@ -115,9 +128,9 @@ var DG = window.DG || (window.DG = {});
             <div class="dl-group" title="The frame showing when you press it.">
               <span class="dl-label">Still</span>
               <button type="button" class="chip"
-                onClick=${function () { DG.exportSVG(params, exportStyle, clock.current, 2000, stem + (clearBg ? '-clear' : '') + '.svg'); }}>SVG</button>
+                onClick=${function () { DG.exportSVG(params, exportStyle, clock.current, DG.sizeHeight(params.size), stem + (clearBg ? '-clear' : '') + '.svg'); }}>SVG</button>
               <button type="button" class="chip"
-                onClick=${function () { DG.exportPNG(params, exportStyle, clock.current, 2000, stem + (clearBg ? '-clear' : '') + '.png'); }}>PNG</button>
+                onClick=${function () { DG.exportPNG(params, exportStyle, clock.current, DG.sizeHeight(params.size), stem + (clearBg ? '-clear' : '') + '.png'); }}>PNG</button>
             </div>
 
             <div class="dl-group" title="Looping footage. A GIF has one see-through palette entry, so with No bg on, a dot edge cannot fade into whatever sits behind it.">

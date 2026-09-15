@@ -56,6 +56,11 @@ a behaviour only decides how much of its cell the dot fills.
 
 **SVG** and **PNG** take the frame showing at the moment you press them.
 
+**Size** — S, M or L, applied to every download. The height is the fixed thing
+and the width follows the frame, so a tier gives the same object height at any
+ratio: at 16:9 that is 960x540, 1440x810 and 1920x1080, and at 9:16 the same
+heights at 304, 456 and 608 wide.
+
 **GIF** and **MP4** at 10 seconds, 30 seconds or a minute.
 
 Everything exports **with** the background you can see, unless the **No bg**
@@ -66,6 +71,11 @@ can be pulled without losing a background you still want on screen.
 Video is the exception: MP4 has no alpha, so it always carries a ground. A GIF
 has one palette entry nominated as see-through, so its transparency is all or
 nothing per pixel — a dot's soft edge cannot fade into whatever sits behind it.
+
+A GIF is also the one download that cannot always have the size you pick. Every
+frame is held in memory until the palette has been chosen over the whole run,
+so the height is held to a total-pixel budget: ten seconds gets the size you
+asked for, a minute comes back to about 485x273 whichever tier is selected.
 
 GIF is encoded here rather than pulled in (`js/gifenc.js`), so the page keeps
 working offline with no worker and nothing to download. A GIF carries at most
