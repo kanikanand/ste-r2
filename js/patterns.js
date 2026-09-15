@@ -96,8 +96,8 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'expansion',
       name: 'Expansion',
-      form: 'Fields advancing at different speeds, overtaking each other and merging into larger ground.',
-      blurb: 'Fronts cross the frame at their own rates; where they overlap they become one broader field, then draw apart again.',
+      form: 'Fronts crossing the frame, broadening as they go until they run into each other and become one field.',
+      blurb: 'Each front widens and narrows on its own turn; at their widest they meet and take the ground between them.',
       at: function (x, y, t, p) {
         // Divided by scale, not multiplied: turning Pattern scale up has to
         // make the fields larger. Multiplying raises the spatial frequency
@@ -142,22 +142,39 @@ var DG = window.DG || (window.DG = {});
 
           var u = sx * freq - rate * t + hash3(n, 1, 5) + warp;
           var f = u - Math.floor(u);
-          // About a third of the repeat each, not most of it. One front could
-          // afford to be wide; three of them taken together cannot — at the old
-          // duty the union covered the frame and there was no open ground left
-          // for anything to advance into. Both ends still reach zero, so
-          // consecutive fronts meet in clear space rather than at a seam.
+
+          /*
+           * The front takes more of its repeat as the cycle turns, and gives it
+           * back. That is where the growth into larger ground comes from: a
+           * wide front reaches its neighbours and three of them merge into one
+           * region, then narrow again and leave it.
+           *
+           * It has to be the front that grows, not a field laid over the top.
+           * A slow noise threshold does produce larger regions, but it produces
+           * them in place and in every direction at once, which is Diffusion —
+           * and with one of those over the top of the fronts the two behaviours
+           * became hard to tell apart. Widening the front keeps the growth
+           * travelling with it.
+           *
+           * Each layer swells on its own whole turn, so they reach their widest
+           * at different moments and the merge is never all three at once.
+           */
+          var grow = wave(t + hash3(n, 9, 3));
+          // Uneven down the frame, so a front bulges in places rather than
+          // thickening like a ruler. Varying mostly with y keeps it a front.
+          var lump = loopNoise(sy * 0.5, sx * 0.15 + n * 7, t, 91 + n, 0.2);
+          var w = Math.max(0.10, Math.min(0.85, 0.16 + 0.46 * grow * (0.55 + 0.9 * lump)));
+          var edge = 0.30 * w;
+          // Ramps proportional to the width, so a narrow front is as soft at
+          // its edges as a wide one. Both ends still reach zero, so consecutive
+          // fronts meet in clear space rather than at a seam.
           //
           // Long ramps rather than hard edges. At one turn per cycle every dot
           // traverses exactly one repeat, whatever the width of the fields, so
-          // the ramps are the only thing that sets how fast any one dot changes
-          // size — and that is most of what reads as speed. Over the old
-          // 0.13-wide edge a dot went from smallest to largest in an eighth of
-          // a cycle, where every other behaviour here takes about a half.
-          //
-          // Which also means the field width is free: it costs nothing in pace,
-          // so it is set as wide as the duty allows.
-          var body = smoothstep(0.02, 0.24, f) * (1 - smoothstep(0.30, 0.56, f));
+          // the ramps are most of what reads as speed: over a 0.13-wide edge a
+          // dot went from smallest to largest in an eighth of a cycle, where
+          // every other behaviour here takes about a half.
+          var body = smoothstep(0, edge, f) * (1 - smoothstep(w - edge, w, f));
 
           // A slow vertical envelope, so a front is a field with a top and a
           // bottom rather than a bar the full height of the frame. Without it
@@ -172,26 +189,7 @@ var DG = window.DG || (window.DG = {});
           if (v > best) best = v;
         }
 
-        /*
-         * The three fronts on their own only ever give you three fronts: they
-         * overlap where they happen to cross and the result is a handful of
-         * regions all about one front wide. What turns those into ground is a
-         * slow field deciding how far each part of the frame lets them spread.
-         *
-         * It works on the threshold rather than on the value. Where the field
-         * is high the threshold drops, so the faint shoulders of neighbouring
-         * fronts clear it too and separate regions join into one large one;
-         * where it is low only the cores survive and the ground opens back up.
-         * Adding the field to the value instead would just raise the whole
-         * frame towards grey, which is a fog, not an expansion.
-         *
-         * Wide and slow: at this frequency one lobe spans most of the frame,
-         * so what grows is a region rather than a texture, and the drift is
-         * held back so it wanders rather than sweeps.
-         */
-        var grow = loopNoise(sx * 0.24, sy * 0.34, t, 71, 0.22);
-        var lo = 0.34 - 0.30 * grow;
-        return clamp01(0.1 + 1.15 * smoothstep(lo, lo + 0.30, best));
+        return clamp01(0.1 + 1.15 * best);
       }
     },
     {

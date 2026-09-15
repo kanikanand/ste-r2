@@ -26,7 +26,7 @@ the base geometry; radius, local spacing and selective absence do the rest.
 
 | Pattern | Emerging form | Motion |
 |---|---|---|
-| Expansion | Fields advancing at different speeds, overtaking each other and merging into larger ground. | Fronts cross the frame at their own rates; where they overlap they become one broader field, then draw apart again. |
+| Expansion | Fronts crossing the frame, broadening as they go until they run into each other and become one field. | Each front widens and narrows on its own turn; at their widest they meet and take the ground between them. |
 | Convergence | Concentric rings closing on a centre, unevenly spaced and unevenly drawn. | Rings run steadily inward and gather — some broad, some fine, bunching at some radii and opening at others. |
 | Diffusion | A stable lattice turning porous, opening irregular white channels. | Pockets of empty space migrate; dots shrink away ahead and regrow behind. |
 | Intelligence | Clustered information — an abstract circuit, or glyphs that never resolve. | Clusters light up in turn, one gaining as its neighbour recedes. |
