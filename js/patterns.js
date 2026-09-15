@@ -143,14 +143,27 @@ var DG = window.DG || (window.DG = {});
            */
           var freq = [0.28, 0.62, 1.15][n];
 
-          // Two noise layers bend the front. The coarse one decides where it
-          // bulges and lags, the fine one keeps the boundary from reading as a
-          // drawn curve. Both are stretched along x and compressed along y:
-          // noise that varies as fast across the frame as it does down it is
-          // nearly constant over any one column, and the front comes out as a
-          // straight vertical edge.
-          var warp = 0.55 * (loopNoise(sx * 0.35, sy * 2.2, t, sd, 0.25) - 0.5) +
-            0.20 * (loopNoise(sx * 0.9, sy * 4.5, t, sd + 5, 0.35) - 0.5);
+          /*
+           * Three octaves bend the front, and the amplitudes are spread rather
+           * than concentrated. With most of the bending in one layer at a
+           * couple of cycles down the frame, the boundary took on that layer's
+           * wavelength and every front curved through the same even S — which
+           * reads as a drawn curve, and the eye follows it instead of the
+           * expansion.
+           *
+           * So: a lowest octave slower than the frame is tall, which leans the
+           * front rather than bending it twice; a middle one for the actual
+           * bends; and a fine one whose only job is to break the arc so no
+           * single wavelength carries.
+           *
+           * All three are stretched along x and compressed along y. Noise that
+           * varies as fast across the frame as it does down it is nearly
+           * constant over any one column, and the front comes out as a straight
+           * vertical edge.
+           */
+          var warp = 0.40 * (loopNoise(sx * 0.20, sy * 0.9, t, sd, 0.22) - 0.5) +
+            0.26 * (loopNoise(sx * 0.55, sy * 2.6, t, sd + 5, 0.30) - 0.5) +
+            0.14 * (loopNoise(sx * 1.40, sy * 6.2, t, sd + 11, 0.38) - 0.5);
 
           var u = sx * freq - rate * t + hash3(n, 1, 5) + warp;
           var f = u - Math.floor(u);
