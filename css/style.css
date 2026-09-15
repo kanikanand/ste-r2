@@ -261,6 +261,6 @@ input[type='file'] { padding: 6px; width: 100%; }
 .chip-pick { display: inline-flex; align-items: center; gap: 6px; }
 .chip-pick .x { color: var(--muted); }
 .chip-pick:hover .x { color: var(--red); }
-.panel-presets .note { margin: 0; color: var(--muted); line-height: 1.5; }
+.panel-presets .note, .panel-controls .note { margin: 0; color: var(--muted); line-height: 1.5; }
 .stage-canvas { cursor: grab; touch-action: none; }
 .stage-canvas:active { cursor: grabbing; }

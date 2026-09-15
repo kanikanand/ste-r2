@@ -26,11 +26,18 @@ var DG = window.DG || (window.DG = {});
     /*
      * Dragging turns the globe by moving Spin and Tilt, rather than by holding
      * a rotation of its own somewhere. There is then one place the angle lives:
-     * what you drag to is what the sliders read and what an export draws, and
-     * a still pulled after a drag is the still you were looking at.
+     * what you drag to is what an export draws, and a still pulled after a drag
+     * is the still you were looking at.
      *
-     * Scaled by the radius, so the grab stays under the pointer at any globe
-     * size, and tilt is held to the slider's own range.
+     * Both signs follow the surface rather than the camera: drag right and the
+     * land under the pointer goes right, drag down and it goes down, as though
+     * the globe itself were being pushed. Raising spin moves a front-facing
+     * point right and raising tilt moves it down, so both terms are added —
+     * spin was subtracted before, which turned the globe against the hand.
+     *
+     * Scaled by the radius, so the grab keeps pace with the pointer at any
+     * globe size. Tilt stops short of the pole, where the projection has
+     * nothing left to turn.
      */
     var drag = useRef(null);
 
@@ -43,12 +50,12 @@ var DG = window.DG || (window.DG = {});
       if (!drag.current || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
       var d = drag.current;
       var span = Math.max(80, size.w * props.params.globeSize * 0.5);
-      var spin = props.params.spin - (e.clientX - d.x) / span * 90;
+      var spin = props.params.spin + (e.clientX - d.x) / span * 90;
       var tilt = props.params.tilt + (e.clientY - d.y) / span * 90;
       drag.current = { x: e.clientX, y: e.clientY };
       props.set({
         spin: ((spin % 360) + 360) % 360,
-        tilt: Math.max(-40, Math.min(40, tilt))
+        tilt: Math.max(-80, Math.min(80, tilt))
       });
     }
 

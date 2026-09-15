@@ -66,9 +66,11 @@ falling away from you.
 
 The globe turns **exactly once per loop**, so a ten second GIF and a one minute
 video both close where they opened — the same rule the pattern branch worked
-under. Drag it to turn it: dragging moves the Spin and Tilt controls rather
-than holding an angle of its own, so what you drag to is what the sliders read
-and what an export draws.
+under. Drag it to turn it, sideways and up and down both. Dragging moves Spin and
+Tilt rather than holding an angle of its own, so what you drag to is what an
+export draws. Both signs follow the surface rather than the camera — drag right
+and the land under the pointer goes right — and tilt has no slider at all,
+since a drag says it in one gesture and a number does not.
 
 ## Controls
 
@@ -91,8 +93,8 @@ lookups to find Singapore's one dot. **Frame** — 16:9, 1:1, 4:5 or 9:16.
 and **Highlight** — a solid or the three-stop gradient, with sliders for where
 its colours sit. **Dots** — grid density in rings, dot size, size variation
 (how far the limb's dots shrink), opacity, contrast, scatter. **Globe** — size,
-tilt, spin, seconds a revolution, how large the sea's dots are drawn, and
-whether to name what you picked.
+spin, seconds a revolution, how large the sea's dots are drawn, and whether to
+name what you picked. Tilt is the drag's.
 
 ## Downloads
 
