@@ -166,21 +166,20 @@ var DG = window.DG || (window.DG = {});
             <${DG.Slider} label="Breathe" value=${params.breathe} min=${0} max=${1}
               format=${function (v) { return v < 0.005 ? 'held' : Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ breathe: v }); }} />
-            <${DG.Slider} label="Points" value=${params.points} min=${4} max=${16} step=${2}
-              format=${function (v) { return v + ' \u2022 ' + (v / 2) + ' ellipses'; }}
-              onChange=${function (v) { set({ points: v }); }} />
             <${DG.Slider} label="Reach" value=${params.spike} min=${0} max=${1}
               onChange=${function (v) { set({ spike: v }); }} />
-            <${DG.Slider} label="Sharpness" value=${params.sharp} min=${0.6} max=${8}
+            <${DG.Slider} label="Sharpness" value=${params.sharp} min=${1} max=${12}
               onChange=${function (v) { set({ sharp: v }); }} />
             <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1}
-              format=${function (v) { return v < 0.005 ? 'held' : Math.round(v * 100) + '% adrift'; }}
+              format=${function (v) { return v < 0.005 ? 'smooth' : Math.round(v * 100) + '% scattered'; }}
               onChange=${function (v) { set({ fluid: v }); }} />
             <p class="note">
-              The star is four long ellipses crossing at one centre, their axes spread
-              through space rather than round one waist, so it reads as a star from any
-              angle. Fluidity lets go of that share of the particles and lets the flow
-              carry them off it.
+              The star is four spokes crossing at one centre — eight points — with
+              their axes spread through space rather than round one waist, so it reads
+              as a star from any angle. Each spoke is a cone: Reach is how far the
+              points run, Sharpness how wide they start. Fluidity leaves the form where
+              it is and scatters the particles across it, roughening the points rather
+              than blowing them apart.
             </p>
           </aside>
 
@@ -190,8 +189,9 @@ var DG = window.DG || (window.DG = {});
             <div class="caption">
               <h2>${params.dist < 1 ? 'Inside the form' : params.morph < 0.02 ? 'Sphere'
                 : params.morph > 0.98 ? 'Star' : 'Between'}</h2>
-              <p>Drag to turn the form and lean it. Push Distance below 1 to pass through the
-                 surface and look out from within.</p>
+              <p>Drag to turn the form and lean it. Push Distance below 1 to pass through
+                 the surface and look out from within — hold the Orbit and keep Fluidity
+                 low, and the inside reads as long curving rows of dots.</p>
             </div>
           </main>
 

@@ -15,33 +15,46 @@ positions, which is what makes every setting between them a shape in its own
 right — a point on the half-morphed form is on the surface of a real solid
 rather than halfway along a line between two of them.
 
-The star is built the way the diagram builds it: from long ellipses laid over
-one another through a common centre. Spun into three dimensions an ellipse
-becomes a prolate spheroid, and the star is the volume they all share the
-outside of — in any direction, the surface is whichever spheroid reaches
-furthest that way. Four spheroids, eight ends, eight points. **Points** sets
-how many, two to an ellipse; **Reach** how far past the sphere the tips go,
-and **Sharpness** how narrow the ellipses are between them.
+The star is four spokes crossing at one centre — eight points — and each spoke
+is a cone, solved rather than shaped by a falloff. A ray leaving the centre at
+angle θ to a spoke's axis meets a cone of height h and base half-width w where
+`r·sinθ = w(1 − r·cosθ/h)`, so `r = w / (sinθ + w·cosθ/h)`: straight sides, and
+a point at the end. Every smooth falloff tried before it — a cosine raised to a
+power, an ellipse, a spheroid — is widest somewhere along its length and rounds
+off into a petal, which is what made the star read as a flower. A star point is
+a cone, so this draws a cone. **Reach** is how far past the sphere they run,
+**Sharpness** the base width: low and they are stubby wedges, high and they are
+needles. Where the cone is narrower than the core ball, the ball shows through.
 
-The long axes matter more than anything else here. An earlier build made the
-points out of longitude, so they ringed one waist and the silhouette was a
-star from the pole and a spiked disc from the side — one good angle and no
-others. Here the axes are spread through space instead of around a circle:
-they are made to repel one another, both ends of each counted, from a handful
-of starting arrangements, and the arrangement that settles lowest is kept. For
-four ellipses the answer is the diagonals of a cube, which is as far apart as
-eight points can get. Five or six of them show in the silhouette from any
-angle, the rest pointing at the camera or away from it — which is what a star
-that is genuinely three-dimensional does, and the reason there is no longer a
-front to face.
+The axes matter more than anything else here. An earlier build made the points
+out of longitude, so they ringed one waist and the silhouette was a star from
+the pole and a spiked disc from the side — one good angle and no others. Here
+the four are spread through space instead of around a circle: they are made to
+repel one another, both ends of each counted, from a handful of starting
+arrangements, and the arrangement that settles lowest is kept. For four axes
+the answer is the diagonals of a cube, which is as far apart as eight points
+can get. Five or six of them show in the silhouette from any angle, the rest
+pointing at the camera or away from it — which is what a star that is genuinely
+three-dimensional does, and the reason there is no longer a front to face.
 
-**Fluidity** does nothing to the shape. It is how much of the cloud has let go
-of it: a drifting field raises and lowers a waterline across the form, each
-particle has its own height, and what goes under is lifted off and carried on
-a coarse flow. Patches leave together and travel together, the particles that
-only just went trailing the ones that went deepest, so the cloud scatters as
-streams with a head and a tail rather than as a shell going grainy.
-**Breathe** swings the morph on its own over the cycle.
+Crowding particles towards the spoke axes to fill the points out was tried and
+is a trap: the pull has to send particles on either side of the line between
+two spokes towards different axes, which tears a bare wedge along every one of
+those lines and empties the core as well. Instead the dot grows with the radius
+it sits at. A particle out at a spike stands for more surface than one in the
+core — the same slice of directions covers area going as the square of the
+radius — which is this project's own rule, density carried by dot size, applied
+to a solid rather than to a flat field.
+
+**Fluidity** does nothing to the shape and does not blow the form apart; it
+makes the edges irregular and the surface a scatter rather than a skin. A
+drifting field coarse enough to take in a whole spoke moves the surface in and
+out, so the spikes come out at different lengths and thicknesses from one
+another and from themselves a moment later, and on top of that each particle
+carries its own fixed offset, in and out and sideways. Everything is a fraction
+of the radius the particle is already at, so a spike is roughened along its
+length rather than snapped off, and the star is still a star at the top of the
+range. **Breathe** swings the morph on its own over the cycle.
 
 ## The particles
 
@@ -63,6 +76,14 @@ Perspective, not orthographic — an orthographic camera has no position to
 speak of and cannot go anywhere. **Distance** is in form radii, so below 1 the
 camera is through the surface and the form wraps around the view. Drag to turn
 the form and lean it; inside, that turn is what pans across the field.
+
+Inside is where the textures are. With **Orbit** held and **Fluidity** low the
+particles are still on the lattice they were placed on, and from within, the
+golden-angle spiral reads as long curving rows of dots sweeping across the
+frame — dense where the surface is far and edge-on, thinning to nothing where
+it passes closest. Dot size is capped, eased into the ceiling rather than
+clipped at it, so a particle passing near the lens no longer becomes a disc the
+width of a finger and the field keeps reading as a field.
 
 Depth is measured against what is actually in the frame rather than a fixed
 window. Three radii back and half a radius inside are completely different

@@ -8,11 +8,11 @@
  *
  * Three things make this different from the globe:
  *
- *   The star is built the way the diagram builds it: from elongated ellipses
- *   laid over one another through a common centre. Four of them, turned so
- *   their long axes are spread evenly through space, make eight points — and
- *   because the axes point in eight genuinely different directions rather than
- *   ringing one waist, the star reads as a star from wherever you stand.
+ *   The star is built the way the diagram builds it: from long spokes laid
+ *   over one another through a common centre. Four axes, turned so they are
+ *   spread evenly through space, make eight points — and because they point
+ *   in eight genuinely different directions rather than ringing one waist,
+ *   the star reads as a star from wherever you stand.
  *
  *   The particles are not fixed to it. Each one slides along its own orbit,
  *   so the surface is a place they pass through rather than a grid they are
@@ -34,6 +34,8 @@ var DG = window.DG || (window.DG = {});
   var TAU = Math.PI * 2;
   var RAD = Math.PI / 180;
   var clamp01 = (DG.clamp01 = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; });
+  var CORE = 0.24;      // the ball the spokes run out of
+  var SPOKES = 4;       // four axes, two ends each: an eight-pointed star
 
   DG.DEFAULTS = {
     frame: '16:9',
@@ -48,9 +50,8 @@ var DG = window.DG || (window.DG = {});
 
     morph: 0,             // 0 a sphere, 1 the star
     breathe: 0,           // how far the morph swings on its own over the loop
-    points: 8,            // points on the star — two per ellipse
     spike: 0.85,          // how far past the sphere the points reach
-    sharp: 3.2,           // how narrow the ellipses are between them
+    sharp: 2.2,           // how sharply the spokes taper to their points
     fluid: 0.2,           // how much of the cloud is carried off in the flow
 
     dist: 3.2,            // camera distance, in form radii; under 1 is inside
@@ -107,32 +108,30 @@ var DG = window.DG || (window.DG = {});
   }
 
   /* ------------------------------------------------------------------------
-   * The star, built from overlapping ellipses.
+   * The star, built from crossing spokes.
    *
-   * The diagram draws an eight-pointed star as four long ellipses crossing at
-   * one centre, each turned a little further round. Spun into three dimensions
-   * an ellipse becomes a prolate spheroid — a cigar — and the star is the
-   * volume they all share the outside of: in any direction, the surface is
-   * whichever cigar reaches furthest that way. Four cigars, eight ends, eight
-   * points.
+   * The diagram draws an eight-pointed star as four long shapes crossing at
+   * one centre, each turned a little further round. Here that is four axes
+   * through a small core, each carrying a spoke out to a point at either end:
+   * four axes, eight ends, eight points.
    *
    * The earlier build made the points out of longitude, so they ringed the
-   * equator and the silhouette was only a star from the pole. Here the long
-   * axes are spread evenly through space instead of around one circle, so
-   * there is no privileged angle to view it from.
+   * equator and the silhouette was only a star from the pole. Here the axes
+   * are spread evenly through space instead of around one circle, so there is
+   * no privileged angle to view it from.
    * ---------------------------------------------------------------------- */
   var axisCache = {};   // by point count: the search is slow, and there are few
 
   /*
-   * Spreading the ellipses. Their long axes want to be as far from one another
-   * as axes can get, and an axis has two ends, so what is really being spread
-   * is twice as many points: four ellipses are eight star points, and they
-   * should end up on the diagonals of a cube.
+   * Spreading the axes. They want to be as far from one another as axes can
+   * get, and an axis has two ends, so what is really being spread is twice as
+   * many points: four axes are eight star points, and they should end up on
+   * the diagonals of a cube.
    *
    * A spiral is even over a whole sphere but not over half of one, and with
-   * only four axes to place, the difference is the whole point — a spiral
-   * leaves two of them leaning together, and that projects as a five-pointed
-   * star however you turn it. So the axes are made to repel each other, both
+   * only four to place, the difference is the whole point — a spiral leaves
+   * two of them leaning together, and that projects as a five-pointed star
+   * however you turn it. So the axes are made to repel each other, both
    * ends of each counted, from a handful of starting arrangements, and the
    * arrangement that settles lowest is the one kept. It runs once per point
    * count and is cached; the answer for four is the cube.
@@ -185,7 +184,7 @@ var DG = window.DG || (window.DG = {});
     return e;
   }
 
-  function ellipseAxes(count) {
+  function spokeAxes(count) {
     if (axisCache[count]) return axisCache[count];
     var best = null, bestE = Infinity;
     for (var attempt = 0; attempt < 6; attempt++) {
@@ -208,42 +207,58 @@ var DG = window.DG || (window.DG = {});
   }
 
   /*
-   * How far one spheroid reaches in a given direction. Long axis a, the two
-   * short ones b: the point where the ray leaves the surface is at
-   * 1 / sqrt(along²/a² + across²/b²). A radius, not a displacement, which is
-   * what lets Morph mix the two shapes as radii and keep every setting in
-   * between a solid in its own right.
+   * How far the form reaches along a spoke: a cone, solved rather than shaped
+   * by a falloff. A ray leaving the centre at angle θ to the axis meets a cone
+   * of height h and base half-width w where r·sinθ = w(1 − r·cosθ/h), which is
+   * r = w / (sinθ + w·cosθ/h) — a straight-sided spike that comes to a point.
+   * Every smooth falloff tried before this (a cosine raised to a power, an
+   * ellipse, a spheroid) is widest somewhere along its length and rounds off
+   * into a petal, which is what made the star read as a flower. A star point
+   * is a cone, so this draws a cone.
+   *
+   * Sharpness is the base width: low and the spokes are stubby wedges, high
+   * and they are needles. Where the cone is narrower than the core ball the
+   * ball shows through, which is the join at the centre.
    */
-  function starRadius(nx, ny, nz, p) {
-    var rings = Math.max(2, Math.round(p.points / 2));
-    var axes = ellipseAxes(rings);
-    var a = 1 + 0.55 * clamp01(p.spike);          // the tips, past the sphere
-    var b = a * 0.62 / (1 + 0.55 * Math.max(0, p.sharp));  // the narrow part
-    var ia2 = 1 / (a * a);
-    var ib2 = 1 / (b * b);
-    var best = 0;
-    for (var k = 0; k < rings; k++) {
-      var al = nx * axes[k * 3] + ny * axes[k * 3 + 1] + nz * axes[k * 3 + 2];
-      var along2 = al * al;
-      var r = 1 / Math.sqrt(along2 * ia2 + (1 - along2) * ib2);
-      if (r > best) best = r;
-    }
-    return best;
+  function spokeRadius(c, p) {
+    var h = 1 + 0.55 * clamp01(p.spike);
+    var w = 0.9 / (1 + 0.6 * Math.max(0.5, p.sharp));
+    var sn = Math.sqrt(Math.max(0, 1 - c * c));
+    var r = w / (sn + w * c / h);
+    return r > CORE ? r : CORE;
   }
 
   /*
-   * Where the surface sits in a direction, for a given morph.
+   * A point on the form, from the direction a particle is looking out along.
    *
-   * The two shapes are mixed as radii rather than as positions, which is what
-   * keeps every setting in between a shape in its own right: a point on the
-   * half-morphed form is on the surface of a real solid, not halfway along a
-   * line between two of them. Nothing here moves on its own — the flow that
-   * Fluidity drives is a thing that happens to the particles, not to the shape
-   * they are sitting on.
+   * The radius is mixed from the sphere's 1 and the nearest spoke's cone as
+   * radii rather than as positions, which is what keeps every setting in
+   * between a shape in its own right: a point on the half-morphed form is on
+   * the surface of a real solid, not halfway along a line between two of them.
+   * The direction itself is left alone. Crowding particles towards the spoke
+   * axes to fill the points out was tried and is a trap — the pull has to send
+   * particles on either side of the line between two spokes towards different
+   * axes, which tears a bare wedge along every one of those lines and empties
+   * the core as well. The spokes are populated by being wide enough, and by
+   * the dot size below.
+   *
+   * Nothing here moves on its own. The scatter that Fluidity drives is a thing
+   * that happens to the particles, not to the shape they are sitting on.
    */
-  DG.surfaceAt = function (nx, ny, nz, morph, p) {
-    if (morph <= 0) return 1;
-    return 1 + (starRadius(nx, ny, nz, p) - 1) * morph;
+  DG.formPoint = function (nx, ny, nz, morph, p, out) {
+    var r = 1;
+    if (morph > 0) {
+      var axes = spokeAxes(SPOKES);
+      var bc = 0;
+      for (var k = 0; k < SPOKES; k++) {
+        var d = nx * axes[k * 3] + ny * axes[k * 3 + 1] + nz * axes[k * 3 + 2];
+        var c = d < 0 ? -d : d;
+        if (c > bc) bc = c;
+      }
+      r = 1 + (spokeRadius(bc, p) - 1) * morph;
+    }
+    out[0] = nx * r; out[1] = ny * r; out[2] = nz * r; out[3] = r;
+    return out;
   };
 
   /*
@@ -308,6 +323,16 @@ var DG = window.DG || (window.DG = {});
     var spacing = Math.sqrt(4 * Math.PI / n);
     var baseR = spacing * 0.5 * p.dotScale;
 
+    /*
+     * A ceiling on how big one dot gets. Size is the depth cue here and it
+     * follows the perspective divide, which runs away to infinity at the lens
+     * — so a particle passing close to the camera becomes a disc the width of
+     * a finger and the field stops reading as a field. The dot is eased into
+     * the ceiling rather than clipped at it, so nothing changes at ordinary
+     * distances and there is no size at which the grading visibly stops.
+     */
+    var capR = Math.min(width, height) * 0.024;
+
     // Turns per cycle to draw from — whole ones only, see the orbit below.
     var spin = Math.max(0, Math.round(p.orbit));
 
@@ -328,6 +353,7 @@ var DG = window.DG || (window.DG = {});
 
     var ramp = DG.buildRamp(96, p.stops);
     var useGradient = p.colorMode === 'gradient';
+    var fp = [0, 0, 0, 1];
     var v3 = [0, 0, 0];
     var dots = [];
     var zNear = Infinity;
@@ -366,45 +392,45 @@ var DG = window.DG || (window.DG = {});
         dx = rx; dy = ry; dz = rz;
       }
 
-      var r = DG.surfaceAt(dx, dy, dz, morph, p);
-      var px = dx * r, py = dy * r, pz = dz * r;
+      DG.formPoint(dx, dy, dz, morph, p, fp);
+      var px = fp[0], py = fp[1], pz = fp[2], r = fp[3];
       var lift = 0;
 
       if (fluid > 0) {
         /*
-         * Which particles go: a drifting field decides, so patches leave
-         * together, with a little per-particle luck so the edge of a patch
-         * frays rather than tearing along a line. Smooth noise sits close to
-         * its middle far more often than it reaches either end, so it is
-         * stretched onto the full range first — without that, raising the
-         * setting only ever shakes the surface instead of lifting anything
-         * off it.
+         * Scatter. The form stays where it is — this does not lift particles
+         * off it and blow them away, it makes its edges irregular and its
+         * surface a scattered shell rather than a drawn one.
+         *
+         * Two things at once, and the difference between them is the point.
+         * A drifting field, coarse enough to take in a whole spoke, moves the
+         * surface in and out: spikes come out at different lengths and
+         * thicknesses from one another and from themselves a moment later, so
+         * the sharpness of the form reads as irregular rather than machined.
+         * On top of that each particle has its own fixed offset, in and out
+         * and sideways, so what sits on that surface is a scatter of
+         * particles a shell thick instead of a skin.
+         *
+         * Everything here is a fraction of the radius the particle is already
+         * at, so a spike is roughened along its length rather than snapped
+         * off, and the star is still a star at the top of the range.
          */
-        var field = clamp01((flowNoise(px * 0.7 + 13, py * 0.7 - 7, pz * 0.7 + 21, phase, 101) - 0.12) / 0.64);
-        // The field raises and lowers the waterline as it drifts across the
-        // form; each particle has its own fixed height. Where the water is
-        // high a whole patch is under it and goes; where it is low almost
-        // nothing does, and the particles that only just went trail the ones
-        // that went deepest.
-        var lifted = fluid * (0.35 + 1.3 * field) - hash(i, 63);
-        if (lifted > 0) {
-          lift = clamp01(lifted / 0.3);
-          var amp = 1.9 * lift * lift;
-          // Where they go: read at the particle's place on the form, coarse
-          // enough that a patch travels as one.
-          var c1 = flowNoise(px * 0.6, py * 0.6, pz * 0.6, phase, 11) - 0.5;
-          var c2 = flowNoise(px * 0.6 + 5, py * 0.6 - 3, pz * 0.6 + 7, phase, 23) - 0.5;
-          var c3 = flowNoise(px * 0.6 - 4, py * 0.6 + 6, pz * 0.6 - 2, phase, 37) - 0.5;
-          var f1 = flowNoise(px * 2.2 + 2, py * 2.2 + 9, pz * 2.2 - 6, phase, 53) - 0.5;
-          var f2 = flowNoise(px * 2.2 - 8, py * 2.2 + 1, pz * 2.2 + 4, phase, 71) - 0.5;
-          var f3 = flowNoise(px * 2.2 + 3, py * 2.2 - 5, pz * 2.2 + 8, phase, 89) - 0.5;
-          // Outward as well as along, so a stream lifts off the surface
-          // instead of sliding around it.
-          var out = 0.55 * amp * lift;
-          px += amp * (2.0 * c1 + 0.45 * f1) + dx * out;
-          py += amp * (2.0 * c2 + 0.45 * f2) + dy * out;
-          pz += amp * (2.0 * c3 + 0.45 * f3) + dz * out;
-        }
+        var w1 = flowNoise(dx * 1.15, dy * 1.15, dz * 1.15, phase, 11) - 0.5;
+        var w2 = flowNoise(dx * 3.1 + 5, dy * 3.1 - 2, dz * 3.1 + 7, phase, 23) - 0.5;
+        var grain = hash(i, 63) - 0.5;
+        var swell = 1 + fluid * (0.52 * w1 + 0.26 * w2 + 0.34 * grain);
+        px *= swell; py *= swell; pz *= swell;
+
+        // Sideways as well, or the scatter is only ever a thickness and the
+        // rows the particles were placed in stay legible through it.
+        var side = fluid * 0.13 * r;
+        px += (hash(i, 111) - 0.5) * side;
+        py += (hash(i, 127) - 0.5) * side;
+        pz += (hash(i, 149) - 0.5) * side;
+
+        // Far enough out on the swell, the dot thins — a particle standing off
+        // the surface carries less of it.
+        lift = clamp01((swell - 1) * 1.6);
       }
 
       orient(px, py, pz, cosH, sinH, cosT, sinT, v3);
@@ -428,9 +454,19 @@ var DG = window.DG || (window.DG = {});
        * finer, so a stream reads as the cloud thinning rather than as a second
        * cloud of the same weight.
        */
+      /*
+       * A particle out at a spike stands for more of the surface than one in
+       * the core: the same slice of directions covers area going as the square
+       * of the radius. So the dot grows with the radius it sits at, which is
+       * this whole project's rule — density is carried by dot size — applied
+       * to a solid rather than to a flat field. It is what keeps a spike
+       * reading as a spike rather than as a few stray dots, and it thins the
+       * crowded core in the same move. Not the full square root of the area,
+       * which strips the core bare; enough to even the spikes out.
+       */
       var d = {
         i: i,                                  // which particle, so frames line up
-        x: sx, y: sy, r: baseR * scale * (1 - 0.3 * lift), z: -zc, zc: zc,
+        x: sx, y: sy, r: baseR * scale * Math.pow(r, 0.7) * (1 - 0.3 * lift), z: -zc, zc: zc,
         nx: (sx - cx) / (Math.min(width, height) * 0.5),
         ny: (sy - cy) / (Math.min(width, height) * 0.5)
       };
@@ -472,7 +508,8 @@ var DG = window.DG || (window.DG = {});
       var v = clamp01(1 - p.sizeVariation + p.sizeVariation * depth);
       dk.v = v;
       dk.depth = near01;
-      dk.r *= v;
+      var rr = dk.r * v;
+      dk.r = rr / Math.sqrt(1 + (rr / capR) * (rr / capR));
       if (useGradient) {
         var gv = p.gradientMap === 'depth' ? near01 : DG.gradientCoord(p.gradientMap, dk);
         if (p.gradientReverse) gv = 1 - gv;
