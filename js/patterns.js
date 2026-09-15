@@ -129,7 +129,19 @@ var DG = window.DG || (window.DG = {});
         for (var n = 0; n < 3; n++) {
           var sd = 3 + n * 13;
           var rate = 1;                           // one whole turn per cycle
-          var freq = 0.50 + 0.15 * n;
+          /*
+           * Three scales, not three sizes of much the same thing: a field
+           * almost four units across, one under two, and one under a unit. That
+           * spread is half of what separates this from Diffusion, which holds
+           * one cluster size throughout.
+           *
+           * It also sets how fast each travels, since a front covers its own
+           * repeat once per cycle — so the broad field sweeps and the small
+           * ones creep, and the broad one runs them down and takes them in.
+           * Small joining big is the behaviour; it falls out of the scales
+           * rather than needing to be arranged.
+           */
+          var freq = [0.28, 0.62, 1.15][n];
 
           // Two noise layers bend the front. The coarse one decides where it
           // bulges and lags, the fine one keeps the boundary from reading as a
@@ -247,25 +259,37 @@ var DG = window.DG || (window.DG = {});
     {
       id: 'diffusion',
       name: 'Diffusion',
-      form: 'A stable lattice turning porous, opening irregular white channels.',
-      blurb: 'Pockets of empty space migrate; dots shrink away ahead and regrow behind.',
+      form: 'Clusters all of one size, scattering and settling again without ever gathering.',
+      blurb: 'Pockets break up and reform in place; the clusters stay the size they started.',
       at: function (x, y, t, p) {
         // Fine enough that the gaps read as channels through a lattice rather
         // than as one soft cloud over it.
         // Divided, like every other behaviour. Multiplying the coordinate by
         // Pattern scale raises the frequency, so the slider ran backwards: its
         // top gave the finest channels rather than the widest.
-        var n = loopNoise(x * 2.2 / p.scale, y * 2.2 / p.scale, t, 11);
+        var n = loopNoise(x * 3.1 / p.scale, y * 3.1 / p.scale, t, 11);
         // A wide window, not a narrow one. Narrow, the noise crosses it in a
         // couple of dots and the field splits into patches with a hard rim;
         // wide, the same noise grades across five or six dots and the dense
         // and open areas belong to one surface.
-        var visible = smoothstep(0.16, 0.74, n);
-        // A second, slower field so the surviving lattice is not uniformly
-        // heavy — held gentle, or it reinstates the patchiness the wide
-        // window just removed.
-        var swell = loopNoise(x * 1.0 / p.scale + 9, y * 1.0 / p.scale - 4, t, 27);
-        return clamp01(0.1 + visible * (0.8 + 0.32 * swell));
+        // Shifted up, not narrowed. The window's width is what keeps the edges
+        // smooth; where it sits is what decides how much of the field passes.
+        // Low, the clusters touch and chain into long masses, which is exactly
+        // the gathering this behaviour is not supposed to do.
+        var visible = smoothstep(0.34, 0.76, n);
+        /*
+         * The second field runs at the same scale as the first, not slower.
+         * A slow one varies the weight over distances much larger than a
+         * cluster, which is the same as varying the cluster size — some parts
+         * of the frame ended up as one large mass and others as specks. At one
+         * scale the clusters all come out the same size and only their weight
+         * differs, so the field scatters and reforms without ever gathering
+         * into something bigger. That is the whole difference from Expansion,
+         * where the sizes are meant to vary and the small ones are meant to
+         * join the large.
+         */
+        var grain = loopNoise(x * 3.1 / p.scale + 9, y * 3.1 / p.scale - 4, t, 27);
+        return clamp01(0.1 + visible * (0.8 + 0.32 * grain));
       }
     },
     {

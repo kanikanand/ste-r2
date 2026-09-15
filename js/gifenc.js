@@ -221,7 +221,11 @@ var DG = window.DG || (window.DG = {});
     var samples = [];
     for (f = 0; f < sampleFrames.length; f++) {
       px = sampleFrames[f];
-      var stride = Math.max(1, Math.floor(px.length / 4 / 4000)) * 4;
+      // Forty thousand pixels a frame, not four. A ramp across a 1920-wide
+      // frame holds a couple of thousand distinct tones; sampling four thousand
+      // pixels of two million barely meets them, boxes collapse onto each other
+      // and the palette ends up with a third of the colours it was asked for.
+      var stride = Math.max(1, Math.floor(px.length / 4 / 40000)) * 4;
       for (i = 0; i < px.length; i += stride) {
         if (transparent && px[i + 3] < cut) continue;
         samples.push(px[i], px[i + 1], px[i + 2]);
@@ -232,6 +236,29 @@ var DG = window.DG || (window.DG = {});
     return { palette: palette, lut: buildLookup(palette), cut: cut,
       transparent: !!transparent, clearIndex: CLEAR };
   };
+
+  /*
+   * An 8x8 ordered dither, in units of the lookup cube's cell. Two things band
+   * a smooth ramp: the palette is 256 colours at best, and the lookup cube that
+   * maps a pixel to one of them is 32 levels a channel, so everything inside a
+   * cell resolves to the same entry. Either way a gradient that changes every
+   * row in the source comes out as flat stripes tens of pixels deep — which is
+   * what reads as a pixellated GIF at a large size, rather than anything to do
+   * with the pixel count.
+   *
+   * Offsetting each pixel by a fixed pattern before the lookup moves the
+   * boundary around within the cell instead of running it straight across the
+   * frame, and the eye reads the mixture as the tone in between.
+   */
+  var BAYER = (function () {
+    var m = [[0, 32, 8, 40, 2, 34, 10, 42], [48, 16, 56, 24, 50, 18, 58, 26],
+             [12, 44, 4, 36, 14, 46, 6, 38], [60, 28, 52, 20, 62, 30, 54, 22],
+             [3, 35, 11, 43, 1, 33, 9, 41], [51, 19, 59, 27, 49, 17, 57, 25],
+             [15, 47, 7, 39, 13, 45, 5, 37], [63, 31, 55, 23, 61, 29, 53, 21]];
+    var out = new Float32Array(64);
+    for (var y = 0; y < 8; y++) for (var x = 0; x < 8; x++) out[y * 8 + x] = (m[y][x] / 64 - 0.5) * 8;
+    return out;
+  })();
 
   DG.GifWriter = function (width, height, delayMs, pal) {
     var out = new Sink();
@@ -261,7 +288,11 @@ var DG = window.DG || (window.DG = {});
     this.addFrame = function (data) {
       for (var p = 0, q = 0; p < indices.length; p++, q += 4) {
         if (pal.transparent && data[q + 3] < pal.cut) { indices[p] = pal.clearIndex; continue; }
-        indices[p] = pal.lut[((data[q] >> 3) << 10) | ((data[q + 1] >> 3) << 5) | (data[q + 2] >> 3)];
+        var d = BAYER[((p / width) & 7) * 8 + (p % width & 7)];
+        var r = data[q] + d; if (r < 0) r = 0; else if (r > 255) r = 255;
+        var g = data[q + 1] + d; if (g < 0) g = 0; else if (g > 255) g = 255;
+        var bl = data[q + 2] + d; if (bl < 0) bl = 0; else if (bl > 255) bl = 255;
+        indices[p] = pal.lut[((r >> 3) << 10) | ((g >> 3) << 5) | (bl >> 3)];
       }
       // Disposal 2 — restore to background — clears the frame before the next
       // one is drawn. Without it each frame is painted over the last, and every

@@ -28,7 +28,7 @@ the base geometry; radius, local spacing and selective absence do the rest.
 |---|---|---|
 | Expansion | Fronts crossing the frame, broadening as they go until they run into each other and become one field. | Each front widens and narrows on its own turn; at their widest they meet and take the ground between them. |
 | Convergence | Concentric rings closing on a centre, unevenly spaced and unevenly drawn. | Rings run steadily inward and gather — some broad, some fine, bunching at some radii and opening at others. |
-| Diffusion | A stable lattice turning porous, opening irregular white channels. | Pockets of empty space migrate; dots shrink away ahead and regrow behind. |
+| Diffusion | Clusters all of one size, scattering and settling again without ever gathering. | Pockets break up and reform in place; the clusters stay the size they started. |
 | Intelligence | Clustered information — an abstract circuit, or glyphs that never resolve. | Clusters light up in turn, one gaining as its neighbour recedes. |
 | Synchronise | Horizontal signals that drift, fall into a shared beat, and part again. | Pulses travel at one speed but out of phase, align, hold, then separate. |
 
@@ -79,8 +79,14 @@ renders a dozen frames spread across the run to choose a palette that suits all
 of it, the second renders every frame, hands it to the writer and lets it go.
 Holding every frame until the end costs frames x pixels x 4 bytes, which put a
 ceiling on how large a long GIF could be asked for; encoding as it goes, the
-peak is one frame and the compressed output. Ten seconds at L takes about ten
-seconds to encode and lands around 17MB.
+peak is one frame and the compressed output. Ten seconds at L takes about twelve
+seconds to encode and lands around 21MB.
+
+Frames are ordered-dithered on the way into the palette. A GIF holds 256
+colours and the cube that maps a pixel to one of them is 32 levels a channel,
+so a gradient that changes every row in the source comes out as flat stripes
+tens of pixels deep — which is what reads as a pixellated GIF at a large size,
+rather than anything to do with the pixel count.
 
 GIF is encoded here rather than pulled in (`js/gifenc.js`), so the page keeps
 working offline with no worker and nothing to download. A GIF carries at most
