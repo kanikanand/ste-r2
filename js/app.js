@@ -101,7 +101,7 @@ var DG = window.DG || (window.DG = {});
             <span class="brand-mark"></span>
             <div>
               <h1>Ingenuity Unleashed</h1>
-              <p>Orbiting particles, sphere to star</p>
+              <p>Orbiting particles, globe to star</p>
             </div>
           </div>
           <div class="topbar-actions">
@@ -161,26 +161,28 @@ var DG = window.DG || (window.DG = {});
           <aside class="panel panel-presets">
             <h2>Form</h2>
             <${DG.Slider} label="Morph" value=${params.morph} min=${0} max=${1}
-              format=${function (v) { return v < 0.005 ? 'sphere' : v > 0.995 ? 'star' : Math.round(v * 100) + '%'; }}
+              format=${function (v) { return v < 0.005 ? 'globe' : v > 0.995 ? 'star' : Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ morph: v }); }} />
             <${DG.Slider} label="Breathe" value=${params.breathe} min=${0} max=${1}
               format=${function (v) { return v < 0.005 ? 'held' : Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ breathe: v }); }} />
             <${DG.Slider} label="Reach" value=${params.spike} min=${0} max=${1}
+              format=${function (v) { return Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ spike: v }); }} />
-            <${DG.Slider} label="Sharpness" value=${params.sharp} min=${0.6} max=${8}
-              onChange=${function (v) { set({ sharp: v }); }} />
+            <${DG.Slider} label="Body" value=${params.body} min=${0} max=${1}
+              format=${function (v) { return Math.round(v * 100) + '%'; }}
+              onChange=${function (v) { set({ body: v }); }} />
             <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1}
-              format=${function (v) { return v < 0.005 ? 'smooth' : Math.round(v * 100) + '% scattered'; }}
+              format=${function (v) { return v < 0.005 ? 'still' : Math.round(v * 100) + '% alive'; }}
               onChange=${function (v) { set({ fluid: v }); }} />
             <p class="note">
-              The star is four spokes crossing at one centre — eight points — with
-              their axes spread through space rather than round one waist, so it reads
-              as a star from any angle. Each spoke is a cone: Reach is how far the
-              points run, Sharpness how wide they start — the low end of that is where
-              a star lives. Fluidity leaves the form where it is and scatters the
-              particles across it, roughening the points rather than blowing them
-              apart or drawing them out.
+              One shape, not two. Four axes carry a spoke out to a point at either
+              end, and Morph is how wide those spokes are — wide enough and the eight
+              of them swallow each other and it is a globe, narrow and it is a star.
+              The tips stay where they are between the two. Reach is how thin the
+              spokes get, Body how much is left between the points. Fluidity leans,
+              stretches and thickens each spoke on its own schedule, so the form
+              pulses unevenly rather than breathing as one.
             </p>
           </aside>
 
@@ -188,7 +190,7 @@ var DG = window.DG || (window.DG = {});
             <${DG.Stage} params=${params} style=${style} set=${set}
               onFrame=${function (t) { clock.current = t; }} />
             <div class="caption">
-              <h2>${params.dist < 1 ? 'Inside the form' : params.morph < 0.02 ? 'Sphere'
+              <h2>${params.dist < 1 ? 'Inside the form' : params.morph < 0.02 ? 'Globe'
                 : params.morph > 0.98 ? 'Star' : 'Between'}</h2>
               <p>Drag to turn the form and lean it. Push Distance below 1 to pass through
                  the surface and look out from within — hold the Orbit and keep Fluidity

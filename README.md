@@ -1,6 +1,6 @@
 # Ingenuity Unleashed — morph
 
-Orbiting dotted particles held in a form that runs from a sphere to an
+Orbiting dotted particles held in a form that runs from a globe to an
 eight-pointed star, and every shape in between. The camera can be pushed
 through the surface and out the other side, so the inside is a place you can
 stand and frame as a texture.
@@ -9,61 +9,68 @@ Open `index.html`. No build, no server, no network.
 
 ## The form
 
-Every direction has a radius: one for the sphere, which is 1 everywhere, and
-one for the star. The Morph control mixes the two **radii**, not two sets of
-positions, which is what makes every setting between them a shape in its own
-right — a point on the half-morphed form is on the surface of a real solid
-rather than halfway along a line between two of them.
+There is one shape here, not two. Four axes through a common centre carry a
+spoke out to a point at either end — eight points — and every spoke stands on
+the same ball.
 
-The star is four spokes crossing at one centre — eight points — and each spoke
-is a cone, solved rather than shaped by a falloff. A ray leaving the centre at
-angle θ to a spoke's axis meets a cone of height h and base half-width w where
-`r·sinθ = w(1 − r·cosθ/h)`, so `r = w / (sinθ + w·cosθ/h)`: straight sides, and
-a point at the end. Every smooth falloff tried before it — a cosine raised to a
-power, an ellipse, a spheroid — is widest somewhere along its length and rounds
-off into a petal, which is what made the star read as a flower. A star point is
-a cone, so this draws a cone. **Reach** is how far past the sphere they run,
-**Sharpness** the base width: low and they are broad wedges, high and they are
-needles, and the useful part of that range is the low end — the default sits
-near a twenty-degree half-angle, a star you could cut out of paper rather than
-a set of spines. Where the cone is narrower than the core ball, the ball shows
-through.
+**Morph** is how wide the spokes are, and nothing else. At the wide end the ball
+has swollen to the full reach of the points and the eight of them are one globe;
+at the narrow end they draw back into a star. A spoke is a cone, solved rather
+than shaped by a falloff: a ray leaving the centre at angle θ to its axis meets
+a cone of height h and base half-width w where `r·sinθ = w(1 − r·cosθ/h)`, so
+`r = w / (sinθ + w·cosθ/h)` — straight sides, and a point at the end. Whatever
+the width, a cone of height h still ends at h, so **the tips do not move between
+the globe and the star**. What the morph does is draw the body back between
+points that were always there. Mixing two radii instead — a sphere's and a
+star's — moves everything at once, and reads as the whole thing inflating and
+deflating.
+
+The cone is never allowed to be wider than it is tall. One that is reaches
+furthest at the rim of its base rather than at its point, and eight of those
+bulge sideways into a lumpy solid half again the size of the globe they are
+supposed to be making. With the cap in place the wide end is a globe of radius
+exactly 1, measured over twenty thousand directions.
+
+Every smooth falloff tried in place of the cone — a cosine raised to a power, a
+smoothstep of the same, an ellipse, a spheroid — is widest somewhere along its
+length and rounds off into a petal rather than a point. **Reach** is how thin the
+spokes get at full morph, **Body** how much round body is left between them once
+they have.
 
 The axes matter more than anything else here. An earlier build made the points
 out of longitude, so they ringed one waist and the silhouette was a star from
 the pole and a spiked disc from the side — one good angle and no others. Here
 the four are spread through space instead of around a circle: they are made to
 repel one another, both ends of each counted, from a handful of starting
-arrangements, and the arrangement that settles lowest is kept. For four axes
-the answer is the diagonals of a cube, which is as far apart as eight points
-can get. Five or six of them show in the silhouette from any angle, the rest
+arrangements, and the arrangement that settles lowest is kept. For four axes the
+answer is the diagonals of a cube, which is as far apart as eight points can
+get. Five or six of them show in the silhouette from any angle, the rest
 pointing at the camera or away from it — which is what a star that is genuinely
 three-dimensional does, and the reason there is no longer a front to face.
 
 Crowding particles towards the spoke axes to fill the points out was tried and
-is a trap: the pull has to send particles on either side of the line between
-two spokes towards different axes, which tears a bare wedge along every one of
-those lines and empties the core as well. Instead the dot grows with the radius
-it sits at. A particle out at a spike stands for more surface than one in the
-core — the same slice of directions covers area going as the square of the
-radius — which is this project's own rule, density carried by dot size, applied
-to a solid rather than to a flat field.
+is a trap: the pull has to send particles on either side of the line between two
+spokes towards different axes, which tears a bare wedge along every one of those
+lines and empties the core as well. Instead the dot grows with the radius it
+sits at. A particle out at a spike stands for more surface than one in the body
+— the same slice of directions covers area going as the square of the radius —
+which is this project's own rule, density carried by dot size, applied to a
+solid rather than to a flat field.
 
-**Fluidity** does nothing to the shape and does not blow the form apart; it
-makes the edges irregular and the surface a scatter rather than a skin. A
-drifting field coarse enough to take in a whole spoke moves the surface in and
-out, so the spikes come out at different lengths and thicknesses from one
-another and from themselves a moment later, and on top of that each particle
-carries its own fixed offset, in and out and sideways.
+**Fluidity** distorts the spokes, not the particles. Each of the eight leans off
+its axis, stretches and thickens on its own schedule — three cosines at one, two
+and three turns a cycle, each given its own starting place, so what it traces is
+uneven and never quite repeats inside the loop but closes exactly at the end of
+it — and the ball breathes under them. The form is never symmetrical and never
+still in the same way twice: at 0.6 the surface itself travels 0.14 of the form's
+radius over a cycle on average and half of it at the extreme, while the star
+holds five or six points in the silhouette at every setting. A last small grain,
+fixed per particle, stops the shell looking like a skin drawn on a solid; it is
+a distance rather than a percentage of the radius, because scaling the radius
+stretches a spike in proportion to how long it already is and the points grow
+sparse dotted tails.
 
-The nudge is a distance, not a percentage. Scaling the radius instead stretches
-a spike in proportion to how long it already is, so the points grow sparse
-dotted tails and the star reads far sharper than it is drawn; a distance
-roughens the whole surface by about as much wherever it is. Measured across the
-range, the star holds six points in the silhouette and a tips-to-waist ratio
-near two and a half at every setting, with the furthest-moved particle
-travelling a fifth of the form's radius at the top of it. **Breathe** swings the
-morph on its own over the cycle.
+**Breathe** swings the morph on its own over the cycle.
 
 ## The particles
 
