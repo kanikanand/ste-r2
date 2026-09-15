@@ -38,6 +38,8 @@ var DG = window.DG || (window.DG = {});
 
     highlights: [],       // country indices to pick out
     labels: true,
+    hotSize: 1.35,        // how much larger a picked country's dots are drawn
+    hotDensity: 1.9,      // how much finer its lattice is
 
     colorMode: 'slate',
     highlightMode: 'red',
@@ -163,8 +165,12 @@ var DG = window.DG || (window.DG = {});
       var depth = Math.pow(out[2], p.contrast);
       var v = clamp01(1 - p.sizeVariation + p.sizeVariation * depth);
 
+      // A picked country's own dots are left to the finer pass below, or it
+      // would be drawn twice: once at the base spacing and once at the fine.
       var hot = anyPicked && picked[country];
-      var r = maxR * v * (isLand ? 1 : p.seaDots) * (hot ? 1.18 : 1);
+      if (hot && p.hotDensity > 1.01) continue;
+
+      var r = maxR * v * (isLand ? 1 : p.seaDots) * (hot ? p.hotSize : 1);
       if (r < 0.12) continue;
 
       var dot = {
@@ -178,6 +184,59 @@ var DG = window.DG || (window.DG = {});
         dot.color = ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(g * (ramp.length - 1))))];
       }
       dots.push(dot);
+    }
+
+    /*
+     * The picked countries again, on a lattice as much finer as the Density
+     * control asks for. Density and size are the two things that separate a
+     * picked country from the rest here, with colour: more dots in the same
+     * area, and each of them larger.
+     *
+     * The finer lattice is walked only across each country's own extent rather
+     * than over the whole sphere. At twice the rings there are four times the
+     * points, and all but a handful of them would be thrown away — Singapore
+     * would cost forty thousand lookups to find its one dot.
+     */
+    if (anyPicked && p.hotDensity > 1.01) {
+      var fineRings = Math.round(rings * p.hotDensity);
+      var fineGap = (Math.PI * R) / fineRings;
+      var fineMax = (fineGap / 2) * p.dotScale;
+
+      for (var hk = 0; hk < p.highlights.length; hk++) {
+        var hc = p.highlights[hk];
+        if (hc < 0) continue;
+        var bb = DG.countryBounds(hc);
+        var r0 = Math.max(0, Math.floor((90 - bb.north) / 180 * fineRings) - 1);
+        var r1 = Math.min(fineRings - 1, Math.ceil((90 - bb.south) / 180 * fineRings));
+
+        for (var fr = r0; fr <= r1; fr++) {
+          var flat = 90 - (fr + 0.5) / fineRings * 180;
+          var fcount = Math.max(1, Math.round(fineRings * 2 * Math.cos(flat * RAD)));
+          // The same span in longitude, as a run of this ring's own steps.
+          var c0 = Math.max(0, Math.floor((bb.west + 180) / 360 * fcount) - 1);
+          var c1 = Math.min(fcount - 1, Math.ceil((bb.east + 180) / 360 * fcount));
+
+          for (var fi = c0; fi <= c1; fi++) {
+            var flon = (fi + 0.5) / fcount * 360 - 180;
+            if (DG.countryAt(flon, flat) !== hc) continue;
+
+            project(flat, flon, rot, cosT, sinT, cx, cy, R, out);
+            if (out[2] <= 0) continue;
+            if (p.scatter > 0 && hash2(fr * 7919 + fi, hc + 2, p.seed) < p.scatter) continue;
+
+            var fd = Math.pow(out[2], p.contrast);
+            var fv = clamp01(1 - p.sizeVariation + p.sizeVariation * fd);
+            var fR = fineMax * fv * p.hotSize;
+            if (fR < 0.12) continue;
+
+            dots.push({
+              x: out[0], y: out[1], r: fR, v: fv, z: out[2],
+              nx: (out[0] - cx) / R, ny: (out[1] - cy) / R,
+              country: hc, hot: true, sea: false
+            });
+          }
+        }
+      }
     }
 
     /*
@@ -208,7 +267,7 @@ var DG = window.DG || (window.DG = {});
           var dd = ddx * ddx + ddy * ddy;
           if (dd < bestD) { bestD = dd; near = d2; }
         }
-        if (near >= 0) { dots[near].hot = true; dots[near].r *= 1.18; }
+        if (near >= 0) { dots[near].hot = true; dots[near].r *= p.hotSize; }
       }
     }
 

@@ -75,7 +75,18 @@ and what an export draws.
 **Countries** — all 241, type to add, click a chip to drop it, and the picked
 ones take the highlight colour and a named pill. A country smaller than the gap
 between dots takes the nearest dot to its label, so picking Singapore shows
-something rather than nothing. **Frame** — 16:9, 1:1, 4:5 or 9:16.
+something rather than nothing.
+
+A picked country differs from the rest in three ways, and two of them are
+yours: **Highlight size** scales its dots against their own spacing, and
+**Highlight density** gives it a finer lattice of its own — the same ground
+carrying more, smaller dots. They do different work. Size alone fattens the
+dots until they nearly touch; density alone resolves the country's outline
+properly, since twice the rings is four times the dots inside the same border.
+Together they run from "the same dots in another colour" to a nearly solid
+shape. The finer lattice is walked only across the country's own extent: at
+three times the rings, sweeping the whole sphere would cost forty thousand
+lookups to find Singapore's one dot. **Frame** — 16:9, 1:1, 4:5 or 9:16.
 **Background** — transparent, a solid, or the brand gradient. **Dot colour**
 and **Highlight** — a solid or the three-stop gradient, with sliders for where
 its colours sit. **Dots** — grid density in rings, dot size, size variation

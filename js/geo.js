@@ -26,6 +26,7 @@ var DG = window.DG || (window.DG = {});
   var MH = 1024;
   var mask = null;                     // Uint8Array of country index + 1, 0 = sea
   var anchors = null;                  // where a country's label should sit
+  var bounds = null;                   // each country's extent, to search within
 
   /*
    * Longitudes made continuous. Four rings in this data — Russia twice, Fiji,
@@ -222,11 +223,19 @@ var DG = window.DG || (window.DG = {});
     var n = new Float64Array(count);
     var x, y, i;
 
+    bounds = new Array(count);
+    for (i = 0; i < count; i++) bounds[i] = { x0: MW, x1: -1, y0: MH, y1: -1 };
+
     for (y = 0; y < MH; y++) {
       for (x = 0; x < MW; x++) {
         i = mask[y * MW + x];
         if (!i) continue;
         sx[i - 1] += x; sy[i - 1] += y; n[i - 1]++;
+        var bb = bounds[i - 1];
+        if (x < bb.x0) bb.x0 = x;
+        if (x > bb.x1) bb.x1 = x;
+        if (y < bb.y0) bb.y0 = y;
+        if (y > bb.y1) bb.y1 = y;
       }
     }
 
@@ -265,6 +274,24 @@ var DG = window.DG || (window.DG = {});
     if (x < 0) x += MW; else if (x >= MW) x -= MW;
     if (y < 0) y = 0; else if (y >= MH) y = MH - 1;
     return mask[y * MW + x] - 1;
+  };
+
+  /*
+   * A country's extent in degrees, so a search for its dots can be confined to
+   * the part of the sphere it actually occupies rather than sweeping the whole
+   * globe. A country crossing the antimeridian gets the full width, which is
+   * wasteful for Russia and Fiji and correct for both.
+   */
+  DG.countryBounds = function (index) {
+    if (!mask) build();
+    var b = bounds[index];
+    if (!b || b.x1 < 0) return { west: -180, east: 180, south: -90, north: 90 };
+    return {
+      west: b.x0 / MW * 360 - 180,
+      east: (b.x1 + 1) / MW * 360 - 180,
+      north: 90 - b.y0 / MH * 180,
+      south: 90 - (b.y1 + 1) / MH * 180
+    };
   };
 
   DG.countryAnchor = function (index) {

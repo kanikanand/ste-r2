@@ -204,6 +204,12 @@ var DG = window.DG || (window.DG = {});
                     onClick=${function () { set({ highlightMode: c.id }); }}></button>`;
                 })}
               </div>
+              <${DG.Slider} label="Highlight size" value=${params.hotSize} min=${0.6} max=${2.4}
+                format=${function (v) { return v.toFixed(2) + '×'; }}
+                onChange=${function (v) { set({ hotSize: v }); }} />
+              <${DG.Slider} label="Highlight density" value=${params.hotDensity} min=${1} max=${3}
+                format=${function (v) { return v < 1.01 ? 'same' : v.toFixed(2) + '×'; }}
+                onChange=${function (v) { set({ hotDensity: v }); }} />
             </section>
 
             <section>
