@@ -98,6 +98,32 @@ var DG = window.DG || (window.DG = {});
     return lut;
   }
 
+  /* ---- output ----------------------------------------------------------- */
+
+  /*
+   * Bytes go into a Uint8Array that doubles when it fills, not a plain array.
+   * A number array costs eight bytes an entry in practice, so a 100MB GIF was
+   * costing the better part of a gigabyte to hold while it was being built —
+   * which is the sort of thing that only shows up once the sizes get large.
+   */
+  function Sink() {
+    this.buf = new Uint8Array(1 << 16);
+    this.len = 0;
+  }
+  Sink.prototype.room = function (n) {
+    if (this.len + n <= this.buf.length) return;
+    var size = this.buf.length;
+    while (size < this.len + n) size *= 2;
+    var next = new Uint8Array(size);
+    next.set(this.buf.subarray(0, this.len));
+    this.buf = next;
+  };
+  Sink.prototype.push = function (v) {
+    this.room(1);
+    this.buf[this.len++] = v & 255;
+  };
+  Sink.prototype.bytes = function () { return this.buf.slice(0, this.len); };
+
   /* ---- LZW -------------------------------------------------------------- */
 
   function lzw(indices, minCodeSize, out) {
@@ -170,6 +196,93 @@ var DG = window.DG || (window.DG = {});
   /* ---- the encoder ------------------------------------------------------ */
 
   /*
+   * Chosen from a sample of the run, then handed to a writer that encodes each
+   * frame as it arrives and lets it go. Holding every frame until the end is
+   * what used to put a ceiling on the size a long GIF could be asked for: the
+   * cost was frames x pixels x 4 bytes, and a minute at 1080 would have run the
+   * tab out of memory before any of it reached the encoder.
+   */
+  DG.gifPalette = function (sampleFrames, transparent) {
+    var CLEAR = 255;
+    var want = transparent ? 255 : 256;
+    var step = 4;
+    var i, f, px;
+
+    var cut = 128;
+    if (transparent) {
+      var peak = 0;
+      for (f = 0; f < sampleFrames.length; f++) {
+        px = sampleFrames[f];
+        for (i = 3; i < px.length; i += step) if (px[i] > peak) peak = px[i];
+      }
+      cut = Math.max(8, Math.min(128, Math.round(peak / 2)));
+    }
+
+    var samples = [];
+    for (f = 0; f < sampleFrames.length; f++) {
+      px = sampleFrames[f];
+      var stride = Math.max(1, Math.floor(px.length / 4 / 4000)) * 4;
+      for (i = 0; i < px.length; i += stride) {
+        if (transparent && px[i + 3] < cut) continue;
+        samples.push(px[i], px[i + 1], px[i + 2]);
+      }
+    }
+    if (!samples.length) samples.push(0, 0, 0);
+    var palette = medianCut(new Uint8Array(samples), want);
+    return { palette: palette, lut: buildLookup(palette), cut: cut,
+      transparent: !!transparent, clearIndex: CLEAR };
+  };
+
+  DG.GifWriter = function (width, height, delayMs, pal) {
+    var out = new Sink();
+    var indices = new Uint8Array(width * height);
+    var delay = Math.max(2, Math.round(delayMs / 10));   // GIF counts hundredths
+
+    function byte(v) { out.push(v); }
+    function short(v) { out.push(v & 255); out.push((v >> 8) & 255); }
+    function str(t) { for (var i = 0; i < t.length; i++) out.push(t.charCodeAt(i)); }
+
+    str('GIF89a');
+    short(width);
+    short(height);
+    byte(0xf7);                        // global table, 256 entries
+    byte(0);
+    byte(0);
+    for (var c = 0; c < 256; c++) {
+      var e = pal.palette[c] || [0, 0, 0];
+      byte(e[0]); byte(e[1]); byte(e[2]);
+    }
+
+    str('!');                          // NETSCAPE loop for ever
+    byte(0xff); byte(11);
+    str('NETSCAPE2.0');
+    byte(3); byte(1); short(0); byte(0);
+
+    this.addFrame = function (data) {
+      for (var p = 0, q = 0; p < indices.length; p++, q += 4) {
+        if (pal.transparent && data[q + 3] < pal.cut) { indices[p] = pal.clearIndex; continue; }
+        indices[p] = pal.lut[((data[q] >> 3) << 10) | ((data[q + 1] >> 3) << 5) | (data[q + 2] >> 3)];
+      }
+      // Disposal 2 — restore to background — clears the frame before the next
+      // one is drawn. Without it each frame is painted over the last, and every
+      // hole in the animation shows the frames behind it rather than the page.
+      str('!'); byte(0xf9); byte(4); byte(pal.transparent ? 0x09 : 0);
+      short(delay);
+      byte(pal.transparent ? pal.clearIndex : 0); byte(0);
+      str(',');
+      short(0); short(0); short(width); short(height); byte(0);
+      byte(8);
+      lzw(indices, 8, out);
+    };
+
+    this.finish = function () {
+      byte(0x3b);
+      return out.bytes();
+    };
+  };
+
+  /*
+   * The all-at-once form, kept for callers that already hold every frame.
    * frames: array of Uint8ClampedArray RGBA buffers, all width x height.
    * delayMs: how long each frame is held.
    * transparent: keep clear pixels clear instead of filling them.
@@ -180,95 +293,11 @@ var DG = window.DG || (window.DG = {});
    * on the hole rather than on a colour.
    */
   DG.encodeGIF = function (frames, width, height, delayMs, transparent) {
-    // One slot reserved for the hole, so the colours get 255 rather than 256.
-    var CLEAR = 255;
-    var want = transparent ? 255 : 256;
-
     var stride = Math.max(1, Math.floor(frames.length / 12));
-    var step = Math.max(1, Math.floor((width * height) / 4000)) * 4;
-    var f, i, px;
-
-    /*
-     * Where to cut between kept and see-through. Half of the most opaque pixel
-     * in the footage, rather than a flat 128 — the artwork's own midpoint.
-     *
-     * A fixed 128 works only while the dots are drawn fully opaque. Turn the
-     * Opacity control down and every pixel in the frame falls below it, so a
-     * transparent GIF comes out very nearly empty: at 50% it kept a quarter of
-     * the ink it should have. Following the peak means the dot is cut at the
-     * same point on its edge whatever its opacity — though what survives the
-     * cut is drawn solid either way, since a GIF has no partial alpha.
-     */
-    var cut = 128;
-    if (transparent) {
-      var peak = 0;
-      for (f = 0; f < frames.length; f += stride) {
-        px = frames[f];
-        for (i = 3; i < px.length; i += step) if (px[i] > peak) peak = px[i];
-      }
-      cut = Math.max(8, Math.min(128, Math.round(peak / 2)));
-    }
-
-    // Sample across the whole run so the palette suits every frame, not just
-    // the first. Clear pixels are left out of the sample: they carry whatever
-    // colour happens to sit under a zero alpha, and letting that into the
-    // median cut spends real colours describing something nobody will see.
-    var samples = [];
-    for (f = 0; f < frames.length; f += stride) {
-      px = frames[f];
-      for (i = 0; i < px.length; i += step) {
-        if (transparent && px[i + 3] < cut) continue;
-        samples.push(px[i], px[i + 1], px[i + 2]);
-      }
-    }
-    // A frame that is entirely clear would leave nothing to quantise.
-    if (!samples.length) samples.push(0, 0, 0);
-    var palette = medianCut(new Uint8Array(samples), want);
-    var lut = buildLookup(palette);
-
-    var out = [];
-    function byte(v) { out.push(v & 255); }
-    function short(v) { out.push(v & 255, (v >> 8) & 255); }
-    function str(s) { for (var i = 0; i < s.length; i++) out.push(s.charCodeAt(i)); }
-
-    str('GIF89a');
-    short(width);
-    short(height);
-    byte(0xf7);                        // global table, 256 entries
-    byte(0);
-    byte(0);
-    for (var c = 0; c < 256; c++) {
-      var e = palette[c] || [0, 0, 0];
-      byte(e[0]); byte(e[1]); byte(e[2]);
-    }
-
-    str('!');                          // NETSCAPE loop for ever
-    byte(0xff); byte(11);
-    str('NETSCAPE2.0');
-    byte(3); byte(1); short(0); byte(0);
-
-    var delay = Math.max(2, Math.round(delayMs / 10));   // GIF counts hundredths
-    var indices = new Uint8Array(width * height);
-
-    for (var fr = 0; fr < frames.length; fr++) {
-      var data = frames[fr];
-      for (var p = 0, q = 0; p < indices.length; p++, q += 4) {
-        if (transparent && data[q + 3] < cut) { indices[p] = CLEAR; continue; }
-        indices[p] = lut[((data[q] >> 3) << 10) | ((data[q + 1] >> 3) << 5) | (data[q + 2] >> 3)];
-      }
-      // Disposal 2 — restore to background — clears the frame before the next
-      // one is drawn. Without it each frame is painted over the last, and every
-      // hole in the animation shows the frames behind it rather than the page.
-      str('!'); byte(0xf9); byte(4); byte(transparent ? 0x09 : 0);
-      short(delay);
-      byte(transparent ? CLEAR : 0); byte(0);
-      str(',');
-      short(0); short(0); short(width); short(height); byte(0);
-      byte(8);
-      lzw(indices, 8, out);
-    }
-
-    byte(0x3b);
-    return new Uint8Array(out);
+    var sample = [];
+    for (var f = 0; f < frames.length; f += stride) sample.push(frames[f]);
+    var writer = new DG.GifWriter(width, height, delayMs, DG.gifPalette(sample, transparent));
+    for (var i = 0; i < frames.length; i++) writer.addFrame(frames[i]);
+    return writer.finish();
   };
 })(DG);

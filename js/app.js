@@ -105,16 +105,15 @@ var DG = window.DG || (window.DG = {});
               ${params.paused ? 'Play' : 'Pause'}
             </button>
 
-            <div class="dl-group" title=${'Height is fixed per size and the width follows the frame — ' +
-              (function () {
-                var d = DG.exportSize(params.size, params.frame);
-                return d.width + ' x ' + d.height + ' at ' + params.frame + '. A long GIF is held to a smaller size, since every frame is kept in memory while its palette is chosen.';
-              })()}>
+            <div class="dl-group" title="The height is fixed per size; the width follows the frame you are in, so every download at one size is the same height.">
               <span class="dl-label">Size</span>
               ${DG.SIZES.map(function (z) {
+                var d = DG.exportSize(z.id, params.frame);
                 return html`<button key=${z.id} type="button"
                   class=${'chip' + (params.size === z.id ? ' is-active' : '')}
-                  onClick=${function () { set({ size: z.id }); }}>${z.label}</button>`;
+                  onClick=${function () { set({ size: z.id }); }}>
+                  ${z.label}<span class="chip-dim">${d.width + '×' + d.height}</span>
+                </button>`;
               })}
             </div>
 

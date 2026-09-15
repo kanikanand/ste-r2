@@ -72,61 +72,67 @@ var DG = window.DG || (window.DG = {});
    * GIF is drawn frame by frame rather than recorded, so it does not depend on
    * the machine keeping up — every frame lands exactly where it should.
    */
-  /*
-   * Every frame of a GIF is held in memory until the palette has been chosen
-   * over the whole run, so the cost is frames x pixels x 4 bytes and a long
-   * one at a large size will simply run the tab out of memory. The requested
-   * height is therefore held to a total-pixel budget: a ten-second GIF gets
-   * the size you asked for, a minute-long one is brought back to roughly what
-   * it has always been.
-   */
-  var GIF_PIXEL_BUDGET = 100e6;
-
   DG.exportGIF = function (params, style, seconds, opts, onProgress) {
     var fps = opts.fps || 12.5;
-    var ratio = DG.frameRatio(params.frame);
+    var height = opts.height || 540;
+    var width = Math.round(height * DG.frameRatio(params.frame));
     var total = Math.max(2, Math.round(seconds * fps));
-    var height = Math.max(180, Math.min(
-      opts.height || 540,
-      Math.floor(Math.sqrt(GIF_PIXEL_BUDGET / (total * ratio)))
-    ));
-    var width = Math.round(height * ratio);
     var cycles = cyclesFor(seconds, params.speed);
 
     var canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     var ctx = canvas.getContext('2d', { willReadFrequently: true });
-    var frames = [];
-    var i = 0;
 
+    function paint(i) {
+      DG.renderDots(ctx, DG.generateDots(params, width, height, (i / total) * cycles), {
+        width: width,
+        height: height,
+        background: style.background,
+        solid: style.solid,
+        useGradient: style.useGradient,
+        alpha: style.alpha,
+        bgGradient: style.bgGradient
+      });
+      return ctx.getImageData(0, 0, width, height).data;
+    }
+
+    /*
+     * Two passes, and neither of them keeps the footage. The first renders a
+     * dozen frames spread across the run to choose a palette that suits all of
+     * it; the second renders every frame, hands it straight to the writer and
+     * lets it go.
+     *
+     * Holding every frame until the end — which is what this used to do — costs
+     * frames x pixels x 4 bytes, so a minute at 1080 would have needed six
+     * gigabytes and the size had to be capped to keep the tab alive. Encoding
+     * as it goes, the peak is one frame and the compressed output.
+     */
     return new Promise(function (resolve, reject) {
-      function step() {
-        var until = Date.now() + 40;                 // stay responsive
-        while (i < total && Date.now() < until) {
-          var t = (i / total) * cycles;
-          DG.renderDots(ctx, DG.generateDots(params, width, height, t), {
-            width: width,
-            height: height,
-            // A GIF can hold one transparent index, so Transparent is honoured
-            // here rather than filled in with black as it used to be.
-            background: style.background,
-            solid: style.solid,
-            useGradient: style.useGradient,
-            alpha: style.alpha,
-            bgGradient: style.bgGradient
-          });
-          frames.push(ctx.getImageData(0, 0, width, height).data);
-          i++;
-        }
-        if (onProgress) onProgress(i / total * 0.75);
-        if (i < total) return setTimeout(step, 0);
+      var sample = [];
+      var sampleStep = Math.max(1, Math.floor(total / 12));
+      for (var k = 0; k < total; k += sampleStep) sample.push(paint(k));
 
+      var writer;
+      try {
+        writer = new DG.GifWriter(width, height, 1000 / fps, DG.gifPalette(sample, !style.background && !style.bgGradient));
+      } catch (e) { return reject(e); }
+      sample.length = 0;
+
+      var i = 0;
+      function step() {
+        try {
+          var until = Date.now() + 40;                 // stay responsive
+          while (i < total && Date.now() < until) {
+            writer.addFrame(paint(i));
+            i++;
+          }
+        } catch (e) { return reject(e); }
+        if (onProgress) onProgress(i / total);
+        if (i < total) return setTimeout(step, 0);
         setTimeout(function () {
           try {
-            var bytes = DG.encodeGIF(frames, width, height, 1000 / fps, !style.background);
-            if (onProgress) onProgress(1);
-            resolve(new Blob([bytes], { type: 'image/gif' }));
+            resolve(new Blob([writer.finish()], { type: 'image/gif' }));
           } catch (e) { reject(e); }
         }, 0);
       }

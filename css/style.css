@@ -105,6 +105,9 @@ body {
  */
 .chip.is-active { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
 .chip-toggle { color: var(--muted); }
+/* The tier letter leads; the pixels sit beside it, quieter. */
+.chip-dim { color: var(--muted); margin-left: 6px; }
+.chip.is-active .chip-dim { color: var(--text); }
 .chip-toggle.is-active { color: var(--text); }
 .thumb {
   display: flex;
