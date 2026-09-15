@@ -140,8 +140,19 @@ var DG = window.DG || (window.DG = {});
            * ones creep, and the broad one runs them down and takes them in.
            * Small joining big is the behaviour; it falls out of the scales
            * rather than needing to be arranged.
+           *
+           * The three are held to what the lattice can actually draw. A front
+           * whose repeat falls below about four dots is sampled faster than the
+           * grid can follow: neighbouring dots land on unrelated parts of it and
+           * the field arrives as noise rather than as anything advancing. At the
+           * bottom of the Pattern scale slider the smallest of these was down to
+           * a couple of dots a repeat, which is why the behaviour stopped
+           * reading there. Clamping the finest and keeping the ratios coarsens
+           * the whole set together, so what is left is still three sizes of
+           * field rather than two and a shimmer.
            */
-          var freq = [0.28, 0.62, 1.15][n];
+          var base = Math.min(1.15, p.scale / (6 * (p.pitch || 0.08)));
+          var freq = base * [0.243, 0.539, 1][n];
 
           /*
            * Three octaves bend the front, and the amplitudes are spread rather
