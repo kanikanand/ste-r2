@@ -51,8 +51,22 @@ var DG = window.DG || (window.DG = {});
       if (!drag.current || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
       var d = drag.current;
       var span = Math.max(80, size.w * props.params.globeSize * 0.5);
-      var heading = props.params.heading + (e.clientX - d.x) / span * 90;
-      var tilt = props.params.tilt + (e.clientY - d.y) / span * 90;
+
+      /*
+       * The pointer's travel is turned back through the axis tilt before it is
+       * read. That tilt is a roll applied after everything else, so on a
+       * tilted globe the screen's right is not the globe's right: drag
+       * sideways without undoing it and the land creeps up or down the frame
+       * as it goes. Undone, the grab stays under the hand at any tilt.
+       */
+      var a = (props.params.axisTilt || 0) * Math.PI / 180;
+      var ca = Math.cos(a), sa = Math.sin(a);
+      var mx = e.clientX - d.x, my = -(e.clientY - d.y);
+      var gx = mx * ca + my * sa;
+      var gy = -mx * sa + my * ca;
+
+      var heading = props.params.heading + gx / span * 90;
+      var tilt = props.params.tilt - gy / span * 90;
       drag.current = { x: e.clientX, y: e.clientY };
       props.set({
         heading: ((heading % 360) + 360) % 360,

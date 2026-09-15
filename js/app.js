@@ -242,13 +242,21 @@ var DG = window.DG || (window.DG = {});
               <${DG.Slider} label="Spin" value=${Math.round(1 / params.speed)} min=${10} max=${100} step=${1}
                 format=${function (v) { return Math.round(v) + ' s a turn'; }}
                 onChange=${function (v) { set({ speed: 1 / v }); }} />
+              <${DG.Slider} label="Axis tilt" value=${params.axisTilt} min=${-90} max=${90} step=${0.1}
+                format=${function (v) {
+                  var d = (v > 0 ? '+' : '') + v.toFixed(1) + '\u00b0';
+                  return Math.abs(v) < 0.05 ? 'upright'
+                    : Math.abs(v - 23.4) < 0.05 ? d + ' \u2014 the Earth\u2019s' : d;
+                }}
+                onChange=${function (v) { set({ axisTilt: v }); }} />
               <${DG.Slider} label="Sea dots" value=${params.seaDots} min=${0} max=${0.6}
                 format=${function (v) { return v ? Math.round(v * 100) + '%' : 'none'; }}
                 onChange=${function (v) { set({ seaDots: v }); }} />
               <p class="note">
-                Drag the globe to aim it — which way it faces, and how far it leans, are
-                the drag's. Footage always holds a whole number of turns so it loops, so a
-                clip shorter than one turn plays faster than this.
+                Drag the globe to aim it. Axis tilt leans the line it turns about across
+                the frame; the drag's own lean tips that line towards you or away.
+                Footage always holds a whole number of turns so it loops, so a clip
+                shorter than one turn plays faster than this.
               </p>
               <label class="check">
                 <input type="checkbox" checked=${params.labels}

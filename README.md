@@ -56,9 +56,10 @@ sphere against a real figure of about 29%.
 
 Dots are laid in rings of latitude with the count in each ring falling away as
 the cosine of its latitude, so the spacing stays about even instead of piling
-into a smear at the poles. Longitude turns the sphere, the tilt leans it, and
-the result is projected straight down — orthographic, so it reads as a globe
-rather than a fisheye. The far hemisphere is dropped rather than drawn over.
+into a smear at the poles. Longitude turns the sphere, the drag's lean tips it,
+the axis tilt rolls it across the frame, and the result is projected straight
+down — orthographic, so it reads as a globe rather than a fisheye. The far
+hemisphere is dropped rather than drawn over.
 
 Nothing is shaded. What carries the roundness is that a dot shrinks as it turns
 away and the rings crowd together towards the limb, which is the surface
@@ -72,10 +73,28 @@ A 60 second clip at 10 seconds a turn holds six turns and matches; the same
 clip at 100 seconds a turn holds one and runs at 60.
 
 Drag it to turn it, sideways and up and down both. Dragging moves the heading
-and the tilt rather than holding an angle of its own, so what you drag to is
+and the lean rather than holding an angle of its own, so what you drag to is
 what an export draws. Both signs follow the surface rather than the camera — drag right
-and the land under the pointer goes right — and tilt has no slider at all,
+and the land under the pointer goes right — and the lean has no slider at all,
 since a drag says it in one gesture and a number does not.
+
+**Axis tilt** is the other lean, and it is a slider because it is a setting
+rather than a gesture: it is the line the globe turns about. The drag's lean
+tips that line towards the camera or away from it, and from head-on that is
+invisible in the line itself — the pole still points straight up the frame and
+only the land slides. The axis tilt is a roll about the line of sight, applied
+after everything else, and it is the one that leans the axis over in the
+picture: the poles come off the vertical and the globe is seen to be turning
+about a slanted line, the way the Earth does. It opens at 23.4°, which is the
+tilt the Earth actually has.
+
+Doing it last is what makes it a roll rather than another lean; in the other
+order it would mix back into depth. It also means the drag has to be turned
+back through it before it is read, or on a tilted globe the screen's right
+stops being the globe's right and a sideways drag creeps up the frame as it
+goes. Undone, the grab stays under the hand: measured at five tilts from −60°
+to 90°, a 40-pixel drag right moves the land under the pointer 60 pixels across
+and never more than 2 pixels up or down.
 
 ## Controls
 
@@ -97,9 +116,10 @@ lookups to find Singapore's one dot. **Frame** — 16:9, 1:1, 4:5 or 9:16.
 **Background** — transparent, a solid, or the brand gradient. **Dot colour**
 and **Highlight** — a solid or the three-stop gradient, with sliders for where
 its colours sit. **Dots** — grid density in rings, dot size, size variation
-(how far the limb's dots shrink), opacity, contrast, scatter. **Globe** — size, spin in seconds a turn (10 to 100), how large the sea's dots
-are drawn, and whether to name what you picked. Which way the globe faces and
-how far it leans are the drag's, not a slider's.
+(how far the limb's dots shrink), opacity, contrast, scatter. **Globe** — size, spin in seconds a turn (10 to 100), **axis tilt** from −90°
+to 90°, how large the sea's dots are drawn, and whether to name what you
+picked. Which way the globe faces and how far it leans towards you are the
+drag's, not a slider's.
 
 ## Downloads
 

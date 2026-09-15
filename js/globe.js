@@ -32,6 +32,7 @@ var DG = window.DG || (window.DG = {});
 
     globeSize: 0.86,      // the globe's diameter against the short side
     tilt: 16,             // degrees, positive leans the north pole towards us
+    axisTilt: 23.4,       // degrees the axis it turns about leans across the frame
     heading: 0,           // where the drag has turned the globe to, in degrees
     speed: 1 / 24,        // revolutions per second; the Spin control reads its reciprocal
     seaDots: 0,           // how large the sea's dots are drawn, 0 for none
@@ -87,14 +88,26 @@ var DG = window.DG || (window.DG = {});
 
   /*
    * Where a place ends up on screen. Longitude turns the globe, latitude lifts
-   * it, the tilt leans the whole thing towards the viewer, and the result is
-   * projected straight down the z axis — an orthographic view, so the globe
-   * reads as a globe rather than as a fisheye.
+   * it, the drag's lean tips the whole thing towards the viewer, the axis tilt
+   * rolls it across the frame, and the result is projected straight down the z
+   * axis — an orthographic view, so the globe reads as a globe rather than as
+   * a fisheye.
+   *
+   * The two leans are not the same thing, which is why there are two of them.
+   * The drag's tips the axis towards the camera or away from it, and from
+   * head-on that is invisible in the axis itself — the pole still points
+   * straight up the frame, it is only the land that slides. The axis tilt is a
+   * roll about the line of sight, applied last, and it is the one that leans
+   * the axis over in the picture: the poles move off the vertical and the
+   * globe is seen to be turning about a slanted line, the way the Earth
+   * actually does. Doing it last is what makes it a roll rather than another
+   * lean — anything applied before the projection in the other order would
+   * mix back into depth.
    *
    * Returns z alongside: positive is the hemisphere facing us, and everything
    * behind is dropped rather than drawn on top of what is in front of it.
    */
-  function project(lat, lon, rot, cosT, sinT, cx, cy, R, out) {
+  function project(lat, lon, rot, cosT, sinT, cosA, sinA, cx, cy, R, out) {
     var la = lat * RAD;
     var lo = (lon + rot) * RAD;
     var cl = Math.cos(la);
@@ -105,8 +118,12 @@ var DG = window.DG || (window.DG = {});
     var y2 = y * cosT - z * sinT;
     var z2 = y * sinT + z * cosT;
 
-    out[0] = cx + x * R;
-    out[1] = cy - y2 * R;
+    // The roll. Depth is untouched by it, so what was facing us still is.
+    var x3 = x * cosA - y2 * sinA;
+    var y3 = x * sinA + y2 * cosA;
+
+    out[0] = cx + x3 * R;
+    out[1] = cy - y3 * R;
     out[2] = z2;
     return out;
   }
@@ -127,6 +144,9 @@ var DG = window.DG || (window.DG = {});
     var tilt = p.tilt * RAD;
     var cosT = Math.cos(tilt);
     var sinT = Math.sin(tilt);
+    var axis = (p.axisTilt || 0) * RAD;
+    var cosA = Math.cos(axis);
+    var sinA = Math.sin(axis);
 
     // The spacing between neighbouring dots at the equator, which is what the
     // dot size is measured against.
@@ -146,7 +166,7 @@ var DG = window.DG || (window.DG = {});
       var lat = pts[i];
       var lon = pts[i + 1];
 
-      project(lat, lon, rot, cosT, sinT, cx, cy, R, out);
+      project(lat, lon, rot, cosT, sinT, cosA, sinA, cx, cy, R, out);
       if (out[2] <= 0) continue;                    // the far side
 
       var country = DG.countryAt(lon, lat);
@@ -220,7 +240,7 @@ var DG = window.DG || (window.DG = {});
             var flon = (fi + 0.5) / fcount * 360 - 180;
             if (DG.countryAt(flon, flat) !== hc) continue;
 
-            project(flat, flon, rot, cosT, sinT, cx, cy, R, out);
+            project(flat, flon, rot, cosT, sinT, cosA, sinA, cx, cy, R, out);
             if (out[2] <= 0) continue;
             if (p.scatter > 0 && hash2(fr * 7919 + fi, hc + 2, p.seed) < p.scatter) continue;
 
@@ -257,7 +277,7 @@ var DG = window.DG || (window.DG = {});
         }
         if (found) continue;
         var a2 = DG.countryAnchor(ci);
-        project(a2.lat, a2.lon, rot, cosT, sinT, cx, cy, R, out);
+        project(a2.lat, a2.lon, rot, cosT, sinT, cosA, sinA, cx, cy, R, out);
         if (out[2] <= 0) continue;                  // on the far side; nothing to show
         var near = -1;
         var bestD = Infinity;
@@ -295,6 +315,9 @@ var DG = window.DG || (window.DG = {});
     var tilt = p.tilt * RAD;
     var cosT = Math.cos(tilt);
     var sinT = Math.sin(tilt);
+    var axis = (p.axisTilt || 0) * RAD;
+    var cosA = Math.cos(axis);
+    var sinA = Math.sin(axis);
     var out = [0, 0, 0];
     var labels = [];
 
@@ -302,7 +325,7 @@ var DG = window.DG || (window.DG = {});
       var ci = p.highlights[i];
       if (ci < 0 || ci >= names.length) continue;
       var a = DG.countryAnchor(ci);
-      project(a.lat, a.lon, rot, cosT, sinT, cx, cy, R, out);
+      project(a.lat, a.lon, rot, cosT, sinT, cosA, sinA, cx, cy, R, out);
       // A shade past the horizon rather than exactly at it, so a label does not
       // flicker on and off while its anchor grazes the edge.
       if (out[2] <= 0.12) continue;
