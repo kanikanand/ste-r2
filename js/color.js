@@ -36,6 +36,7 @@ var DG = window.DG || (window.DG = {});
    * colour rather than of size.
    */
   DG.GRADIENT_MAPS = [
+    { id: 'depth', label: 'Depth' },
     { id: 'x', label: 'Horizontal' },
     { id: 'y', label: 'Vertical' },
     { id: 'radial', label: 'Radial' },

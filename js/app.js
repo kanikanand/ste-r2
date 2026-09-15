@@ -101,7 +101,7 @@ var DG = window.DG || (window.DG = {});
             <span class="brand-mark"></span>
             <div>
               <h1>Ingenuity Unleashed</h1>
-              <p>A dotted globe of the real world</p>
+              <p>Orbiting particles, sphere to star</p>
             </div>
           </div>
           <div class="topbar-actions">
@@ -159,19 +159,36 @@ var DG = window.DG || (window.DG = {});
 
         <div class="layout">
           <aside class="panel panel-presets">
-            <h2>Countries</h2>
-            <${DG.CountryPicker} picked=${params.highlights} set=${set} />
+            <h2>Form</h2>
+            <${DG.Slider} label="Morph" value=${params.morph} min=${0} max=${1}
+              format=${function (v) { return v < 0.005 ? 'sphere' : v > 0.995 ? 'star' : Math.round(v * 100) + '%'; }}
+              onChange=${function (v) { set({ morph: v }); }} />
+            <${DG.Slider} label="Breathe" value=${params.breathe} min=${0} max=${1}
+              format=${function (v) { return v < 0.005 ? 'held' : Math.round(v * 100) + '%'; }}
+              onChange=${function (v) { set({ breathe: v }); }} />
+            <${DG.Slider} label="Points" value=${params.points} min=${3} max=${16} step=${1}
+              onChange=${function (v) { set({ points: v }); }} />
+            <${DG.Slider} label="Reach" value=${params.spike} min=${0.1} max=${2}
+              onChange=${function (v) { set({ spike: v }); }} />
+            <${DG.Slider} label="Sharpness" value=${params.sharp} min=${0.6} max=${8}
+              onChange=${function (v) { set({ sharp: v }); }} />
+            <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1.2}
+              format=${function (v) { return v < 0.005 ? 'still' : v.toFixed(2); }}
+              onChange=${function (v) { set({ fluid: v }); }} />
+            <p class="note">
+              Morph mixes the two radii, so every setting between them is a shape in its
+              own right rather than a fade between two pictures.
+            </p>
           </aside>
 
           <main class="canvas-area">
             <${DG.Stage} params=${params} style=${style} set=${set}
               onFrame=${function (t) { clock.current = t; }} />
             <div class="caption">
-              <h2>${params.highlights.length
-                ? params.highlights.map(function (i) { return DG.countryNames()[i]; }).join(' · ')
-                : 'The world'}</h2>
-              <p>Drag the globe to turn it. It completes one revolution over a cycle, so any
-                 length of footage closes where it opened.</p>
+              <h2>${params.dist < 1 ? 'Inside the form' : params.morph < 0.02 ? 'Sphere'
+                : params.morph > 0.98 ? 'Star' : 'Between'}</h2>
+              <p>Drag to turn the form and lean it. Push Distance below 1 to pass through the
+                 surface and look out from within.</p>
             </div>
           </main>
 
@@ -195,31 +212,16 @@ var DG = window.DG || (window.DG = {});
             <section>
               <h2>Dot colour</h2>
               <${DG.DotColourControl} params=${params} set=${set} />
-              <span class="ctrl-label">Highlight</span>
-              <div class="swatches">
-                ${DG.SOLIDS.map(function (c) {
-                  return html`<button key=${c.id} type="button" title=${c.label}
-                    class=${'swatch' + (params.highlightMode === c.id ? ' is-active' : '')}
-                    style=${{ background: c.value }}
-                    onClick=${function () { set({ highlightMode: c.id }); }}></button>`;
-                })}
-              </div>
-              <${DG.Slider} label="Highlight size" value=${params.hotSize} min=${0.6} max=${2.4}
-                format=${function (v) { return v.toFixed(2) + '×'; }}
-                onChange=${function (v) { set({ hotSize: v }); }} />
-              <${DG.Slider} label="Highlight density" value=${params.hotDensity} min=${1} max=${3}
-                format=${function (v) { return v < 1.01 ? 'same' : v.toFixed(2) + '×'; }}
-                onChange=${function (v) { set({ hotDensity: v }); }} />
             </section>
 
             <section>
               <h2>Dots</h2>
-              <${DG.Slider} label="Grid density" value=${params.grid} min=${20} max=${160} step=${1}
-                format=${function (v) { return v + ' rings'; }}
-                onChange=${function (v) { set({ grid: v }); }} />
+              <${DG.Slider} label="Particles" value=${params.count} min=${400} max=${14000} step=${100}
+                format=${function (v) { return Math.round(v).toLocaleString(); }}
+                onChange=${function (v) { set({ count: v }); }} />
               <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.1} max=${1.6}
                 onChange=${function (v) { set({ dotScale: v }); }} />
-              <${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
+              <${DG.Slider} label="Depth falloff" value=${params.sizeVariation} min=${0} max=${1}
                 onChange=${function (v) { set({ sizeVariation: v }); }} />
               <${DG.Slider} label="Opacity" value=${params.dotAlpha} min=${0.05} max=${1}
                 format=${function (v) { return Math.round(v * 100) + '%'; }}
@@ -235,30 +237,27 @@ var DG = window.DG || (window.DG = {});
             </section>
 
             <section>
-              <h2>Globe</h2>
-              <${DG.Slider} label="Size" value=${params.globeSize} min=${0.4} max=${1.15}
-                format=${function (v) { return Math.round(v * 100) + '%'; }}
-                onChange=${function (v) { set({ globeSize: v }); }} />
+              <h2>Camera</h2>
+              <${DG.Slider} label="Distance" value=${params.dist} min=${0.15} max=${5}
+                format=${function (v) { return v < 1 ? v.toFixed(2) + ' — inside' : v.toFixed(2); }}
+                onChange=${function (v) { set({ dist: v }); }} />
+              <${DG.Slider} label="Lens" value=${params.lens} min=${0.4} max=${2.2}
+                format=${function (v) { return v.toFixed(2) + '×'; }}
+                onChange=${function (v) { set({ lens: v }); }} />
               <${DG.Slider} label="Spin" value=${Math.round(1 / params.speed)} min=${10} max=${100} step=${1}
                 format=${function (v) { return Math.round(v) + ' s a turn'; }}
                 onChange=${function (v) { set({ speed: 1 / v }); }} />
-              <${DG.Slider} label="Sea dots" value=${params.seaDots} min=${0} max=${0.6}
-                format=${function (v) { return v ? Math.round(v * 100) + '%' : 'none'; }}
-                onChange=${function (v) { set({ seaDots: v }); }} />
+              <${DG.Slider} label="Orbit" value=${params.orbit} min=${0} max=${2}
+                format=${function (v) { return v < 0.005 ? 'fixed' : v.toFixed(2) + '×'; }}
+                onChange=${function (v) { set({ orbit: v }); }} />
               <p class="note">
-                Drag the globe to aim it — which way it faces, and how far it leans, are
-                the drag's. Footage always holds a whole number of turns so it loops, so a
-                clip shorter than one turn plays faster than this.
+                Drag to turn the form and lean it. Distance is in form radii — below 1 the
+                camera is through the surface, and the form wraps around the view.
               </p>
-              <label class="check">
-                <input type="checkbox" checked=${params.labels}
-                  onChange=${function (e) { set({ labels: e.target.checked }); }} />
-                <span>Name the countries picked</span>
-              </label>
             </section>
 
             <button type="button" class="ghost wide"
-              onClick=${function () { setParams(Object.assign({}, DG.DEFAULTS, { paused: params.paused, highlights: params.highlights })); }}>
+              onClick=${function () { setParams(Object.assign({}, DG.DEFAULTS, { paused: params.paused })); }}>
               Reset controls
             </button>
           </aside>

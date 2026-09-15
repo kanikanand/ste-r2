@@ -1,116 +1,70 @@
-# Ingenuity Unleashed — globe
+# Ingenuity Unleashed — morph
 
-A dotted globe of the real world. The dots sit on a sphere, only where there is
-land, and countries you pick lift out of the surface in the highlight colour
-with their names beside them. It turns, and it exports as SVG, PNG, GIF or
-video at the size you choose.
+Orbiting dotted particles held in a form that runs from a sphere to an
+eight-pointed star, and every shape in between. The camera can be pushed
+through the surface and out the other side, so the inside is a place you can
+stand and frame as a texture.
 
-Open `index.html`. No build, no server, no network — the country outlines are
-vendored, so it runs from the filesystem and offline like the rest of this
-repository.
+Open `index.html`. No build, no server, no network.
 
-## Where the geography comes from
+## The form
 
-`vendor/world-50m.js` is Natural Earth's 50m country outlines, by way of the
-`world-atlas` package (ISC), decoded out of TopoJSON into plain `[lon, lat]`
-rings at two decimals and simplified to 0.05° — under what the lookup mask
-itself can resolve, so nothing visible is lost and the file is a third of its
-raw size. 241 countries, 1,629 rings, 415KB.
+Every direction has a radius: one for the sphere, which is 1 everywhere, and
+one for the star. The Morph control mixes the two **radii**, not two sets of
+positions, which is what makes every setting between them a shape in its own
+right — a point on the half-morphed form is on the surface of a real solid
+rather than halfway along a line between two of them.
 
-The 110m set this started on is a third of the size again, and omits 64
-territories: Singapore, Malta, Bahrain, Monaco, Hong Kong, most of the Pacific
-island states. A picker that cannot find Singapore is not a picker of
-countries, so the larger file is the right trade.
+The star's radius comes from `|cos|` of four turns of longitude: a cosine of
+four gives eight extremes, and the absolute value turns the troughs into points
+as well. A latitude term falls away towards the poles — without it the points
+run pole to pole as ridges and the form reads as a fluted column; with it they
+ring the waist, and it is their silhouette that makes the star.
 
-Every dot needs to know which country it stands on, several thousand times a
-frame, so `js/geo.js` rasterises those outlines once into an equirectangular
-mask of country indices and every later lookup is a single array read.
+Which means the star reads as a star from the **pole**, and as a spiked disc
+from the side, so the view opens looking most of the way down the axis. The
+form turns about that same axis, which from there is the star rotating in the
+plane of the picture rather than tipping away. Drag the tilt off and the third
+dimension is right there.
 
-Two things about that mask are worth knowing, because both were wrong first:
+**Fluidity** adds two octaves of looping noise to the radius — the coarse one
+swelling whole regions, the fine one rippling across them. **Breathe** swings
+the morph on its own over the cycle.
 
-- It is drawn **one country at a time as a stencil**, not all of them at once
-  with the index as a colour. A filled path is antialiased, so with the colour
-  approach every pixel along a coast comes back as a blend of one country's
-  index and another's — a perfectly ordinary number that names the wrong
-  country. It put Sydney in El Salvador and New York in Tanzania while inland
-  cities were fine, which is the shape of that bug: only coasts are affected,
-  and almost everywhere anyone looks on a world map is a coast.
-- Four rings cross the antimeridian — Russia twice, Fiji, Antarctica. Their
-  longitudes are made continuous first and then drawn three times a turn apart,
-  so the part that belongs on the other side of the map arrives there instead
-  of doubling back across the middle of the world.
+## The particles
 
-Two more things follow from the small states. The mask is 2048x1024 — about
-20km a cell — because Singapore, Malta and Monaco are each a cell or two wide
-and the coarser grid could not hold them at all. And 47 of the smallest are a
-fraction of a cell across, so the stencil threshold rejects them outright: each
-of those is granted the single cell its outline sits in, stepping aside if
-another has taken it, which is what keeps Saint Martin and Sint Maarten — two
-halves of one small island — from erasing each other.
+Placed by the golden angle rather than in rings of latitude. Rings would put
+them in rows, and rows are what this should not have: the form is meant to read
+as a cloud held in a shape, so the placement has to be even without being
+regular, and the golden angle is the one arrangement that is both.
 
-It checks out against the world: all 241 countries own at least one cell, every
-one of them highlights and labels when picked, and land covers 28.5% of the
-sphere against a real figure of about 29%.
+They are not pinned to the surface. Each turns about its own axis at its own
+whole number of turns per cycle, so they slide across the form at different
+rates and in different directions instead of drifting as one sheet. **Orbit**
+sets how far they travel.
 
-## The globe
+## The camera
 
-Dots are laid in rings of latitude with the count in each ring falling away as
-the cosine of its latitude, so the spacing stays about even instead of piling
-into a smear at the poles. Longitude turns the sphere, the tilt leans it, and
-the result is projected straight down — orthographic, so it reads as a globe
-rather than a fisheye. The far hemisphere is dropped rather than drawn over.
+Perspective, not orthographic — an orthographic camera has no position to
+speak of and cannot go anywhere. **Distance** is in form radii, so below 1 the
+camera is through the surface and the form wraps around the view. Drag to turn
+the form and lean it; inside, that turn is what pans across the field.
 
-Nothing is shaded. What carries the roundness is that a dot shrinks as it turns
-away and the rings crowd together towards the limb, which is the surface
-falling away from you.
+Depth is measured against what is actually in the frame rather than a fixed
+window. Three radii back and half a radius inside are completely different
+ranges of distance, and a fixed window reads the whole of one of them as far
+away — which is why the inside view came out uniformly dim before. Taking the
+near and far of the frame itself means the nearest particle is always full size
+wherever the camera is standing.
 
-The globe turns **exactly once per loop**, so a ten second GIF and a one minute
-video both close where they opened — the same rule the pattern branch worked
-under. Footage always holds a whole number of turns, so it loops whatever the speed —
-which does mean a clip shorter than one turn plays faster than the screen does.
-A 60 second clip at 10 seconds a turn holds six turns and matches; the same
-clip at 100 seconds a turn holds one and runs at 60.
+## Loop, and downloads
 
-Drag it to turn it, sideways and up and down both. Dragging moves the heading
-and the tilt rather than holding an angle of its own, so what you drag to is
-what an export draws. Both signs follow the surface rather than the camera — drag right
-and the land under the pointer goes right — and tilt has no slider at all,
-since a drag says it in one gesture and a number does not.
+Every animated term — the turn, the orbits, the breathing, the noise —
+completes a whole number of turns across the cycle, so footage of any length
+closes where it opened.
 
-## Controls
-
-**Countries** — all 241, type to add, click a chip to drop it, and the picked
-ones take the highlight colour and a named pill. A country smaller than the gap
-between dots takes the nearest dot to its label, so picking Singapore shows
-something rather than nothing.
-
-A picked country differs from the rest in three ways, and two of them are
-yours: **Highlight size** scales its dots against their own spacing, and
-**Highlight density** gives it a finer lattice of its own — the same ground
-carrying more, smaller dots. They do different work. Size alone fattens the
-dots until they nearly touch; density alone resolves the country's outline
-properly, since twice the rings is four times the dots inside the same border.
-Together they run from "the same dots in another colour" to a nearly solid
-shape. The finer lattice is walked only across the country's own extent: at
-three times the rings, sweeping the whole sphere would cost forty thousand
-lookups to find Singapore's one dot. **Frame** — 16:9, 1:1, 4:5 or 9:16.
-**Background** — transparent, a solid, or the brand gradient. **Dot colour**
-and **Highlight** — a solid or the three-stop gradient, with sliders for where
-its colours sit. **Dots** — grid density in rings, dot size, size variation
-(how far the limb's dots shrink), opacity, contrast, scatter. **Globe** — size, spin in seconds a turn (10 to 100), how large the sea's dots
-are drawn, and whether to name what you picked. Which way the globe faces and
-how far it leans are the drag's, not a slider's.
-
-## Downloads
-
-**Size** — S, M or L, labelled with the pixels they produce in the frame you
-are in: at 16:9 that is 960x540, 1440x810 and 1920x1080. The height is fixed
-per size and the width follows the frame.
-
-**SVG** and **PNG** take the globe as it stands; **GIF** and **MP4** record a
-whole revolution at 10 seconds, 30 seconds or a minute. Everything carries the
-background unless **No bg** is pressed, and then all three still formats drop
-it and save as `-clear`. Video always carries one, since MP4 has no alpha.
-
-Labels go into the SVG as real text rather than outlines, so a name can still
-be corrected or restyled wherever the file is opened.
+**Size** S, M or L, labelled with the pixels they produce. **SVG** and **PNG**
+take the form as it stands; **GIF** and **MP4** record whole turns at 10
+seconds, 30 seconds or a minute. **No bg** drops the background from all three
+still formats, saving as `-clear`; video always carries one, since MP4 has no
+alpha.

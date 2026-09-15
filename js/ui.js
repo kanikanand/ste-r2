@@ -24,20 +24,20 @@ var DG = window.DG || (window.DG = {});
     var setBox = boxState[1];
 
     /*
-     * Dragging turns the globe by moving Spin and Tilt, rather than by holding
+     * Dragging turns the form by moving its heading and tilt, rather than by holding
      * a rotation of its own somewhere. There is then one place the angle lives:
      * what you drag to is what an export draws, and a still pulled after a drag
      * is the still you were looking at.
      *
      * Both signs follow the surface rather than the camera: drag right and the
      * land under the pointer goes right, drag down and it goes down, as though
-     * the globe itself were being pushed. Raising the heading moves a
+     * the form itself were being pushed. Raising the heading moves a
      * front-facing point right and raising the tilt moves it down, so both
      * terms are added — the heading was subtracted before, which turned the
      * globe against the hand.
      *
      * Scaled by the radius, so the grab keeps pace with the pointer at any
-     * globe size. Tilt stops short of the pole, where the projection has
+     * form size. Tilt stops short of the pole, where the projection has
      * nothing left to turn.
      */
     var drag = useRef(null);
@@ -50,7 +50,7 @@ var DG = window.DG || (window.DG = {});
     function onMove(e) {
       if (!drag.current || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
       var d = drag.current;
-      var span = Math.max(80, size.w * props.params.globeSize * 0.5);
+      var span = Math.max(80, size.w * 0.32);
       var heading = props.params.heading + (e.clientX - d.x) / span * 90;
       var tilt = props.params.tilt + (e.clientY - d.y) / span * 90;
       drag.current = { x: e.clientX, y: e.clientY };
@@ -139,63 +139,6 @@ var DG = window.DG || (window.DG = {});
 
   /* ---- one pattern in the gallery, animating ---------------------------- */
   var THUMB_W = 168;
-
-  /*
-   * The country picker. 177 names is too many for a list of buttons and too
-   * few to need searching machinery, so it is a text field with the whole set
-   * behind a datalist — type two letters and the browser offers the rest — and
-   * the chosen ones sit underneath as chips you can take off again.
-   */
-  DG.CountryPicker = function CountryPicker(props) {
-    var picked = props.picked;
-    var set = props.set;
-    var textState = useState('');
-    var text = textState[0];
-    var setText = textState[1];
-    var names = DG.countryNames();
-
-    function add(value) {
-      var i = DG.countryIndex(value);
-      if (i < 0) return;
-      if (picked.indexOf(i) < 0) set({ highlights: picked.concat([i]) });
-      setText('');
-    }
-
-    function remove(i) {
-      set({ highlights: picked.filter(function (x) { return x !== i; }) });
-    }
-
-    return html`
-      <${React.Fragment}>
-        <form class="picker" onSubmit=${function (e) { e.preventDefault(); add(text); }}>
-          <input type="text" list="dg-countries" placeholder="Add a country" value=${text}
-            onChange=${function (e) {
-              var v = e.target.value;
-              setText(v);
-              // Choosing from the browser's own list fires a change with the
-              // whole name, so an exact match is taken as a pick rather than
-              // waiting for a keypress that will never come.
-              if (names.indexOf(v) >= 0) add(v);
-            }} />
-          <datalist id="dg-countries">
-            ${names.map(function (n, i) { return html`<option key=${i} value=${n}></option>`; })}
-          </datalist>
-          <button type="submit" class="ghost">Add</button>
-        </form>
-        ${picked.length > 0 && html`
-          <div class="chips chips-wrap">
-            ${picked.map(function (i) {
-              return html`<button key=${i} type="button" class="chip chip-pick"
-                title="Remove" onClick=${function () { remove(i); }}>${names[i]}<span class="x">×</span></button>`;
-            })}
-          </div>`}
-        ${picked.length > 0 && html`
-          <button type="button" class="ghost wide"
-            onClick=${function () { set({ highlights: [] }); }}>Clear all</button>`}
-        ${picked.length === 0 && html`
-          <p class="note">Nothing picked yet — the globe shows land alone. Add a country and it lifts out of the surface.</p>`}
-      <//>`;
-  };
 
   DG.Slider = function Slider(props) {
     return html`
