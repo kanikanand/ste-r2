@@ -163,24 +163,17 @@ var DG = window.DG || (window.DG = {});
             <${DG.Slider} label="Morph" value=${params.morph} min=${0} max=${1}
               format=${function (v) { return v < 0.005 ? 'globe' : v > 0.995 ? 'star' : Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ morph: v }); }} />
-            <${DG.Slider} label="Breathe" value=${params.breathe} min=${0} max=${1}
-              format=${function (v) { return v < 0.005 ? 'held' : Math.round(v * 100) + '%'; }}
-              onChange=${function (v) { set({ breathe: v }); }} />
+            <${DG.Slider} label="Inflate" value=${params.inflate} min=${0} max=${1}
+              format=${function (v) { return v < 0.005 ? 'wireframe' : v > 0.995 ? 'solid'
+                : Math.round(v * 100) + '%'; }}
+              onChange=${function (v) { set({ inflate: v }); }} />
             <${DG.Slider} label="Reach" value=${params.spike} min=${0} max=${1}
               format=${function (v) { return Math.round(v * 100) + '%'; }}
               onChange=${function (v) { set({ spike: v }); }} />
             <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1}
-              format=${function (v) { return v < 0.005 ? 'still' : Math.round(v * 100) + '% alive'; }}
+              format=${function (v) { return v < 0.005 ? 'held' : v > 0.7 ? Math.round(v * 100) + '% — amoeba'
+                : Math.round(v * 100) + '% alive'; }}
               onChange=${function (v) { set({ fluid: v }); }} />
-            <p class="note">
-              A sphere drawn as circles and an eight-pointed star drawn as four long
-              ellipses are the same construction — an ellipse is a circle flattened.
-              So this is four rings crossing at one centre, and Morph is how flat they
-              are: round and the four are one globe, flat and their eight ends are the
-              points. The long axes never change, so the tips stay put. Reach is how
-              flat they go. Fluidity leans, stretches and flattens each ring on its own
-              schedule, and wanders its section as it goes round.
-            </p>
           </aside>
 
           <main class="canvas-area">
@@ -189,9 +182,7 @@ var DG = window.DG || (window.DG = {});
             <div class="caption">
               <h2>${params.dist < 1 ? 'Inside the form' : params.morph < 0.02 ? 'Globe'
                 : params.morph > 0.98 ? 'Star' : 'Between'}</h2>
-              <p>Drag to turn the form and lean it. Push Distance below 1 to pass through
-                 the surface and look out from within — hold the Orbit and keep Fluidity
-                 low, and the inside reads as long curving rows of dots.</p>
+              <p>Drag to turn and lean. Distance below 1 goes inside.</p>
             </div>
           </main>
 
@@ -254,10 +245,7 @@ var DG = window.DG || (window.DG = {});
                 format=${function (v) { return v < 1 ? 'held — rows intact'
                   : v === 1 ? 'one turn a cycle' : 'up to ' + v + ' turns a cycle'; }}
                 onChange=${function (v) { set({ orbit: v }); }} />
-              <p class="note">
-                Drag to turn the form and lean it. Distance is in form radii — below 1 the
-                camera is through the surface, and the form wraps around the view.
-              </p>
+              <p class="note">Distance is in form radii; below 1 is inside.</p>
             </section>
 
             <button type="button" class="ghost wide"

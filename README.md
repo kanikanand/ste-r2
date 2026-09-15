@@ -23,13 +23,20 @@ bit of a double, so the globe is exactly the even placement the particles were
 given. Below it, each ring becomes a long ellipse, the four cross at the
 centre, and their eight ends are the points of the star.
 
-**Morph** is *b*, and **Reach** is how far down it goes. Two things follow from
-writing it this way. The long axes never change length, so the tips of the star
-sit where the globe's surface was and the morph is the body drawing in rather
-than the whole thing inflating and deflating. And the ends of the points are
-the ends of ellipses — rounded, the way the diagram draws them — rather than
-the cones an earlier build welded on, which were sharper than anything in the
-reference.
+**Morph** is *b*, and **Reach** is how far down it goes. The long axes never
+change length, so the tips of the star sit where the globe's surface was and the
+morph is the body drawing in rather than the whole thing inflating and
+deflating. The ends of the points are the ends of ellipses — rounded, the way
+the diagram draws them — rather than the cones an earlier build welded on, which
+were sharper than anything in the reference.
+
+**Inflate** is how much of a ring is occupied. A ring is a family of ellipses
+round one axis, and pulling every particle's angle round that axis in towards
+the family's own plane leaves them all on a single ellipse — which is the
+diagram exactly: four curves, and at full round four great circles, a wireframe
+globe. Letting the angle back out fills the family in until the ring is a whole
+shell. It tells on the points hardest, since that is where the ellipses are
+furthest apart.
 
 Each particle keeps one ring for its whole life, by index rather than by
 whichever axis is nearest. Four complete rings crossing each other is the
@@ -43,28 +50,51 @@ the four are spread through space instead of around a circle: they are made to
 repel one another, both ends of each counted, from a handful of starting
 arrangements, and the arrangement that settles lowest is kept. For four axes the
 answer is the diagonals of a cube, which is as far apart as eight points can
-get. Four to six of them show in the silhouette from any angle, the rest
-pointing at the camera or away from it — which is what a star that is genuinely
-three-dimensional does, and the reason there is no longer a front to face.
+get.
 
 The dot grows with the radius it sits at. A particle out at a point stands for
 more surface than one at the waist — the same slice of directions covers area
 going as the square of the radius — which is this project's own rule, density
 carried by dot size, applied to a solid rather than to a flat field.
 
-**Fluidity** distorts the rings, not the particles. Each leans off its axis,
-stretches and flattens on its own schedule — three cosines at one, two and
-three turns a cycle, each with its own starting place, so the trace is uneven
-and never quite repeats inside the loop but closes exactly at the end of it —
-and because a ring is a family of ellipses round one axis rather than a single
-one, its section wanders as it goes round, so no two ellipses in the same ring
-are quite alike. The star still reads as a star at every setting. A last small
-grain, fixed per particle, stops the shell looking like a skin drawn on a
-solid; it is a distance rather than a percentage of the radius, because scaling
-the radius stretches a point in proportion to how far out it already is and the
-ends grow sparse dotted tails.
+## Fluidity, and keeping it in the frame
 
-**Breathe** swings the morph on its own over the cycle.
+**Fluidity** does two things, and the second only really arrives at the top of
+the range. Each ring leans off its axis, stretches and flattens on its own
+schedule — three cosines at one, two and three turns a cycle, each with its own
+starting place, so the trace is uneven and never quite repeats inside the loop
+but closes exactly at the end of it — and its section wanders as it goes round,
+so no two ellipses in the same ring are alike. Then a field of seven long waves
+takes hold of the whole cloud and kneads it: gently at first, and by the top of
+the range far enough to lose the star altogether and leave an amoeba wandering a
+field half again the size of the form it came from. A particle travels well over
+a frame's width across a cycle at the top of the range.
+
+Which is what makes framing a real problem rather than a detail, and worth
+saying how it is solved. None of that distortion is symmetrical, so the cloud
+both wanders off centre and grows, and a particle that has drifted towards the
+lens arrives as a saucer, because the perspective divide runs away there.
+Holding the distortion back to whatever keeps it in shot would mean no amoeba;
+instead five hundred particles are put through the same arithmetic before the
+frame is drawn, and what comes back is where the cloud's middle has got to and
+how large the rest of it can be drawn.
+
+That measurement is on the picture, not in space. A bound on the radius is not a
+bound on the picture — two particles the same distance from the middle land in
+quite different places if one is nearer the lens. For one particle it is exact:
+at scale *s* it lands at `s·focal·X / (d − s·Z)`, so keeping that inside a target
+*W* gives `s = W·d / (focal·|X| + W·Z)`. The third tightest of those is taken
+rather than the tightest, because one particle should not decide how large the
+whole cloud is drawn, and a couple spilling past the edge costs nothing.
+
+Two things were wrong before this worked. Pinning the field's value at the
+origin is not enough on its own: waves long enough to be coherent still agree
+across the body of the cloud and carry all of it one way, which reads as the
+form sliding out of frame rather than kneading, so the field's average over a
+shell is taken out as well. And the sample walked the particle list in steps of
+sixteen — a particle's ring is its index modulo four, so it only ever measured
+one ring of the four, and came back confident about a cloud a quarter the size
+of the one being drawn. The step is odd now.
 
 ## The particles
 

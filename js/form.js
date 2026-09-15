@@ -51,9 +51,9 @@ var DG = window.DG || (window.DG = {});
     seed: 1,
 
     morph: 0,             // 0 the globe, 1 the star: how flat the rings are
-    breathe: 0,           // how far the morph swings on its own over the loop
-    spike: 0.85,          // how flat the rings get at full morph
-    fluid: 0.2,           // how hard the rings lean, stretch and wander
+    inflate: 1,           // 0 four bare wireframe curves, 1 four full shells
+    spike: 0.7,           // how flat the rings get at full morph
+    fluid: 0.2,           // 0 the form held, 1 an amoeba in a field twice its size
 
     dist: 3.2,            // camera distance, in form radii; under 1 is inside
     lens: 1,              // how wide the lens is
@@ -242,13 +242,25 @@ var DG = window.DG || (window.DG = {});
    * and deflating. And the globe is not a separate shape that has to be mixed
    * in: it is what this is when the flattening is switched off.
    *
-   * Fluidity distorts the rings. Each leans off its axis, stretches and
-   * flattens on its own schedule, and — because a ring is a family of ellipses
-   * round one axis rather than a single one — its section wanders as it goes
-   * round, so no two ellipses in the same ring are quite alike. The form is
-   * never symmetrical and never still in the same way twice.
+   * Inflate is how much of a ring is occupied. A ring is a family of ellipses
+   * round one axis, and pulling every particle's angle round that axis towards
+   * the family's own plane leaves them all on a single ellipse — which is the
+   * diagram: four curves, and at full round four great circles, a wireframe
+   * globe. Letting the angle back out fills the family in until the ring is a
+   * whole shell. It tells on the points hardest, since that is where the
+   * ellipses are furthest apart.
+   *
+   * Fluidity does two things, and the second only really arrives at the top of
+   * the range. Each ring leans off its axis, stretches and flattens on its own
+   * schedule, and its section wanders as it goes round, so no two ellipses in
+   * the same ring are quite alike. Then a field of long slow waves takes hold
+   * of the whole cloud and carries it about — gently at first, and by the top
+   * of the range far enough to lose the star altogether and leave an amoeba
+   * wandering a field twice the size of the form it came from.
    * ---------------------------------------------------------------------- */
   var RING_STRIDE = 17;
+  var WAVES = 7;          // the long waves that turn the form into an amoeba
+  var WAVE_STRIDE = 8;
 
   DG.buildForm = function (p, morph, t) {
     var axes = spokeAxes(RINGS);
@@ -256,13 +268,19 @@ var DG = window.DG || (window.DG = {});
     var fluid = clamp01(p.fluid);
 
     // The flat end of the morph: how thin an ellipse gets once it is one.
-    var flat = 0.42 - 0.26 * clamp01(p.spike);
+    var flat = 0.62 - 0.32 * clamp01(p.spike);
     var b = 1 + (flat - 1) * morph;
+
+    // The ring distortion comes on gently and the field that makes an amoeba
+    // hardly at all until the setting is well up, so the low half of the
+    // slider is a form that is alive and the high half is one that is losing
+    // its shape.
+    var soft = fluid * fluid;
 
     var f = new Float64Array(RINGS * RING_STRIDE);
     for (var k = 0; k < RINGS; k++) {
       var o = k * RING_STRIDE;
-      var lean = fluid * 0.26;
+      var lean = 0.26 * fluid + 0.55 * soft;
       var la = lean * loopWave(k, 3, t);
       var lb = lean * loopWave(k, 17, t);
       var lx = axes[k * 3] + la * frames[k * 6] + lb * frames[k * 6 + 3];
@@ -287,8 +305,8 @@ var DG = window.DG || (window.DG = {});
       f[o + 7] = lz * px - lx * pz;
       f[o + 8] = lx * py - ly * px;
 
-      f[o + 9] = 1 + fluid * 0.16 * loopWave(k, 29, t);            // length
-      f[o + 10] = Math.max(0.03, b * (1 + fluid * 0.34 * loopWave(k, 41, t)));
+      f[o + 9] = Math.max(0.15, 1 + (0.16 * fluid + 0.75 * soft) * loopWave(k, 29, t));
+      f[o + 10] = Math.max(0.03, b * (1 + (0.34 * fluid + 1.1 * soft) * loopWave(k, 41, t)));
 
       /*
        * How the section wanders round the ring: one, two and three swells a
@@ -296,7 +314,7 @@ var DG = window.DG || (window.DG = {});
        * loop still closes. Written as sine and cosine weights, so the particle
        * loop never needs an angle — only the cosine and sine it already has.
        */
-      var amp = fluid * 0.30;
+      var amp = 0.30 * fluid + 0.9 * soft;
       for (var h = 1; h <= 3; h++) {
         var ang = TAU * (h * t + hash(k, 60 + h));
         var w = amp * (0.62 / h) * (0.6 + 0.4 * hash(k, 70 + h));
@@ -304,7 +322,87 @@ var DG = window.DG || (window.DG = {});
         f[o + 10 + h * 2] = w * Math.sin(ang);
       }
     }
+
+    /*
+     * The long waves. Each is a flat sine through space pushing the cloud one
+     * way, with a wavelength of a few radii so that neighbours are carried
+     * together and the cloud deforms rather than shatters. Their phases drift
+     * at whole numbers of turns a cycle, so the whole field comes back.
+     */
+    var waves = new Float64Array(WAVES * WAVE_STRIDE);
+    var reach = 1.15 * soft * fluid;
+    for (var j = 0; j < WAVES; j++) {
+      var q = j * WAVE_STRIDE;
+      var kz = hash(j, 201) * 2 - 1;
+      var kr = Math.sqrt(Math.max(0, 1 - kz * kz));
+      var kth = hash(j, 203) * TAU;
+      var kf = 1.7 + 2.1 * hash(j, 205);                 // waves per two radii
+      waves[q] = Math.cos(kth) * kr * kf;
+      waves[q + 1] = kz * kf;
+      waves[q + 2] = Math.sin(kth) * kr * kf;
+
+      var uz = hash(j, 207) * 2 - 1;
+      var ur = Math.sqrt(Math.max(0, 1 - uz * uz));
+      var uth = hash(j, 209) * TAU;
+      var amp2 = reach * (0.5 + 0.5 * hash(j, 211)) / Math.sqrt(WAVES);
+      waves[q + 3] = Math.cos(uth) * ur * amp2;
+      waves[q + 4] = uz * amp2;
+      waves[q + 5] = Math.sin(uth) * ur * amp2;
+
+      var turns = 1 + Math.floor(hash(j, 213) * 3);
+      var ph = TAU * (turns * t + hash(j, 215));
+      waves[q + 6] = ph;
+      // What the wave reads at the centre. Subtracting it pins the middle of
+      // the cloud in place, so the field kneads the form instead of picking
+      // the whole of it up and carrying it out of frame — which is what a
+      // wave long enough to be coherent does if you let it.
+      waves[q + 7] = Math.sin(ph);
+    }
+
+    /*
+     * What the field does to the cloud on average. Pinning the centre is not
+     * enough on its own — the waves can still agree over the body of the cloud
+     * and carry all of it one way, which reads as the form sliding out of
+     * frame rather than kneading. Sampling the field over a shell and taking
+     * that out leaves only the part that deforms.
+     */
+    var mx = 0, my = 0, mz = 0;
+    if (reach > 0) {
+      for (var m = 0; m < 32; m++) {
+        var my0 = 1 - (m + 0.5) / 32 * 2;
+        var mr = Math.sqrt(Math.max(0, 1 - my0 * my0)) * 0.8;
+        var mth = Math.PI * (3 - Math.sqrt(5)) * m;
+        var sx = Math.cos(mth) * mr, sy = my0 * 0.8, sz = Math.sin(mth) * mr;
+        for (var jj = 0; jj < WAVES; jj++) {
+          var qq = jj * WAVE_STRIDE;
+          var ss = Math.sin(sx * waves[qq] + sy * waves[qq + 1] + sz * waves[qq + 2] + waves[qq + 6]) - waves[qq + 7];
+          mx += waves[qq + 3] * ss; my += waves[qq + 4] * ss; mz += waves[qq + 5] * ss;
+        }
+      }
+      mx /= 32; my /= 32; mz /= 32;
+    }
+
+    f.waves = waves;
+    f.mean = [mx, my, mz];
+    f.drifting = reach > 0;
     return f;
+  };
+
+  /* The long-wave field, as a displacement at one point. */
+  DG.drift = function (x, y, z, form, out) {
+    var w = form.waves;
+    var ox = 0, oy = 0, oz = 0;
+    for (var j = 0; j < WAVES; j++) {
+      var q = j * WAVE_STRIDE;
+      var s = Math.sin(x * w[q] + y * w[q + 1] + z * w[q + 2] + w[q + 6]) - w[q + 7];
+      ox += w[q + 3] * s; oy += w[q + 4] * s; oz += w[q + 5] * s;
+    }
+    ox -= form.mean[0]; oy -= form.mean[1]; oz -= form.mean[2];
+    // However far the waves agree, a particle never travels more than a form's
+    // width: past that the cloud stops being one thing.
+    var l = Math.sqrt(ox * ox + oy * oy + oz * oz);
+    if (l > 1) { var c = 1 / l; ox *= c; oy *= c; oz *= c; }
+    out[0] = ox; out[1] = oy; out[2] = oz;
   };
 
   /*
@@ -313,30 +411,168 @@ var DG = window.DG || (window.DG = {});
    * changes, so at full round the cloud is exactly the even sphere it started
    * as — no drift, no seams, nothing to fix.
    */
-  DG.ringPoint = function (dx, dy, dz, form, k, out) {
+  DG.ringPoint = function (dx, dy, dz, form, k, inflate, out) {
     var o = k * RING_STRIDE;
     var lx = form[o], ly = form[o + 1], lz = form[o + 2];
     var ct = dx * lx + dy * ly + dz * lz;
     var ex = dx - lx * ct, ey = dy - ly * ct, ez = dz - lz * ct;
     var el = Math.sqrt(ex * ex + ey * ey + ez * ez);
     var b = form[o + 10];
+    var a = form[o + 9];
 
-    if (el > 1e-9 && form[o + 11] !== 0) {
-      var c1 = (ex * form[o + 3] + ey * form[o + 4] + ez * form[o + 5]) / el;
-      var s1 = (ex * form[o + 6] + ey * form[o + 7] + ez * form[o + 8]) / el;
-      var c2 = c1 * c1 - s1 * s1, s2 = 2 * c1 * s1;
-      var c3 = c1 * c2 - s1 * s2, s3 = s1 * c2 + c1 * s2;
-      b *= 1 + form[o + 11] * c1 + form[o + 12] * s1
-             + form[o + 13] * c2 + form[o + 14] * s2
-             + form[o + 15] * c3 + form[o + 16] * s3;
-      if (b < 0.03) b = 0.03;
+    if (el > 1e-9) {
+      var px = form[o + 3], py = form[o + 4], pz = form[o + 5];
+      var qx = form[o + 6], qy = form[o + 7], qz = form[o + 8];
+      var c1 = (ex * px + ey * py + ez * pz) / el;
+      var s1 = (ex * qx + ey * qy + ez * qz) / el;
+
+      if (form[o + 11] !== 0 || form[o + 13] !== 0) {
+        var c2 = c1 * c1 - s1 * s1, s2 = 2 * c1 * s1;
+        var c3 = c1 * c2 - s1 * s2, s3 = s1 * c2 + c1 * s2;
+        b *= 1 + form[o + 11] * c1 + form[o + 12] * s1
+               + form[o + 13] * c2 + form[o + 14] * s2
+               + form[o + 15] * c3 + form[o + 16] * s3;
+        if (b < 0.03) b = 0.03;
+      }
+
+      if (inflate < 0.999) {
+        /*
+         * Pull the angle round the axis in towards the ring's own plane. It
+         * folds to the nearer half-turn first — the ellipse occupies both
+         * sides of the axis, so a particle behind it should collapse onto the
+         * back of the curve, not travel all the way round to the front.
+         */
+        var ang = Math.atan2(s1, c1);
+        var m = Math.round(ang / Math.PI);
+        var psi = (ang - m * Math.PI) * inflate;
+        var sign = (m & 1) ? -1 : 1;
+        c1 = sign * Math.cos(psi);
+        s1 = sign * Math.sin(psi);
+      }
+
+      var across = el * b;
+      ex = (c1 * px + s1 * qx) * across;
+      ey = (c1 * py + s1 * qy) * across;
+      ez = (c1 * pz + s1 * qz) * across;
+      out[0] = lx * ct * a + ex;
+      out[1] = ly * ct * a + ey;
+      out[2] = lz * ct * a + ez;
+      return out;
     }
 
-    var a = form[o + 9];
-    out[0] = lx * ct * a + ex * b;
-    out[1] = ly * ct * a + ey * b;
-    out[2] = lz * ct * a + ez * b;
+    out[0] = lx * ct * a; out[1] = ly * ct * a; out[2] = lz * ct * a;
     return out;
+  };
+
+  /*
+   * Framing. The rings lean and stretch and the field kneads, and none of that
+   * is symmetrical, so by the top of the Fluidity range the cloud has both
+   * wandered off centre and grown — and a particle that has wandered towards
+   * the lens arrives as a saucer, because the perspective divide runs away
+   * there. Rather than hold the distortion back to whatever keeps it in shot,
+   * a few hundred particles are put through the same arithmetic first, and
+   * what comes back is where the cloud's middle has got to and how much bigger
+   * it is than the same form would be with Fluidity off. The cloud is moved
+   * back and drawn down by exactly that, so it fills the frame the same way at
+   * every setting.
+   *
+   * It only ever draws down, never up: the star is smaller than the globe
+   * because its body has drawn in between points that stayed put, and that is
+   * the shape, not a framing error.
+   */
+  DG.framing = function (dirs, n, form, calm, inflate, view, out) {
+    var cosH = view[0], sinH = view[1], cosT = view[2], sinT = view[3];
+    var dist = view[4], focal = view[5];
+    /*
+     * An odd step, always. A particle's ring is its index modulo four, so a
+     * step that is a multiple of four walks one ring and never sees the other
+     * three — and then the measurement comes back confident about a cloud a
+     * quarter the size of the one being drawn.
+     */
+    var step = Math.max(1, Math.floor(n / 500)) | 1;
+    var fp = [0, 0, 0], fd = [0, 0, 0], v = [0, 0, 0];
+    var mx = 0, my = 0, mz = 0, cnt = 0;
+    var wideCalm = 0, highCalm = 0;
+    var i, dx, dy, dz, zc;
+
+    function place(x, y, z, drifting) {
+      if (drifting) {
+        DG.drift(x, y, z, form, fd);
+        x += fd[0]; y += fd[1]; z += fd[2];
+      }
+      v[0] = x; v[1] = y; v[2] = z;
+    }
+
+    /*
+     * Where the middle has got to, and how wide the same form is with
+     * Fluidity off — measured on the picture rather than in space, because a
+     * bound on the radius is not a bound on the picture. Two particles the
+     * same distance from the middle land in quite different places if one of
+     * them is nearer the lens, and it is the near one that leaves the frame
+     * and arrives as a saucer.
+     */
+    for (i = 0; i < n; i += step) {
+      dx = dirs[i * 3]; dy = dirs[i * 3 + 1]; dz = dirs[i * 3 + 2];
+
+      DG.ringPoint(dx, dy, dz, form, i & 3, inflate, fp);
+      place(fp[0], fp[1], fp[2], form.drifting);
+      mx += v[0]; my += v[1]; mz += v[2];
+      cnt++;
+
+      DG.ringPoint(dx, dy, dz, calm, i & 3, inflate, fp);
+      orient(fp[0], fp[1], fp[2], cosH, sinH, cosT, sinT, v);
+      zc = dist - v[2];
+      if (zc > 0.06) {
+        var px = Math.abs(v[0]) * focal / zc, py = Math.abs(v[1]) * focal / zc;
+        if (px > wideCalm) wideCalm = px;
+        if (py > highCalm) highCalm = py;
+      }
+    }
+    mx /= cnt; my /= cnt; mz /= cnt;
+    /*
+     * The target is not the calm form's own size but a good deal more than it.
+     * A cloud that has lost its shape is meant to be wandering a bigger field
+     * than the one it came from; holding it to the same width would only make
+     * it a smaller, denser version of itself.
+     */
+    var room = view[6];
+    wideCalm = Math.max(1, wideCalm) * room;
+    highCalm = Math.max(1, highCalm) * room;
+
+    /*
+     * Then the largest the whole cloud can be drawn and still sit inside that.
+     * For one particle it is exact: at scale s it lands at s·focal·X/(d − s·Z),
+     * so keeping that within the target W gives s = W·d / (focal·|X| + W·Z).
+     * The smallest of those over the sample is the answer, along with a floor
+     * on how near the lens anything is allowed to come.
+     */
+    var caps = [];
+    for (i = 0; i < n; i += step) {
+      dx = dirs[i * 3]; dy = dirs[i * 3 + 1]; dz = dirs[i * 3 + 2];
+      DG.ringPoint(dx, dy, dz, form, i & 3, inflate, fp);
+      place(fp[0], fp[1], fp[2], form.drifting);
+      orient(v[0] - mx, v[1] - my, v[2] - mz, cosH, sinH, cosT, sinT, v);
+      var X = Math.abs(v[0]), Y = Math.abs(v[1]), Z = v[2];
+
+      var cap = 1;
+      var dx1 = focal * X + wideCalm * Z;
+      if (dx1 > 1e-6) { var sx = wideCalm * dist / dx1; if (sx < cap) cap = sx; }
+      var dy1 = focal * Y + highCalm * Z;
+      if (dy1 > 1e-6) { var sy = highCalm * dist / dy1; if (sy < cap) cap = sy; }
+      if (Z > 1e-6) { var sz = 0.55 * dist / Z; if (sz < cap) cap = sz; }
+      caps.push(cap);
+    }
+
+    /*
+     * Third tightest rather than tightest. One particle should not decide how
+     * large the whole cloud is drawn, and a couple spilling past the edge
+     * costs nothing; going much further in than that gives a whole arm away,
+     * because when an arm reaches out it is not one particle that wants
+     * shrinking but every particle in it.
+     */
+    caps.sort(function (a, b) { return a - b; });
+    out[0] = mx; out[1] = my; out[2] = mz;
+    out[3] = Math.min(1, caps[Math.min(caps.length - 1, 2)]);
   };
 
   /*
@@ -380,9 +616,7 @@ var DG = window.DG || (window.DG = {});
     var dirs = directions(n);
     var phase = t - Math.floor(t);
 
-    // The morph the slider asks for, plus whatever swing Breathe adds. One
-    // whole turn, so it arrives back where it began.
-    var morph = clamp01(p.morph + p.breathe * (0.5 - 0.5 * Math.cos(TAU * phase)) * (1 - p.morph));
+    var morph = clamp01(p.morph);
 
     var head = (phase * 360 + p.heading) * RAD;
     var tilt = p.tilt * RAD;
@@ -409,7 +643,7 @@ var DG = window.DG || (window.DG = {});
      * the ceiling rather than clipped at it, so nothing changes at ordinary
      * distances and there is no size at which the grading visibly stops.
      */
-    var capR = Math.min(width, height) * 0.024;
+    var capR = Math.min(width, height) * 0.017;
 
     // Turns per cycle to draw from — whole ones only, see the orbit below.
     var spin = Math.max(0, Math.round(p.orbit));
@@ -425,6 +659,14 @@ var DG = window.DG || (window.DG = {});
     var useGradient = p.colorMode === 'gradient';
     var v3 = [0, 0, 0];
     var fp = [0, 0, 0];
+    var fd = [0, 0, 0];
+    var inflate = clamp01(p.inflate);
+    var frame4 = [0, 0, 0, 1];
+    if (fluid > 0) {
+      DG.framing(dirs, n, form, DG.buildForm(Object.assign({}, p, { fluid: 0 }), morph, phase),
+                 inflate, [cosH, sinH, cosT, sinT, p.dist, focal, 1 + 0.34 * fluid * fluid], frame4);
+    }
+    var midX = frame4[0], midY = frame4[1], midZ = frame4[2], shrink = frame4[3];
     var dots = [];
     var zNear = Infinity;
     var zFar = -Infinity;
@@ -468,10 +710,23 @@ var DG = window.DG || (window.DG = {});
        * handing each particle to its nearest axis instead would give four
        * quarter-rings that meet at seams and never cross at all.
        */
-      DG.ringPoint(dx, dy, dz, form, i & 3, fp);
+      DG.ringPoint(dx, dy, dz, form, i & 3, inflate, fp);
       var px = fp[0], py = fp[1], pz = fp[2];
       var r = Math.sqrt(px * px + py * py + pz * pz);
       var lift = 0;
+
+      // The long waves, read where the particle actually is, so neighbours are
+      // carried together and the cloud deforms instead of shattering.
+      if (fluid > 0) {
+        if (form.drifting) {
+          DG.drift(px, py, pz, form, fd);
+          px += fd[0]; py += fd[1]; pz += fd[2];
+        }
+        px = (px - midX) * shrink;
+        py = (py - midY) * shrink;
+        pz = (pz - midZ) * shrink;
+        r = Math.sqrt(px * px + py * py + pz * pz);
+      }
 
       if (fluid > 0) {
         /*
