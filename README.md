@@ -66,9 +66,14 @@ falling away from you.
 
 The globe turns **exactly once per loop**, so a ten second GIF and a one minute
 video both close where they opened — the same rule the pattern branch worked
-under. Drag it to turn it, sideways and up and down both. Dragging moves Spin and
-Tilt rather than holding an angle of its own, so what you drag to is what an
-export draws. Both signs follow the surface rather than the camera — drag right
+under. Footage always holds a whole number of turns, so it loops whatever the speed —
+which does mean a clip shorter than one turn plays faster than the screen does.
+A 60 second clip at 10 seconds a turn holds six turns and matches; the same
+clip at 100 seconds a turn holds one and runs at 60.
+
+Drag it to turn it, sideways and up and down both. Dragging moves the heading
+and the tilt rather than holding an angle of its own, so what you drag to is
+what an export draws. Both signs follow the surface rather than the camera — drag right
 and the land under the pointer goes right — and tilt has no slider at all,
 since a drag says it in one gesture and a number does not.
 
@@ -92,9 +97,9 @@ lookups to find Singapore's one dot. **Frame** — 16:9, 1:1, 4:5 or 9:16.
 **Background** — transparent, a solid, or the brand gradient. **Dot colour**
 and **Highlight** — a solid or the three-stop gradient, with sliders for where
 its colours sit. **Dots** — grid density in rings, dot size, size variation
-(how far the limb's dots shrink), opacity, contrast, scatter. **Globe** — size,
-spin, seconds a revolution, how large the sea's dots are drawn, and whether to
-name what you picked. Tilt is the drag's.
+(how far the limb's dots shrink), opacity, contrast, scatter. **Globe** — size, spin in seconds a turn (10 to 100), how large the sea's dots
+are drawn, and whether to name what you picked. Which way the globe faces and
+how far it leans are the drag's, not a slider's.
 
 ## Downloads
 

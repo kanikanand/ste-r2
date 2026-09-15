@@ -31,9 +31,10 @@ var DG = window.DG || (window.DG = {});
      *
      * Both signs follow the surface rather than the camera: drag right and the
      * land under the pointer goes right, drag down and it goes down, as though
-     * the globe itself were being pushed. Raising spin moves a front-facing
-     * point right and raising tilt moves it down, so both terms are added —
-     * spin was subtracted before, which turned the globe against the hand.
+     * the globe itself were being pushed. Raising the heading moves a
+     * front-facing point right and raising the tilt moves it down, so both
+     * terms are added — the heading was subtracted before, which turned the
+     * globe against the hand.
      *
      * Scaled by the radius, so the grab keeps pace with the pointer at any
      * globe size. Tilt stops short of the pole, where the projection has
@@ -50,11 +51,11 @@ var DG = window.DG || (window.DG = {});
       if (!drag.current || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
       var d = drag.current;
       var span = Math.max(80, size.w * props.params.globeSize * 0.5);
-      var spin = props.params.spin + (e.clientX - d.x) / span * 90;
+      var heading = props.params.heading + (e.clientX - d.x) / span * 90;
       var tilt = props.params.tilt + (e.clientY - d.y) / span * 90;
       drag.current = { x: e.clientX, y: e.clientY };
       props.set({
-        spin: ((spin % 360) + 360) % 360,
+        heading: ((heading % 360) + 360) % 360,
         tilt: Math.max(-80, Math.min(80, tilt))
       });
     }

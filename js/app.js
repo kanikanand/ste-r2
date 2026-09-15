@@ -239,16 +239,17 @@ var DG = window.DG || (window.DG = {});
               <${DG.Slider} label="Size" value=${params.globeSize} min=${0.4} max=${1.15}
                 format=${function (v) { return Math.round(v * 100) + '%'; }}
                 onChange=${function (v) { set({ globeSize: v }); }} />
-              <${DG.Slider} label="Spin" value=${params.spin} min=${0} max=${359} step=${1}
-                format=${function (v) { return Math.round(v) + '°'; }}
-                onChange=${function (v) { set({ spin: v }); }} />
-              <${DG.Slider} label="Revolution" value=${params.speed} min=${0.01} max=${0.6}
-                format=${function (v) { return (1 / v).toFixed(0) + ' s a turn'; }}
-                onChange=${function (v) { set({ speed: v }); }} />
+              <${DG.Slider} label="Spin" value=${Math.round(1 / params.speed)} min=${10} max=${100} step=${1}
+                format=${function (v) { return Math.round(v) + ' s a turn'; }}
+                onChange=${function (v) { set({ speed: 1 / v }); }} />
               <${DG.Slider} label="Sea dots" value=${params.seaDots} min=${0} max=${0.6}
                 format=${function (v) { return v ? Math.round(v * 100) + '%' : 'none'; }}
                 onChange=${function (v) { set({ seaDots: v }); }} />
-              <p class="note">Drag the globe to tilt it — up and down are the drag's, not a slider's.</p>
+              <p class="note">
+                Drag the globe to aim it — which way it faces, and how far it leans, are
+                the drag's. Footage always holds a whole number of turns so it loops, so a
+                clip shorter than one turn plays faster than this.
+              </p>
               <label class="check">
                 <input type="checkbox" checked=${params.labels}
                   onChange=${function (e) { set({ labels: e.target.checked }); }} />

@@ -32,8 +32,8 @@ var DG = window.DG || (window.DG = {});
 
     globeSize: 0.86,      // the globe's diameter against the short side
     tilt: 16,             // degrees, positive leans the north pole towards us
-    spin: 0,              // degrees of extra rotation, for framing a still
-    speed: 0.08,          // revolutions per second
+    heading: 0,           // where the drag has turned the globe to, in degrees
+    speed: 1 / 24,        // revolutions per second; the Spin control reads its reciprocal
     seaDots: 0,           // how large the sea's dots are drawn, 0 for none
 
     highlights: [],       // country indices to pick out
@@ -123,7 +123,7 @@ var DG = window.DG || (window.DG = {});
     var cy = height / 2;
 
     // One turn across the loop, plus whatever the Spin control has added.
-    var rot = (t - Math.floor(t)) * 360 + p.spin;
+    var rot = (t - Math.floor(t)) * 360 + p.heading;
     var tilt = p.tilt * RAD;
     var cosT = Math.cos(tilt);
     var sinT = Math.sin(tilt);
@@ -291,7 +291,7 @@ var DG = window.DG || (window.DG = {});
     var R = Math.min(width, height) * 0.5 * p.globeSize;
     var cx = width / 2;
     var cy = height / 2;
-    var rot = (t - Math.floor(t)) * 360 + p.spin;
+    var rot = (t - Math.floor(t)) * 360 + p.heading;
     var tilt = p.tilt * RAD;
     var cosT = Math.cos(tilt);
     var sinT = Math.sin(tilt);
