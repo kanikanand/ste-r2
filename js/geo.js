@@ -16,8 +16,14 @@ var DG = window.DG || (window.DG = {});
 (function (DG) {
   'use strict';
 
-  var MW = 1024;                       // mask width; 0.35 degrees a cell
-  var MH = 512;
+  /*
+   * 0.18 degrees a cell, about twenty kilometres at the equator. The coarser
+   * grid this started on could not hold the small states at all — Singapore,
+   * Malta, Monaco are each a cell or two wide — and a country that owns no cell
+   * can never be found, let alone highlighted.
+   */
+  var MW = 2048;
+  var MH = 1024;
   var mask = null;                     // Uint8Array of country index + 1, 0 = sea
   var anchors = null;                  // where a country's label should sit
 
@@ -48,7 +54,7 @@ var DG = window.DG || (window.DG = {});
 
   function build() {
     var world = window.DG_WORLD;
-    if (!world) throw new Error('world-110m.js has not loaded.');
+    if (!world) throw new Error('world-50m.js has not loaded.');
 
     var cv = document.createElement('canvas');
     cv.width = MW;
@@ -131,6 +137,61 @@ var DG = window.DG || (window.DG = {});
           if (px[((yy - y0) * w + (xx - x0)) * 4 + 3] >= 128) mask[yy * MW + xx] = c + 1;
         }
       }
+    }
+
+    /*
+     * Anything smaller than a cell leaves no trace. Forty-seven of these —
+     * Vatican, Monaco, most of the Pacific island states — are a fraction of a
+     * cell across, so the stencil threshold rejects them outright and they end
+     * up owning nothing at all. A country with no cell cannot be found by a
+     * dot, cannot be given a label anchor, and so cannot be highlighted: it is
+     * in the picker and does nothing when picked.
+     *
+     * So each of them is granted the single cell its outline sits in. The cell
+     * may already belong to a larger country, and it is taken anyway — the
+     * Vatican really is inside Rome, and on a globe at this scale one cell is
+     * the smallest truth available.
+     */
+    var owned = new Uint8Array(world.polys.length);
+    var granted = new Uint8Array(mask.length);
+    for (var m = 0; m < mask.length; m++) if (mask[m]) owned[mask[m] - 1] = 1;
+    for (c = 0; c < world.polys.length; c++) {
+      if (owned[c]) continue;
+      var sumX = 0, sumY = 0, n = 0;
+      var cr = world.polys[c];
+      for (r = 0; r < cr.length; r++) {
+        for (i = 0; i < cr[r].length; i += 2) { sumX += cr[r][i]; sumY += cr[r][i + 1]; n++; }
+      }
+      if (!n) continue;
+      var mx = Math.floor(((sumX / n) + 180) / 360 * MW);
+      var my = Math.floor((90 - (sumY / n)) / 180 * MH);
+      if (mx < 0) mx = 0; else if (mx >= MW) mx = MW - 1;
+      if (my < 0) my = 0; else if (my >= MH) my = MH - 1;
+
+      /*
+       * Step aside if another of these has already taken the cell. Saint Martin
+       * and Sint Maarten are two halves of one island a few kilometres across,
+       * so they round to the same cell and the second would simply erase the
+       * first. Taking a neighbouring cell keeps both on the map; overwriting a
+       * large country's cell is fine, overwriting another small one's only
+       * class hands the same problem back.
+       */
+      var slot = my * MW + mx;
+      if (granted[slot]) {
+        for (var ring = 1; ring <= 3 && granted[slot]; ring++) {
+          for (var dy = -ring; dy <= ring && granted[slot]; dy++) {
+            for (var dx = -ring; dx <= ring; dx++) {
+              var ny = my + dy, nx2 = mx + dx;
+              if (ny < 0 || ny >= MH) continue;
+              if (nx2 < 0) nx2 += MW; else if (nx2 >= MW) nx2 -= MW;
+              var cand = ny * MW + nx2;
+              if (!granted[cand]) { slot = cand; break; }
+            }
+          }
+        }
+      }
+      mask[slot] = c + 1;
+      granted[slot] = 1;
     }
 
     /*

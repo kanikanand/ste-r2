@@ -11,10 +11,16 @@ repository.
 
 ## Where the geography comes from
 
-`vendor/world-110m.js` is Natural Earth's 110m country outlines, by way of the
+`vendor/world-50m.js` is Natural Earth's 50m country outlines, by way of the
 `world-atlas` package (ISC), decoded out of TopoJSON into plain `[lon, lat]`
-rings and rounded to two decimals — about a kilometre at the equator, which is
-far finer than a globe drawn in dots can show. 177 countries, 286 rings, 134KB.
+rings at two decimals and simplified to 0.05° — under what the lookup mask
+itself can resolve, so nothing visible is lost and the file is a third of its
+raw size. 241 countries, 1,629 rings, 415KB.
+
+The 110m set this started on is a third of the size again, and omits 64
+territories: Singapore, Malta, Bahrain, Monaco, Hong Kong, most of the Pacific
+island states. A picker that cannot find Singapore is not a picker of
+countries, so the larger file is the right trade.
 
 Every dot needs to know which country it stands on, several thousand times a
 frame, so `js/geo.js` rasterises those outlines once into an equirectangular
@@ -34,9 +40,17 @@ Two things about that mask are worth knowing, because both were wrong first:
   so the part that belongs on the other side of the map arrives there instead
   of doubling back across the middle of the world.
 
-It checks out against the world: every one of the 177 countries owns at least
-one cell, so none can be un-highlightable, and land covers 28.9% of the sphere
-against a real figure of about 29%.
+Two more things follow from the small states. The mask is 2048x1024 — about
+20km a cell — because Singapore, Malta and Monaco are each a cell or two wide
+and the coarser grid could not hold them at all. And 47 of the smallest are a
+fraction of a cell across, so the stencil threshold rejects them outright: each
+of those is granted the single cell its outline sits in, stepping aside if
+another has taken it, which is what keeps Saint Martin and Sint Maarten — two
+halves of one small island — from erasing each other.
+
+It checks out against the world: all 241 countries own at least one cell, every
+one of them highlights and labels when picked, and land covers 28.5% of the
+sphere against a real figure of about 29%.
 
 ## The globe
 
@@ -58,8 +72,10 @@ and what an export draws.
 
 ## Controls
 
-**Countries** — type to add, click a chip to drop it, and the picked ones take
-the highlight colour and a named pill. **Frame** — 16:9, 1:1, 4:5 or 9:16.
+**Countries** — all 241, type to add, click a chip to drop it, and the picked
+ones take the highlight colour and a named pill. A country smaller than the gap
+between dots takes the nearest dot to its label, so picking Singapore shows
+something rather than nothing. **Frame** — 16:9, 1:1, 4:5 or 9:16.
 **Background** — transparent, a solid, or the brand gradient. **Dot colour**
 and **Highlight** — a solid or the three-stop gradient, with sliders for where
 its colours sit. **Dots** — grid density in rings, dot size, size variation

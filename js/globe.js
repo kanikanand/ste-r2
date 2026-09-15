@@ -180,6 +180,38 @@ var DG = window.DG || (window.DG = {});
       dots.push(dot);
     }
 
+    /*
+     * A picked country smaller than the gap between dots can easily have no dot
+     * standing on it — Singapore is about one twentieth of the spacing at this
+     * density — and it would then be picked, named by its label, and show
+     * nothing at all. So any picked country that came up empty takes the
+     * nearest dot to where its label points, which is the dot a reader would
+     * take to be it anyway.
+     */
+    if (anyPicked) {
+      for (var hi = 0; hi < p.highlights.length; hi++) {
+        var ci = p.highlights[hi];
+        if (ci < 0) continue;
+        var found = false;
+        for (var d2 = 0; d2 < dots.length; d2++) {
+          if (dots[d2].country === ci) { found = true; break; }
+        }
+        if (found) continue;
+        var a2 = DG.countryAnchor(ci);
+        project(a2.lat, a2.lon, rot, cosT, sinT, cx, cy, R, out);
+        if (out[2] <= 0) continue;                  // on the far side; nothing to show
+        var near = -1;
+        var bestD = Infinity;
+        for (d2 = 0; d2 < dots.length; d2++) {
+          var ddx = dots[d2].x - out[0];
+          var ddy = dots[d2].y - out[1];
+          var dd = ddx * ddx + ddy * ddy;
+          if (dd < bestD) { bestD = dd; near = d2; }
+        }
+        if (near >= 0) { dots[near].hot = true; dots[near].r *= 1.18; }
+      }
+    }
+
     // Far side first, so a near dot is drawn over a far one where they meet.
     dots.sort(function (a, b) { return a.z - b.z; });
     return dots;
