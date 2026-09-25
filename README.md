@@ -1,9 +1,16 @@
 # STE Visual Suite
 
 Three dotted modes in one tool, sharing a palette, a frame, a download size and
-a set of exports. Open `index.html`. No build, no server; the one thing fetched
-from the network is the interface's typeface, and there is a fallback stack
-behind it, so the page works straight off the filesystem.
+a set of exports. Open `index.html`. No build, no server, and — with the two
+typefaces vendored alongside everything else — no network: checked with the
+browser switched offline, which makes no outside request at all.
+
+The interface is set in **Momo Trust**: the Display cut for the tool's name,
+the Sans for everything else. Both are served out of `vendor/fonts` rather than
+from Google's CDN, latin and latin-extended only. Display has a single weight
+and no axis, so the title takes its emphasis from size and letterfit rather
+than from a heavier cut; Sans is variable from 400 to 700, so every weight the
+interface asks for comes out of one file.
 
 **Patterns** — a flat lattice that never moves, with five motions running
 underneath it. **Globe** — a dotted globe of the real world, 241 countries,
@@ -94,3 +101,4 @@ all three modes, at the selected size.
 | `js/sphere.js` | Sphere: placement, distortion, perspective |
 | `js/ui.js` | the stage, the galleries, the widgets |
 | `js/app.js` | state, layout, mount |
+| `css/fonts.css`, `vendor/fonts/` | Momo Trust Display and Sans, vendored |
