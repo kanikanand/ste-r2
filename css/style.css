@@ -16,9 +16,9 @@
   --text: #111114;
   --muted: #6d6d79;
   --red: #ff0000;
-  --lilac: #ebbfff;
-  --apricot: #ffd091;
-  --periwinkle: #babeff;
+  --chrome: #ebbfff;
+  --titanium: #ffd091;
+  --xenon: #babeff;
   /*
    * Two faces, both vendored in fonts.css so they survive being opened off the
    * filesystem: the display cut for the tool's own name, the sans for
@@ -60,12 +60,12 @@ body {
 .topbar h1 {
   margin: 0;
   font-family: var(--display);
-  /* Display has a single weight, so the title is set larger and a touch wider
-     rather than bolder — there is no bolder to go to. */
-  font-size: 15px;
+  /* Set as written and on its own metrics: no tracking added, no case forced.
+     Display has a single weight, so what carries the title is size and the
+     face itself rather than a heavier cut or a wider fit. */
+  font-size: 16px;
   font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: normal;
   white-space: nowrap;
 }
 .topbar p { margin: 2px 0 0; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

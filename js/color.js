@@ -2,7 +2,8 @@
  * color.js — the suite's palette, its four-stop ramp, and gradient mapping.
  *
  * One palette for all three modes, and the same one for dots and for grounds:
- * black, white, the three pastels and the red.
+ * black, white, red, and three named for what they are the colour of —
+ * titanium, chrome and xenon.
  *
  * The gradient is a mesh rather than a ramp. A ramp has one direction and
  * every colour in a fixed order along it; a mesh has each colour standing at a
@@ -21,9 +22,9 @@ var DG = window.DG || (window.DG = {});
   DG.SOLIDS = [
     { id: 'black', label: 'Black', value: '#000000' },
     { id: 'white', label: 'White', value: '#ffffff' },
-    { id: 'lilac', label: 'Lilac', value: '#ebbfff' },
-    { id: 'apricot', label: 'Apricot', value: '#ffd091' },
-    { id: 'periwinkle', label: 'Periwinkle', value: '#babeff' },
+    { id: 'chrome', label: 'Chrome', value: '#ebbfff' },
+    { id: 'titanium', label: 'Titanium', value: '#ffd091' },
+    { id: 'xenon', label: 'Xenon', value: '#babeff' },
     { id: 'red', label: 'Red', value: '#ff0000' }
   ];
 
@@ -32,9 +33,9 @@ var DG = window.DG || (window.DG = {});
     { id: 'transparent', label: 'Transparent', value: null },
     { id: 'black', label: 'Black', value: '#000000' },
     { id: 'white', label: 'White', value: '#ffffff' },
-    { id: 'lilac', label: 'Lilac', value: '#ebbfff' },
-    { id: 'apricot', label: 'Apricot', value: '#ffd091' },
-    { id: 'periwinkle', label: 'Periwinkle', value: '#babeff' },
+    { id: 'chrome', label: 'Chrome', value: '#ebbfff' },
+    { id: 'titanium', label: 'Titanium', value: '#ffd091' },
+    { id: 'xenon', label: 'Xenon', value: '#babeff' },
     { id: 'red', label: 'Red', value: '#ff0000' },
     // Painted from the same four stops as the dots, so the two stay in step.
     { id: 'gradient', label: 'Gradient', value: null, gradient: true }
@@ -57,8 +58,8 @@ var DG = window.DG || (window.DG = {});
 
   /*
    * Where the four colours stand by default, which is the arrangement in the
-   * reference: red up at the top, apricot out to the right, lilac low on the
-   * left and periwinkle at the foot. Positions are fractions of the frame, so
+   * reference: red up at the top, titanium out to the right, chrome low on the
+   * left and xenon at the foot. Positions are fractions of the frame, so
    * a mesh set up in 16:9 keeps its shape in 9:16.
    */
   DG.MESH_DEFAULT = [

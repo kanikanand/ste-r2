@@ -29,7 +29,7 @@ Reset only resets the mode you are in.
 
 ## The palette
 
-Black, white, and four more — lilac `#EBBFFF`, apricot `#FFD091`, periwinkle
+Black, white, and four more — chrome `#EBBFFF`, titanium `#FFD091`, xenon
 `#BABEFF` and red `#FF0000`. Each is available flat for the dots and for the
 ground. The last four also make the gradient, and the gradient is a **mesh**.
 
