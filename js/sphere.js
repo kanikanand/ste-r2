@@ -67,9 +67,7 @@ var DG = window.DG || (window.DG = {});
     speed: 1 / 24,           // turns of the loop a second
     dotAlpha: 1,
     colorMode: 'ink',
-    gradientMap: 'y',
-    gradientReverse: false,
-    stops: [0, 0.5, 1],
+    mesh: null,
     highlightMode: 'flame',
     background: 'paper',
     size: 'L'
@@ -260,7 +258,7 @@ var DG = window.DG || (window.DG = {});
     var fadeAmount = clamp(Number(p.farFade), 0, 1);
 
     var particleBaseSize = p.particleSize * (shortSide / 600);
-    var ramp = DG.buildRamp(96, p.stops);
+    var tint = DG.meshHexSampler(p.mesh, p.meshBlend);
     var useGradient = p.colorMode === 'gradient';
     var out = [];
 
@@ -284,11 +282,7 @@ var DG = window.DG || (window.DG = {});
         ny: (particle.y * perspectiveScale) / (shortSide * 0.5),
         depth: 1 - farFactor
       };
-      if (useGradient) {
-        var g = p.gradientMap === 'depth' ? d.depth : DG.gradientCoord(p.gradientMap, d);
-        if (p.gradientReverse) g = 1 - g;
-        d.color = ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(g * (ramp.length - 1))))];
-      }
+      if (useGradient) d.color = tint(d.x / width, d.y / height);
       out.push(d);
     }
     return out;

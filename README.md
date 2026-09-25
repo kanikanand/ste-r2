@@ -30,10 +30,47 @@ Reset only resets the mode you are in.
 ## The palette
 
 Black, white, and four more — lilac `#EBBFFF`, apricot `#FFD091`, periwinkle
-`#BABEFF` and red `#FF0000`. Each is available as a flat colour for the dots
-and for the ground, and the last four also make the gradient, with a slider for
-where each sits along it. A two-colour ramp is a matter of pushing two stops
-together rather than a separate mode.
+`#BABEFF` and red `#FF0000`. Each is available flat for the dots and for the
+ground. The last four also make the gradient, and the gradient is a **mesh**.
+
+A ramp has one direction and every colour in a fixed order along it. A mesh has
+each colour standing at a place in the frame, and what any point takes is the
+blend of whichever nodes are near it — so the same four colours can be a wash
+from one corner, a pocket of red in the middle of a cool field, or anything
+else, with no direction control at all. Where a colour *is* is the control.
+
+The editor is the mesh itself: a small frame of the gradient with a ring on
+every node, dragged to where that colour should be. Pick a ring and the palette
+below sets its colour; up to eight nodes, never fewer than two, since one node
+is a flat fill. There is one mesh, shared by the dots and the ground, so the
+editor appears once — under **Mesh gradient** — as soon as either is using it.
+
+The blend is inverse distance weighting: each node pulls the colour towards
+itself by one over its distance raised to a power, and the pulls are
+normalised. Two things follow, and both are what a mesh wants. A node's own
+colour comes out exactly at the node, because its weight runs away as the
+distance closes. And every point in the frame is defined however the nodes are
+arranged, so there is no outside the mesh and no seam at its edge. **Blend** is
+that power, read backwards so the control runs the way it reads: at zero the
+nodes are pockets with hard ground between them, at one they are a single wash.
+
+A dot takes the mesh at its own place in the frame, which is the same place the
+ground is painted from, so a mesh ground under mesh dots is one field rather
+than two that happen to share a palette.
+
+Three practical notes. The ground is drawn from a 160-wide raster stretched with
+smoothing — the field is smooth, so a few hundred samples upscaled cannot be
+told from one sample per pixel and costs a thousandth as much, which matters at
+eighteen hundred frames a minute. In **SVG** that raster goes in as a raster:
+SVG has no mesh primitive, the one the spec describes was never implemented by
+any shipping renderer, and the alternatives were a stack of blurred ellipses
+that only approximates what is on screen or a thousand rectangles that band. The
+dots stay what they were, one editable circle each. And a **GIF** over a mesh
+ground is much larger than over a flat one — around 48MB for ten seconds at L
+against 16MB — because a full-frame gradient is simply a far richer image. That
+is the picture, not the dithering: measured at S, turning the dither off
+entirely only takes 14.7MB down to 10.4MB, and turning it down is what puts
+banding back into the smooth field the mesh exists for.
 
 ## How the three fit together
 
@@ -92,7 +129,7 @@ all three modes, at the selected size.
 | | |
 |---|---|
 | `js/modes.js` | the three engines, the shared settings, the dispatcher |
-| `js/color.js` | the palette, the four-stop ramp, gradient mapping |
+| `js/color.js` | the palette, and the mesh — sampling, raster, CSS stand-in |
 | `js/render.js` | frames, download sizes, canvas and SVG output |
 | `js/gifenc.js` | the GIF encoder — median cut, ordered dither, one transparent index |
 | `js/record.js` | the four exporters |

@@ -163,7 +163,8 @@ var DG = window.DG || (window.DG = {});
             solid: cur.style.solid,
             useGradient: cur.style.useGradient,
             alpha: cur.style.alpha,
-            bgGradient: cur.style.bgGradient,
+            mesh: cur.style.mesh,
+            meshBlend: cur.style.meshBlend,
             highlight: cur.style.highlight,
             labelFill: cur.style.labelFill,
             labelText: cur.style.labelText,
@@ -222,7 +223,8 @@ var DG = window.DG || (window.DG = {});
             solid: cur.style.solid,
             useGradient: cur.style.useGradient,
             alpha: cur.style.alpha,
-            bgGradient: cur.style.bgGradient,
+            mesh: cur.style.mesh,
+            meshBlend: cur.style.meshBlend,
             highlight: cur.style.highlight
           });
         }
@@ -380,35 +382,151 @@ var DG = window.DG || (window.DG = {});
    * afterwards: sorting after the fact makes a dragged stop jump past the one
    * it met, which feels like the control fighting you.
    */
-  DG.StopControls = function StopControls(props) {
-    var stops = DG.tidyStops(props.stops);
+  /* ---- the mesh editor --------------------------------------------------
+   *
+   * The mesh is edited where it can be seen: a small frame of the gradient
+   * itself with a ring on every node, dragged to where the colour should be.
+   * Pick a ring and the palette below sets that node's colour. It is the whole
+   * of the control — there is no direction to choose, because a mesh has none,
+   * and where a colour is standing is the only thing there is to say about it.
+   * ---------------------------------------------------------------------- */
+  DG.MeshControls = function MeshControls(props) {
+    var nodes = DG.tidyMesh(props.nodes);
+    var blend = props.blend === undefined ? 0.5 : props.blend;
     var set = props.set;
-    var names = DG.GRADIENT_NAMES;
+    var boxRef = useRef(null);
+    var canvasRef = useRef(null);
+    var pickedState = useState(0);
+    var picked = Math.min(pickedState[0], nodes.length - 1);
+    var setPicked = pickedState[1];
+    var ratio = DG.frameRatio(props.frame);
 
-    function move(i, v) {
-      var next = stops.slice();
-      next[i] = v;
-      set({ stops: DG.tidyStops(next) });
+    function put(i, patch) {
+      var next = nodes.map(function (n, k) { return k === i ? Object.assign({}, n, patch) : n; });
+      set({ mesh: next });
     }
+
+    function addNode() {
+      if (nodes.length >= DG.MESH_MAX) return;
+      // Somewhere there is not already a node, rather than always the middle:
+      // two nodes on the same spot is a colour you cannot get hold of again.
+      var c = DG.MESH_COLOURS[nodes.length % DG.MESH_COLOURS.length];
+      var next = nodes.concat([{ x: 0.2 + 0.6 * Math.random(), y: 0.2 + 0.6 * Math.random(), c: c }]);
+      set({ mesh: next });
+      setPicked(next.length - 1);
+    }
+
+    function removeNode() {
+      if (nodes.length <= 2) return;
+      set({ mesh: nodes.filter(function (n, k) { return k !== picked; }) });
+      setPicked(Math.max(0, picked - 1));
+    }
+
+    /* Dragging. The pointer is captured on the frame, not on the ring, so a
+       fast drag that outruns the ring does not drop it. */
+    var drag = useRef(null);
+
+    function place(e) {
+      var el = boxRef.current;
+      if (!el) return null;
+      var r = el.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+        y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))
+      };
+    }
+
+    function nearest(pt) {
+      var best = 0, bestD = Infinity;
+      for (var i = 0; i < nodes.length; i++) {
+        var d = (nodes[i].x - pt.x) * (nodes[i].x - pt.x) + (nodes[i].y - pt.y) * (nodes[i].y - pt.y);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      return { i: best, d: Math.sqrt(bestD) };
+    }
+
+    function onDown(e) {
+      var pt = place(e);
+      if (!pt) return;
+      var near = nearest(pt);
+      if (near.d > 0.12) return;             // a miss is a miss, not a jump
+      e.currentTarget.setPointerCapture(e.pointerId);
+      drag.current = near.i;
+      setPicked(near.i);
+      put(near.i, pt);
+    }
+
+    function onMove(e) {
+      if (drag.current === null || drag.current === undefined) return;
+      var pt = place(e);
+      if (pt) put(drag.current, pt);
+    }
+
+    function onUp(e) {
+      drag.current = null;
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+
+    /* The backdrop is the real sampler, not a CSS stand-in: this is the one
+       place the arrangement has to be shown exactly as it will be drawn. */
+    useEffect(function () {
+      var canvas = canvasRef.current;
+      var box = boxRef.current;
+      if (!canvas || !box) return;
+      var w = Math.max(40, Math.round(box.clientWidth));
+      var h = Math.max(24, Math.round(w / ratio));
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr; canvas.height = h * dpr;
+      }
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      var ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var tile = DG.meshRaster(nodes, blend, ratio);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(tile, 0, 0, tile.width, tile.height, 0, 0, w, h);
+    });
 
     return html`
       <div class="sub-block">
-        <div class="ramp-preview" style=${{ background: DG.cssGradient('to right', stops) }}></div>
-        ${stops.map(function (v, i) {
-          return html`<${DG.Slider} key=${i} label=${names[i]} value=${v}
-            min=${i === 0 ? 0 : stops[i - 1] + 0.01}
-            max=${i === stops.length - 1 ? 1 : stops[i + 1] - 0.01}
-            step=${0.01}
-            format=${function (x) { return Math.round(x * 100) + '%'; }}
-            onChange=${function (x) { move(i, x); }} />`;
-        })}
+        <div class="mesh-box" ref=${boxRef} style=${{ aspectRatio: String(ratio) }}
+          onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}>
+          <canvas ref=${canvasRef} class="mesh-canvas"></canvas>
+          ${nodes.map(function (n, i) {
+            return html`<span key=${i}
+              class=${'mesh-node' + (i === picked ? ' is-picked' : '')}
+              style=${{ left: (n.x * 100) + '%', top: (n.y * 100) + '%' }}></span>`;
+          })}
+        </div>
+
+        <span class="ctrl-label">Node ${picked + 1} of ${nodes.length}</span>
+        <div class="swatches">
+          ${DG.SOLIDS.map(function (c) {
+            return html`<button key=${c.id} type="button" title=${c.label}
+              class=${'swatch' + (nodes[picked].c === c.value ? ' is-active' : '')}
+              style=${{ background: c.value }}
+              onClick=${function () { put(picked, { c: c.value }); }}></button>`;
+          })}
+        </div>
+        <div class="row">
+          <button type="button" class="ghost" disabled=${nodes.length >= DG.MESH_MAX}
+            onClick=${addNode}>Add node</button>
+          <button type="button" class="ghost" disabled=${nodes.length <= 2}
+            onClick=${removeNode}>Remove</button>
+        </div>
+        <${DG.Slider} label="Blend" value=${blend} min=${0} max=${1} step=${0.01}
+          format=${function (v) { return v < 0.02 ? 'pockets' : v > 0.98 ? 'one wash' : Math.round(v * 100) + '%'; }}
+          onChange=${function (v) { set({ meshBlend: v }); }} />
+        <p class="note">Drag a ring to move its colour. Blend is how far each
+           node reaches — low keeps them as pockets, high makes one wash.</p>
       </div>`;
   };
 
   DG.BackgroundControl = function BackgroundControl(props) {
     var params = props.params;
     var set = props.set;
-    var isGradientBg = params.background === 'gradient';
     return html`
       <${React.Fragment}>
       <div class="swatches">
@@ -416,11 +534,10 @@ var DG = window.DG || (window.DG = {});
           return html`<button key=${b.id} type="button" title=${b.label}
             class=${'swatch' + (params.background === b.id ? ' is-active' : '') +
               (b.value || b.gradient ? '' : ' swatch-none') + (b.gradient ? ' swatch-wide' : '')}
-            style=${b.gradient ? { background: DG.cssGradient('to bottom', params.stops) } : (b.value ? { background: b.value } : {})}
+            style=${b.gradient ? { background: DG.cssMesh(params.mesh, params.meshBlend) } : (b.value ? { background: b.value } : {})}
             onClick=${function () { set({ background: b.id }); }}></button>`;
         })}
       </div>
-      ${isGradientBg && html`<${DG.StopControls} stops=${params.stops} set=${set} />`}
     <//>`;
   };
 
@@ -438,23 +555,11 @@ var DG = window.DG || (window.DG = {});
               style=${{ background: s.value }}
               onClick=${function () { set({ colorMode: s.id }); }}></button>`;
           })}
-          <button type="button" title="Gradient"
+          <button type="button" title="Mesh gradient"
             class=${'swatch swatch-wide' + (isGradient ? ' is-active' : '')}
-            style=${{ background: DG.cssGradient('to right', params.stops) }}
+            style=${{ background: DG.cssMesh(params.mesh, params.meshBlend) }}
             onClick=${function () { set({ colorMode: 'gradient' }); }}></button>
         </div>
-        ${isGradient && html`
-          <div class="sub-block">
-            <${DG.Choice} label="Gradient mapped to" value=${params.gradientMap}
-              options=${DG.GRADIENT_MAPS}
-              onChange=${function (v) { set({ gradientMap: v }); }} />
-            <label class="check">
-              <input type="checkbox" checked=${params.gradientReverse}
-                onChange=${function (e) { set({ gradientReverse: e.target.checked }); }} />
-              <span>Reverse ramp</span>
-            </label>
-          </div>
-          <${DG.StopControls} stops=${params.stops} set=${set} />`}
       <//>`;
   };
 

@@ -34,8 +34,8 @@ var DG = window.DG || (window.DG = {});
    * two of the modes have no grid.
    */
   DG.SHARED_KEYS = [
-    'frame', 'size', 'background', 'colorMode', 'stops',
-    'gradientMap', 'gradientReverse', 'dotAlpha', 'highlightMode', 'paused'
+    'frame', 'size', 'background', 'colorMode', 'mesh', 'meshBlend',
+    'dotAlpha', 'highlightMode', 'paused'
   ];
 
   DG.SHARED_DEFAULTS = {
@@ -43,9 +43,8 @@ var DG = window.DG || (window.DG = {});
     size: 'L',
     background: 'white',
     colorMode: 'black',
-    stops: DG.DEFAULT_STOPS,
-    gradientMap: 'y',
-    gradientReverse: false,
+    mesh: DG.MESH_DEFAULT,
+    meshBlend: 0.65,
     dotAlpha: 1,
     highlightMode: 'red',
     paused: false

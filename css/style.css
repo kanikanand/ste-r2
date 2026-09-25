@@ -285,7 +285,38 @@ input[type='file'] { padding: 6px; width: 100%; }
 }
 .swatch-wide { width: 60px; border-radius: 13px; }
 .swatch-none { background: repeating-conic-gradient(#ffffff 0% 25%, #dcdce1 0% 50%) 50% / 10px 10px; }
-.ramp-preview { height: 10px; border-radius: 5px; border: 1px solid var(--line-2); }
+
+/* ---------- the mesh editor ---------- */
+.mesh-box {
+  position: relative;
+  width: 100%;
+  border-radius: 5px;
+  border: 1px solid var(--line-2);
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+.mesh-canvas { display: block; width: 100%; height: 100%; }
+/*
+ * A ring, not a filled dot: the colour under it is the thing being placed, so
+ * the handle has to be something you can see through. White with a dark rim
+ * so it holds up over a pale node as well as over a saturated one.
+ */
+.mesh-node {
+  position: absolute;
+  width: 17px; height: 17px;
+  margin: -8.5px 0 0 -8.5px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(17, 17, 20, 0.45), inset 0 0 0 1px rgba(17, 17, 20, 0.3);
+  pointer-events: none;
+}
+.mesh-node.is-picked {
+  width: 23px; height: 23px;
+  margin: -11.5px 0 0 -11.5px;
+  border-width: 2px;
+  box-shadow: 0 0 0 1px rgba(17, 17, 20, 0.55), inset 0 0 0 1px rgba(17, 17, 20, 0.35);
+}
 .swatch.is-active { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--text); }
 
 /* ---------- image ---------- */

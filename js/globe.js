@@ -44,9 +44,7 @@ var DG = window.DG || (window.DG = {});
 
     colorMode: 'slate',
     highlightMode: 'red',
-    gradientMap: 'y',
-    gradientReverse: false,
-    stops: [0, 0.5, 1],
+    mesh: null,
     background: 'black',
     size: 'L'
   };
@@ -157,7 +155,9 @@ var DG = window.DG || (window.DG = {});
     for (var h = 0; h < p.highlights.length; h++) picked[p.highlights[h]] = 1;
     var anyPicked = p.highlights.length > 0;
 
-    var ramp = DG.buildRamp(96, p.stops);
+    // Sampled at the dot's own place in the frame, which is the same place
+    // the ground's mesh is painted from, so the two agree exactly.
+    var tint = DG.meshHexSampler(p.mesh, p.meshBlend);
     var useGradient = p.colorMode === 'gradient';
     var out = [0, 0, 0];
     var dots = [];
@@ -199,9 +199,7 @@ var DG = window.DG || (window.DG = {});
         country: country, hot: !!hot, sea: !isLand
       };
       if (useGradient && !hot) {
-        var g = DG.gradientCoord(p.gradientMap, dot);
-        if (p.gradientReverse) g = 1 - g;
-        dot.color = ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(g * (ramp.length - 1))))];
+        dot.color = tint(dot.x / width, dot.y / height);
       }
       dots.push(dot);
     }

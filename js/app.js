@@ -100,7 +100,8 @@ var DG = window.DG || (window.DG = {});
       var ground = bg && bg.gradient ? null : colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[2]);
       return {
         background: ground,
-        bgGradient: bg && bg.gradient ? DG.gradientStops(params.stops) : null,
+        mesh: bg && bg.gradient ? DG.tidyMesh(params.mesh) : null,
+        meshBlend: params.meshBlend,
         solid: colourOf(params.colorMode, DG.SOLIDS, DG.SOLIDS[0]),
         highlight: colourOf(params.highlightMode, DG.SOLIDS, DG.SOLIDS[0]),
         useGradient: params.colorMode === 'gradient',
@@ -111,12 +112,13 @@ var DG = window.DG || (window.DG = {});
         labelFill: ground || '#ffffff',
         labelText: DG.readableOn(ground || '#ffffff')
       };
-    }, [params.background, params.colorMode, params.highlightMode, params.dotAlpha, params.stops]);
+    }, [params.background, params.colorMode, params.highlightMode, params.dotAlpha,
+        params.mesh, params.meshBlend]);
 
     // What the exports actually draw on. Video is left out of it: MP4 has no
     // alpha, so it always carries a ground.
     var exportStyle = useMemo(function () {
-      return clearBg ? Object.assign({}, style, { background: null, bgGradient: null }) : style;
+      return clearBg ? Object.assign({}, style, { background: null, mesh: null }) : style;
     }, [style, clearBg]);
 
     var stem = mode === 'patterns' ? params.pattern + '-motion' : mode;
@@ -491,6 +493,19 @@ var DG = window.DG || (window.DG = {});
               <h2>Dot colour</h2>
               <${DG.DotColourControl} params=${params} set=${set} />
             </section>
+
+            ${/*
+               * One mesh, so one editor, rather than a copy under whichever
+               * control happens to be using it. It appears as soon as either
+               * the ground or the dots are set to the mesh, and both read the
+               * same arrangement.
+               */
+              (params.background === 'gradient' || params.colorMode === 'gradient') && html`
+              <section>
+                <h2>Mesh gradient</h2>
+                <${DG.MeshControls} nodes=${params.mesh} blend=${params.meshBlend}
+                  frame=${params.frame} set=${set} />
+              </section>`}
 
             ${modeControls()}
 

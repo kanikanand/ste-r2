@@ -31,10 +31,8 @@ var DG = window.DG || (window.DG = {});
     angle: 0,             // turns the pattern under the lattice
     seed: 1,
     colorMode: 'slate',   // a solid by default: colour is a treatment, not the form
-    gradientMap: 'y',
-    stops: [0, 0.5, 1],   // where the three ramp colours sit, 0..1
+    mesh: null,           // the gradient's nodes; null takes the shared arrangement
     size: 'L',            // download size: S, M or L
-    gradientReverse: false,
     background: 'paper'
   };
 
@@ -64,7 +62,9 @@ var DG = window.DG || (window.DG = {});
     var sin = Math.sin(a);
     var phase = t - Math.floor(t);
 
-    var ramp = DG.buildRamp(96, p.stops);
+    // Sampled at the dot's own place in the frame, which is the same place
+    // the ground's mesh is painted from, so the two agree exactly.
+    var tint = DG.meshHexSampler(p.mesh, p.meshBlend);
     var useGradient = p.colorMode === 'gradient';
     var dots = [];
 
@@ -99,9 +99,7 @@ var DG = window.DG || (window.DG = {});
 
         var dot = { x: x, y: y, r: r, v: v, nx: dx, ny: dy };
         if (useGradient) {
-          var g = DG.gradientCoord(p.gradientMap, dot);
-          if (p.gradientReverse) g = 1 - g;
-          dot.color = ramp[Math.min(ramp.length - 1, Math.max(0, Math.round(g * (ramp.length - 1))))];
+          dot.color = tint(dot.x / width, dot.y / height);
         }
         dots.push(dot);
       }

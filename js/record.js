@@ -39,7 +39,8 @@ var DG = window.DG || (window.DG = {});
       solid: style.solid,
       useGradient: style.useGradient,
       alpha: style.alpha,
-      bgGradient: style.bgGradient,
+      mesh: style.mesh,
+      meshBlend: style.meshBlend,
       highlight: style.highlight,
       labelFill: style.labelFill,
       labelText: style.labelText,
@@ -60,7 +61,8 @@ var DG = window.DG || (window.DG = {});
       solid: style.solid,
       useGradient: style.useGradient,
       alpha: style.alpha,
-      bgGradient: style.bgGradient,
+      mesh: style.mesh,
+      meshBlend: style.meshBlend,
       highlight: style.highlight,
       labelFill: style.labelFill,
       labelText: style.labelText,
@@ -101,7 +103,8 @@ var DG = window.DG || (window.DG = {});
         solid: style.solid,
         useGradient: style.useGradient,
         alpha: style.alpha,
-        bgGradient: style.bgGradient,
+        mesh: style.mesh,
+      meshBlend: style.meshBlend,
         highlight: style.highlight,
         labelFill: style.labelFill,
         labelText: style.labelText,
@@ -128,7 +131,7 @@ var DG = window.DG || (window.DG = {});
 
       var writer;
       try {
-        writer = new DG.GifWriter(width, height, 1000 / fps, DG.gifPalette(sample, !style.background && !style.bgGradient));
+        writer = new DG.GifWriter(width, height, 1000 / fps, DG.gifPalette(sample, !style.background && !style.mesh));
       } catch (e) { return reject(e); }
       sample.length = 0;
 
@@ -212,7 +215,8 @@ var DG = window.DG || (window.DG = {});
           solid: style.solid,
           useGradient: style.useGradient,
           alpha: style.alpha,
-          bgGradient: style.bgGradient,
+          mesh: style.mesh,
+      meshBlend: style.meshBlend,
           highlight: style.highlight,
           labelFill: style.labelFill,
           labelText: style.labelText,

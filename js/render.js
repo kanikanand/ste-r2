@@ -48,16 +48,17 @@ var DG = window.DG || (window.DG = {});
   DG.renderDots = function (ctx, dots, opts) {
     ctx.save();
     ctx.clearRect(0, 0, opts.width, opts.height);
-    if (opts.bgGradient) {
-      // Top to bottom, matching the default mapping of the dot ramp, so a
-      // gradient background and gradient dots read as one field rather than
-      // as two ramps crossing.
-      var g = ctx.createLinearGradient(0, 0, 0, opts.height);
-      for (var st = 0; st < opts.bgGradient.length; st++) {
-        g.addColorStop(opts.bgGradient[st][1], opts.bgGradient[st][0]);
-      }
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, opts.width, opts.height);
+    if (opts.mesh) {
+      /*
+       * The same mesh the dots are sampling, so a mesh ground and mesh dots
+       * are one field rather than two that happen to share a palette. Drawn
+       * from the small raster and stretched with smoothing on, which is what
+       * makes it cheap enough to do on every frame of a minute of footage.
+       */
+      var tile = DG.meshRaster(opts.mesh, opts.meshBlend, opts.width / opts.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(tile, 0, 0, tile.width, tile.height, 0, 0, opts.width, opts.height);
     } else if (opts.background) {
       ctx.fillStyle = opts.background;
       ctx.fillRect(0, 0, opts.width, opts.height);
@@ -202,16 +203,21 @@ var DG = window.DG || (window.DG = {});
             m.size + '" font-weight="500" dominant-baseline="middle">' + esc(L.text) + '</text></g>';
       }).join('');
     }
-    // A real gradient definition, not a flattened fill: the stops stay editable
-    // wherever the file is opened.
+    /*
+     * The ground, when it is a mesh, goes in as the raster it is. SVG has no
+     * mesh primitive — the one the spec describes was never implemented by any
+     * shipping renderer — so the alternatives were a stack of blurred ellipses
+     * that only approximates what is on screen, or a thousand small rectangles
+     * that band. The dots stay what they have always been, one editable circle
+     * each with its own flat fill, which is the part of the file anyone is
+     * going to reach for.
+     */
     var defs = '';
     var ground = '';
-    if (opts.bgGradient) {
-      defs = '<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">' +
-        opts.bgGradient.map(function (st) {
-          return '<stop offset="' + (st[1] * 100).toFixed(1) + '%" stop-color="' + st[0] + '"/>';
-        }).join('') + '</linearGradient></defs>';
-      ground = '<rect width="' + opts.width + '" height="' + opts.height + '" fill="url(#bg)"/>';
+    if (opts.mesh) {
+      var tile = DG.meshRaster(opts.mesh, opts.meshBlend, opts.width / opts.height);
+      ground = '<image x="0" y="0" width="' + opts.width + '" height="' + opts.height +
+        '" preserveAspectRatio="none" href="' + tile.toDataURL('image/png') + '"/>';
     } else if (opts.background) {
       ground = '<rect width="' + opts.width + '" height="' + opts.height + '" fill="' + opts.background + '"/>';
     }
