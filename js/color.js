@@ -1,32 +1,38 @@
 /* ============================================================================
- * color.js — palette, the three-stop brand ramp, and gradient mapping.
+ * color.js — the suite's palette, its four-stop ramp, and gradient mapping.
+ *
+ * One palette for all three modes, and the same one for dots and for grounds:
+ * black, white, the three pastels and the red. The gradient is those last four
+ * in order, and every stop's position is a control, so a two-colour ramp is a
+ * matter of pushing two of them together rather than of a separate mode.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
 (function (DG) {
   'use strict';
 
-  var GRADIENT_STOPS = (DG.GRADIENT_STOPS = ['#de2027', '#687099', '#c5eef9']);
+  var GRADIENT_STOPS = (DG.GRADIENT_STOPS = ['#ebbfff', '#ffd091', '#babeff', '#ff0000']);
+  DG.GRADIENT_NAMES = ['Lilac', 'Apricot', 'Periwinkle', 'Red'];
 
   DG.SOLIDS = [
-    { id: 'red', label: 'Red', value: '#de2027' },
-    { id: 'slate', label: 'Slate', value: '#687099' },
-    { id: 'ice', label: 'Ice', value: '#c5eef9' },
+    { id: 'black', label: 'Black', value: '#000000' },
     { id: 'white', label: 'White', value: '#ffffff' },
-    { id: 'black', label: 'Black', value: '#0a0a0a' }
+    { id: 'lilac', label: 'Lilac', value: '#ebbfff' },
+    { id: 'apricot', label: 'Apricot', value: '#ffd091' },
+    { id: 'periwinkle', label: 'Periwinkle', value: '#babeff' },
+    { id: 'red', label: 'Red', value: '#ff0000' }
   ];
 
-  /* Backgrounds, including the brand solids. */
+  /* The same list for the ground, with nothing at all and the ramp added. */
   DG.BACKGROUNDS = [
     { id: 'transparent', label: 'Transparent', value: null },
     { id: 'black', label: 'Black', value: '#000000' },
-    { id: 'ink', label: 'Ink', value: '#12141c' },
-    { id: 'red', label: 'Red', value: '#de2027' },
-    { id: 'slate', label: 'Slate', value: '#687099' },
-    { id: 'ice', label: 'Ice', value: '#c5eef9' },
-    { id: 'paper', label: 'Paper', value: '#f5f2ec' },
     { id: 'white', label: 'White', value: '#ffffff' },
-    // Painted from the same three stops as the dots, so the two stay in step.
+    { id: 'lilac', label: 'Lilac', value: '#ebbfff' },
+    { id: 'apricot', label: 'Apricot', value: '#ffd091' },
+    { id: 'periwinkle', label: 'Periwinkle', value: '#babeff' },
+    { id: 'red', label: 'Red', value: '#ff0000' },
+    // Painted from the same four stops as the dots, so the two stay in step.
     { id: 'gradient', label: 'Gradient', value: null, gradient: true }
   ];
 
@@ -58,7 +64,7 @@ var DG = window.DG || (window.DG = {});
   var STOP_RGB = GRADIENT_STOPS.map(hexToRgb);
 
   /* Where each colour sits along the ramp, 0..1. */
-  DG.DEFAULT_STOPS = [0, 0.5, 1];
+  DG.DEFAULT_STOPS = [0, 1 / 3, 2 / 3, 1];
 
   /*
    * Kept sorted and never coincident. Two stops at the same position make the

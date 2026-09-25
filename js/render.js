@@ -3,7 +3,8 @@
  *
  * Nothing here knows what it is drawing. It is handed a list of dots in screen
  * pixels and a few choices about colour, and it puts them on a canvas or into
- * an SVG. The globe that produced them is globe.js's business.
+ * an SVG. Which of the three modes produced them is that mode's business, and
+ * it is the reason none of them had to change to share this file.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
@@ -63,7 +64,8 @@ var DG = window.DG || (window.DG = {});
     }
     // After the background, never before: set on the whole context it would
     // fade the ground as well, and a half-opaque black on a white page is grey.
-    if (opts.alpha !== undefined) ctx.globalAlpha = opts.alpha;
+    var groupAlpha = opts.alpha === undefined ? 1 : opts.alpha;
+    ctx.globalAlpha = groupAlpha;
     if (!opts.useGradient) ctx.fillStyle = opts.solid;
     for (var i = 0; i < dots.length; i++) {
       var d = dots[i];
@@ -74,10 +76,16 @@ var DG = window.DG || (window.DG = {});
       if (d.hot) ctx.fillStyle = opts.highlight;
       else if (opts.useGradient) ctx.fillStyle = d.color;
       else ctx.fillStyle = opts.solid;
+      // A dot may carry its own opacity on top of the group's. Only the sphere
+      // does — its depth cue is a fade rather than a size — and multiplying
+      // rather than replacing keeps the Opacity control meaning the same thing
+      // in all three modes.
+      ctx.globalAlpha = d.a === undefined ? groupAlpha : groupAlpha * d.a;
       ctx.beginPath();
       ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.globalAlpha = groupAlpha;
     if (opts.labels) drawLabels(ctx, opts);
     ctx.restore();
   };
@@ -158,7 +166,10 @@ var DG = window.DG || (window.DG = {});
     var body = dots.map(function (d) {
       var fill = d.hot ? ' fill="' + opts.highlight + '"'
         : (opts.useGradient ? ' fill="' + d.color + '"' : '');
-      return '<circle cx="' + d.x.toFixed(2) + '" cy="' + d.y.toFixed(2) + '" r="' + d.r.toFixed(2) + '"' + fill + '/>';
+      // Per-dot opacity as an attribute, so it multiplies with the group's
+      // fill-opacity exactly as it does on the canvas and the two agree.
+      var fade = d.a === undefined || d.a >= 0.999 ? '' : ' fill-opacity="' + d.a.toFixed(3) + '"';
+      return '<circle cx="' + d.x.toFixed(2) + '" cy="' + d.y.toFixed(2) + '" r="' + d.r.toFixed(2) + '"' + fill + fade + '/>';
     }).join('');
 
     /*

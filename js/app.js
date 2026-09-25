@@ -1,5 +1,12 @@
 /* ============================================================================
- * app.js — state, layout and mount.
+ * app.js — state, layout and mount for the three modes.
+ *
+ * The state is in two halves. The shared half is what the tool owns — the
+ * frame, the download size, the palette, the ground — and it follows you from
+ * mode to mode. The other half is a set of settings per mode, so leaving
+ * Globe and coming back finds the globe where you left it rather than reset.
+ * modes.js puts the two together for whichever mode is showing, and the
+ * renderer and the exporters never learn which one that was.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
@@ -23,10 +30,17 @@ var DG = window.DG || (window.DG = {});
     { id: 60, label: '1 min' }
   ];
 
+  function initialState() {
+    var byMode = {};
+    DG.MODES.forEach(function (m) { byMode[m.id] = {}; });
+    return { mode: 'patterns', shared: Object.assign({}, DG.SHARED_DEFAULTS), byMode: byMode };
+  }
+
   function App() {
-    var paramsState = useState(Object.assign({}, DG.DEFAULTS, { paused: false }));
-    var params = paramsState[0];
-    var setParams = paramsState[1];
+    var stateBox = useState(initialState);
+    var state = stateBox[0];
+    var setState = stateBox[1];
+
     // One switch for every export, rather than each format having its own
     // fixed habit: exports carry the background you are looking at unless this
     // is pressed. It is separate from the Background swatch so a still or a
@@ -39,16 +53,51 @@ var DG = window.DG || (window.DG = {});
     var setJob = jobState[1];
     var clock = useRef(0);
 
+    /*
+     * One setter for every control. A patch is split by key rather than by
+     * who sent it, so a control never has to know whether the thing it moves
+     * belongs to the tool or to the mode — Frame lands in the shared half and
+     * Grid density in this mode's half, from the same call.
+     */
     var set = useCallback(function (patch) {
-      setParams(function (prev) { return Object.assign({}, prev, patch); });
+      setState(function (prev) {
+        var shared = null;
+        var mine = null;
+        Object.keys(patch).forEach(function (k) {
+          if (DG.isShared(k)) (shared = shared || {})[k] = patch[k];
+          else (mine = mine || {})[k] = patch[k];
+        });
+        var next = { mode: prev.mode, shared: prev.shared, byMode: prev.byMode };
+        if (shared) next.shared = Object.assign({}, prev.shared, shared);
+        if (mine) {
+          next.byMode = Object.assign({}, prev.byMode);
+          next.byMode[prev.mode] = Object.assign({}, prev.byMode[prev.mode], mine);
+        }
+        return next;
+      });
     }, []);
+
+    var goMode = useCallback(function (id) {
+      setState(function (prev) { return Object.assign({}, prev, { mode: id }); });
+    }, []);
+
+    var resetMode = useCallback(function () {
+      setState(function (prev) {
+        var byMode = Object.assign({}, prev.byMode);
+        byMode[prev.mode] = {};
+        return Object.assign({}, prev, { byMode: byMode });
+      });
+    }, []);
+
+    var mode = state.mode;
+    var params = DG.modeParams(state);
 
     var style = useMemo(function () {
       var bg = null;
       for (var i = 0; i < DG.BACKGROUNDS.length; i++) {
         if (DG.BACKGROUNDS[i].id === params.background) bg = DG.BACKGROUNDS[i];
       }
-      var ground = bg && bg.gradient ? null : colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[1]);
+      var ground = bg && bg.gradient ? null : colourOf(params.background, DG.BACKGROUNDS, DG.BACKGROUNDS[2]);
       return {
         background: ground,
         bgGradient: bg && bg.gradient ? DG.gradientStops(params.stops) : null,
@@ -57,10 +106,10 @@ var DG = window.DG || (window.DG = {});
         useGradient: params.colorMode === 'gradient',
         alpha: params.dotAlpha,
         // The pill reads against the ground it sits on, so it borrows it —
-        // and falls back to ink when the ground is a gradient or nothing at
+        // and falls back to white when the ground is a gradient or nothing at
         // all, where there is no single colour to borrow.
-        labelFill: ground || '#12141c',
-        labelText: DG.readableOn(ground || '#12141c')
+        labelFill: ground || '#ffffff',
+        labelText: DG.readableOn(ground || '#ffffff')
       };
     }, [params.background, params.colorMode, params.highlightMode, params.dotAlpha, params.stops]);
 
@@ -70,7 +119,7 @@ var DG = window.DG || (window.DG = {});
       return clearBg ? Object.assign({}, style, { background: null, bgGradient: null }) : style;
     }, [style, clearBg]);
 
-    var stem = 'globe';
+    var stem = mode === 'patterns' ? params.pattern + '-motion' : mode;
     var video = DG.videoType();
 
     function runFootage(kind, seconds) {
@@ -94,16 +143,271 @@ var DG = window.DG || (window.DG = {});
       }
     }
 
+    /* ---- the left panel, which is the only part that is a mode's own ----- */
+
+    function presets() {
+      if (mode === 'patterns') {
+        return html`
+          <${React.Fragment}>
+            <h2>Patterns</h2>
+            <div class="thumbs">
+              ${DG.PATTERNS.map(function (p) {
+                return html`<${DG.PresetThumb} key=${p.id} params=${params} style=${style}
+                  preset=${{ name: p.name, blurb: p.blurb, params: { pattern: p.id } }}
+                  active=${p.id === params.pattern}
+                  onSelect=${function () { set({ pattern: p.id }); }} />`;
+              })}
+            </div>
+          <//>`;
+      }
+      if (mode === 'globe') {
+        return html`
+          <${React.Fragment}>
+            <h2>Countries</h2>
+            <${DG.CountryPicker} picked=${params.highlights} set=${set} />
+          <//>`;
+      }
+      return html`
+        <${React.Fragment}>
+          <h2>Distortion</h2>
+          <div class="thumbs">
+            ${DG.SPHERE_PATTERNS.map(function (p) {
+              return html`<${DG.PresetThumb} key=${p.id} params=${params} style=${style}
+                preset=${{ name: p.label, params: { distortionMode: p.id } }}
+                active=${p.id === params.distortionMode}
+                onSelect=${function () { set({ distortionMode: p.id }); }} />`;
+            })}
+          </div>
+        <//>`;
+    }
+
+    function caption() {
+      if (mode === 'patterns') {
+        var pattern = DG.getPattern(params.pattern);
+        return html`<${React.Fragment}><h2>${pattern.name}</h2><p>${pattern.blurb}</p><//>`;
+      }
+      if (mode === 'globe') {
+        return html`
+          <${React.Fragment}>
+            <h2>${params.highlights.length
+              ? params.highlights.map(function (i) { return DG.countryNames()[i]; }).join(' · ')
+              : 'The world'}</h2>
+            <p>Drag the globe to turn it. It completes one revolution over a cycle, so any
+               length of footage closes where it opened.</p>
+          <//>`;
+      }
+      return html`
+        <${React.Fragment}>
+          <h2>${(function () {
+            for (var i = 0; i < DG.SPHERE_PATTERNS.length; i++) {
+              if (DG.SPHERE_PATTERNS[i].id === params.distortionMode) return DG.SPHERE_PATTERNS[i].label;
+            }
+            return 'Sphere';
+          })()}</h2>
+          <p>Drag to turn the sphere, scroll to zoom. Both loop terms hold whole cycles, so
+             footage closes where it opened.</p>
+        <//>`;
+    }
+
+    /* ---- the mode's own half of the right panel -------------------------- */
+
+    function modeControls() {
+      if (mode === 'patterns') {
+        return html`
+          <${React.Fragment}>
+            <section>
+              <h2>Dots</h2>
+              <${DG.Slider} label="Grid density" value=${params.grid} min=${8} max=${120} step=${1}
+                format=${function (v) { return v + ' across'; }}
+                onChange=${function (v) { set({ grid: v }); }} />
+              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.1} max=${1.6}
+                onChange=${function (v) { set({ dotScale: v }); }} />
+              <${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
+                onChange=${function (v) { set({ sizeVariation: v }); }} />
+              <${DG.Slider} label="Opacity" value=${params.dotAlpha} min=${0.05} max=${1}
+                format=${function (v) { return Math.round(v * 100) + '%'; }}
+                onChange=${function (v) { set({ dotAlpha: v }); }} />
+              <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
+                onChange=${function (v) { set({ contrast: v }); }} />
+              <div class="row">
+                <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
+                  onChange=${function (v) { set({ scatter: v }); }} />
+                <button type="button" class="ghost"
+                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+              </div>
+            </section>
+
+            <section>
+              <h2>Motion</h2>
+              <${DG.Slider} label="Speed" value=${params.speed} min=${0.05} max=${3}
+                format=${function (v) { return v.toFixed(2) + ' cyc/s'; }}
+                onChange=${function (v) { set({ speed: v }); }} />
+              <${DG.Slider} label="Pattern scale" value=${params.scale} min=${0.2} max=${4}
+                onChange=${function (v) { set({ scale: v }); }} />
+            </section>
+
+            <section>
+              <h2>Angle</h2>
+              <${DG.AngleDial} value=${params.angle} onChange=${function (v) { set({ angle: v }); }} />
+            </section>
+          <//>`;
+      }
+
+      if (mode === 'globe') {
+        return html`
+          <${React.Fragment}>
+            <section>
+              <h2>Highlight</h2>
+              <div class="swatches">
+                ${DG.SOLIDS.map(function (c) {
+                  return html`<button key=${c.id} type="button" title=${c.label}
+                    class=${'swatch' + (params.highlightMode === c.id ? ' is-active' : '')}
+                    style=${{ background: c.value }}
+                    onClick=${function () { set({ highlightMode: c.id }); }}></button>`;
+                })}
+              </div>
+              <${DG.Slider} label="Highlight size" value=${params.hotSize} min=${0.6} max=${2.4}
+                format=${function (v) { return v.toFixed(2) + '×'; }}
+                onChange=${function (v) { set({ hotSize: v }); }} />
+              <${DG.Slider} label="Highlight density" value=${params.hotDensity} min=${1} max=${3}
+                format=${function (v) { return v < 1.01 ? 'same' : v.toFixed(2) + '×'; }}
+                onChange=${function (v) { set({ hotDensity: v }); }} />
+            </section>
+
+            <section>
+              <h2>Dots</h2>
+              <${DG.Slider} label="Grid density" value=${params.grid} min=${20} max=${160} step=${1}
+                format=${function (v) { return v + ' rings'; }}
+                onChange=${function (v) { set({ grid: v }); }} />
+              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.1} max=${1.6}
+                onChange=${function (v) { set({ dotScale: v }); }} />
+              <${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
+                onChange=${function (v) { set({ sizeVariation: v }); }} />
+              <${DG.Slider} label="Opacity" value=${params.dotAlpha} min=${0.05} max=${1}
+                format=${function (v) { return Math.round(v * 100) + '%'; }}
+                onChange=${function (v) { set({ dotAlpha: v }); }} />
+              <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
+                onChange=${function (v) { set({ contrast: v }); }} />
+              <div class="row">
+                <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
+                  onChange=${function (v) { set({ scatter: v }); }} />
+                <button type="button" class="ghost"
+                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+              </div>
+            </section>
+
+            <section>
+              <h2>Globe</h2>
+              <${DG.Slider} label="Size" value=${params.globeSize} min=${0.4} max=${1.15}
+                format=${function (v) { return Math.round(v * 100) + '%'; }}
+                onChange=${function (v) { set({ globeSize: v }); }} />
+              <${DG.Slider} label="Spin" value=${Math.round(1 / params.speed)} min=${10} max=${100} step=${1}
+                format=${function (v) { return Math.round(v) + ' s a turn'; }}
+                onChange=${function (v) { set({ speed: 1 / v }); }} />
+              <${DG.Slider} label="Axis tilt" value=${params.axisTilt} min=${-90} max=${90} step=${0.1}
+                format=${function (v) {
+                  var d = (v > 0 ? '+' : '') + v.toFixed(1) + '°';
+                  return Math.abs(v) < 0.05 ? 'upright'
+                    : Math.abs(v - 23.4) < 0.05 ? d + ' — the Earth’s' : d;
+                }}
+                onChange=${function (v) { set({ axisTilt: v }); }} />
+              <${DG.Slider} label="Sea dots" value=${params.seaDots} min=${0} max=${0.6}
+                format=${function (v) { return v ? Math.round(v * 100) + '%' : 'none'; }}
+                onChange=${function (v) { set({ seaDots: v }); }} />
+              <p class="note">Axis tilt leans the line it turns about across the frame; the
+                 drag's own lean tips that line towards you or away.</p>
+              <label class="check">
+                <input type="checkbox" checked=${params.labels}
+                  onChange=${function (e) { set({ labels: e.target.checked }); }} />
+                <span>Name the countries picked</span>
+              </label>
+            </section>
+          <//>`;
+      }
+
+      return html`
+        <${React.Fragment}>
+          <section>
+            <h2>Particles</h2>
+            <${DG.Slider} label="Particle count" value=${params.count} min=${500} max=${3500} step=${250}
+              format=${function (v) { return Math.round(v).toLocaleString(); }}
+              onChange=${function (v) { set({ count: v }); }} />
+            <${DG.Slider} label="Particle size" value=${params.particleSize} min=${1} max=${5} step=${0.5}
+              format=${function (v) { return v.toFixed(1) + 'px'; }}
+              onChange=${function (v) { set({ particleSize: v }); }} />
+            <${DG.Slider} label="Opacity" value=${params.dotAlpha} min=${0.05} max=${1}
+              format=${function (v) { return Math.round(v * 100) + '%'; }}
+              onChange=${function (v) { set({ dotAlpha: v }); }} />
+            <${DG.Slider} label="Farthest particle fade" value=${params.farFade} min=${0} max=${1} step=${0.01}
+              format=${function (v) { return Math.round(v * 100) + '%'; }}
+              onChange=${function (v) { set({ farFade: v }); }} />
+            <p class="note">How much opacity is taken off the particles farthest from the
+               camera. At 100% the farthest are invisible and the nearest fully opaque.</p>
+          </section>
+
+          <section>
+            <h2>Distortion</h2>
+            <${DG.Slider} label="Distortion amount" value=${params.wave} min=${0} max=${0.65} step=${0.01}
+              format=${function (v) { return v.toFixed(2); }}
+              onChange=${function (v) { set({ wave: v }); }} />
+            <${DG.Slider} label="Pattern frequency" value=${params.frequency} min=${0.5} max=${10} step=${0.1}
+              format=${function (v) { return v.toFixed(1); }}
+              onChange=${function (v) { set({ frequency: v }); }} />
+            <${DG.Slider} label="Distortion motion" value=${params.distortionSpeed} min=${0} max=${4} step=${0.1}
+              format=${function (v) { return v.toFixed(1) + '×'; }}
+              onChange=${function (v) { set({ distortionSpeed: v }); }} />
+            <${DG.Slider} label="Detail mix" value=${params.detail} min=${0} max=${1} step=${0.05}
+              format=${function (v) { return Math.round(v * 100) + '%'; }}
+              onChange=${function (v) { set({ detail: v }); }} />
+            <${DG.Slider} label="Surface twist" value=${params.twist} min=${-1} max=${1} step=${0.05}
+              format=${function (v) { return (v >= 0 ? '+' : '') + v.toFixed(2); }}
+              onChange=${function (v) { set({ twist: v }); }} />
+            <${DG.Slider} label="Vertical stretch" value=${params.stretch} min=${-1} max=${1} step=${0.05}
+              format=${function (v) { return (v >= 0 ? '+' : '') + v.toFixed(2); }}
+              onChange=${function (v) { set({ stretch: v }); }} />
+          </section>
+
+          <section>
+            <h2>Camera</h2>
+            <${DG.Slider} label="Orbit speed" value=${params.orbitSpeed} min=${0} max=${3} step=${0.1}
+              format=${function (v) { return v.toFixed(1) + '×'; }}
+              onChange=${function (v) { set({ orbitSpeed: v }); }} />
+            <${DG.Slider} label="Loop length" value=${Math.round(1 / params.speed)} min=${10} max=${100} step=${1}
+              format=${function (v) { return Math.round(v) + ' s a cycle'; }}
+              onChange=${function (v) { set({ speed: 1 / v }); }} />
+            <${DG.Slider} label="Zoom" value=${params.cameraZ} min=${200} max=${1000} step=${1}
+              format=${function (v) { return Math.round(v) + ''; }}
+              onChange=${function (v) { set({ cameraZ: v }); }} />
+            <p class="note">Drag the sphere to turn it and scroll over it to zoom. Orbit
+               speed and distortion motion are rounded to whole turns of the loop, so a
+               clip always closes where it opened.</p>
+          </section>
+        <//>`;
+    }
+
+    var current = null;
+    for (var mi = 0; mi < DG.MODES.length; mi++) if (DG.MODES[mi].id === mode) current = DG.MODES[mi];
+
     return html`
       <div class="app">
         <header class="topbar">
           <div class="brand">
-            <span class="brand-mark"></span>
+            <img class="brand-mark" src="logo.png" alt="" width="28" height="28" />
             <div>
-              <h1>Ingenuity Unleashed</h1>
-              <p>A dotted globe of the real world</p>
+              <h1>STE Visual Suite</h1>
+              <p>${current.blurb}</p>
             </div>
           </div>
+
+          <div class="modes" role="tablist" aria-label="Mode">
+            ${DG.MODES.map(function (m) {
+              return html`<button key=${m.id} type="button" role="tab"
+                aria-selected=${m.id === mode}
+                class=${'mode' + (m.id === mode ? ' is-active' : '')}
+                onClick=${function () { goMode(m.id); }}>${m.label}</button>`;
+            })}
+          </div>
+
           <div class="topbar-actions">
             ${job && html`<span class="readout job">${job.what} — ${Math.round(job.progress * 100)}%</span>`}
             <button type="button" onClick=${function () { set({ paused: !params.paused }); }}>
@@ -158,21 +462,12 @@ var DG = window.DG || (window.DG = {});
         </header>
 
         <div class="layout">
-          <aside class="panel panel-presets">
-            <h2>Countries</h2>
-            <${DG.CountryPicker} picked=${params.highlights} set=${set} />
-          </aside>
+          <aside class="panel panel-presets">${presets()}</aside>
 
           <main class="canvas-area">
             <${DG.Stage} params=${params} style=${style} set=${set}
               onFrame=${function (t) { clock.current = t; }} />
-            <div class="caption">
-              <h2>${params.highlights.length
-                ? params.highlights.map(function (i) { return DG.countryNames()[i]; }).join(' · ')
-                : 'The world'}</h2>
-              <p>Drag the globe to turn it. It completes one revolution over a cycle, so any
-                 length of footage closes where it opened.</p>
-            </div>
+            <div class="caption">${caption()}</div>
           </main>
 
           <aside class="panel panel-controls">
@@ -195,79 +490,12 @@ var DG = window.DG || (window.DG = {});
             <section>
               <h2>Dot colour</h2>
               <${DG.DotColourControl} params=${params} set=${set} />
-              <span class="ctrl-label">Highlight</span>
-              <div class="swatches">
-                ${DG.SOLIDS.map(function (c) {
-                  return html`<button key=${c.id} type="button" title=${c.label}
-                    class=${'swatch' + (params.highlightMode === c.id ? ' is-active' : '')}
-                    style=${{ background: c.value }}
-                    onClick=${function () { set({ highlightMode: c.id }); }}></button>`;
-                })}
-              </div>
-              <${DG.Slider} label="Highlight size" value=${params.hotSize} min=${0.6} max=${2.4}
-                format=${function (v) { return v.toFixed(2) + '×'; }}
-                onChange=${function (v) { set({ hotSize: v }); }} />
-              <${DG.Slider} label="Highlight density" value=${params.hotDensity} min=${1} max=${3}
-                format=${function (v) { return v < 1.01 ? 'same' : v.toFixed(2) + '×'; }}
-                onChange=${function (v) { set({ hotDensity: v }); }} />
             </section>
 
-            <section>
-              <h2>Dots</h2>
-              <${DG.Slider} label="Grid density" value=${params.grid} min=${20} max=${160} step=${1}
-                format=${function (v) { return v + ' rings'; }}
-                onChange=${function (v) { set({ grid: v }); }} />
-              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.1} max=${1.6}
-                onChange=${function (v) { set({ dotScale: v }); }} />
-              <${DG.Slider} label="Size variation" value=${params.sizeVariation} min=${0} max=${1}
-                onChange=${function (v) { set({ sizeVariation: v }); }} />
-              <${DG.Slider} label="Opacity" value=${params.dotAlpha} min=${0.05} max=${1}
-                format=${function (v) { return Math.round(v * 100) + '%'; }}
-                onChange=${function (v) { set({ dotAlpha: v }); }} />
-              <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
-                onChange=${function (v) { set({ contrast: v }); }} />
-              <div class="row">
-                <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
-                  onChange=${function (v) { set({ scatter: v }); }} />
-                <button type="button" class="ghost"
-                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
-              </div>
-            </section>
+            ${modeControls()}
 
-            <section>
-              <h2>Globe</h2>
-              <${DG.Slider} label="Size" value=${params.globeSize} min=${0.4} max=${1.15}
-                format=${function (v) { return Math.round(v * 100) + '%'; }}
-                onChange=${function (v) { set({ globeSize: v }); }} />
-              <${DG.Slider} label="Spin" value=${Math.round(1 / params.speed)} min=${10} max=${100} step=${1}
-                format=${function (v) { return Math.round(v) + ' s a turn'; }}
-                onChange=${function (v) { set({ speed: 1 / v }); }} />
-              <${DG.Slider} label="Axis tilt" value=${params.axisTilt} min=${-90} max=${90} step=${0.1}
-                format=${function (v) {
-                  var d = (v > 0 ? '+' : '') + v.toFixed(1) + '\u00b0';
-                  return Math.abs(v) < 0.05 ? 'upright'
-                    : Math.abs(v - 23.4) < 0.05 ? d + ' \u2014 the Earth\u2019s' : d;
-                }}
-                onChange=${function (v) { set({ axisTilt: v }); }} />
-              <${DG.Slider} label="Sea dots" value=${params.seaDots} min=${0} max=${0.6}
-                format=${function (v) { return v ? Math.round(v * 100) + '%' : 'none'; }}
-                onChange=${function (v) { set({ seaDots: v }); }} />
-              <p class="note">
-                Drag the globe to aim it. Axis tilt leans the line it turns about across
-                the frame; the drag's own lean tips that line towards you or away.
-                Footage always holds a whole number of turns so it loops, so a clip
-                shorter than one turn plays faster than this.
-              </p>
-              <label class="check">
-                <input type="checkbox" checked=${params.labels}
-                  onChange=${function (e) { set({ labels: e.target.checked }); }} />
-                <span>Name the countries picked</span>
-              </label>
-            </section>
-
-            <button type="button" class="ghost wide"
-              onClick=${function () { setParams(Object.assign({}, DG.DEFAULTS, { paused: params.paused, highlights: params.highlights })); }}>
-              Reset controls
+            <button type="button" class="ghost wide" onClick=${resetMode}>
+              Reset ${current.label} controls
             </button>
           </aside>
         </div>

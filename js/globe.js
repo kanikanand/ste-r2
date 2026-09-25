@@ -335,4 +335,7 @@ var DG = window.DG || (window.DG = {});
     labels.sort(function (a, b) { return a.z - b.z; });
     return labels;
   };
+
+  /* Handed over by name; see modes.js for why. */
+  DG.register('globe');
 })(DG);

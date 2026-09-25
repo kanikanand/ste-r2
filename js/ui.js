@@ -24,25 +24,25 @@ var DG = window.DG || (window.DG = {});
     var setBox = boxState[1];
 
     /*
-     * Dragging turns the globe by moving Spin and Tilt, rather than by holding
-     * a rotation of its own somewhere. There is then one place the angle lives:
-     * what you drag to is what an export draws, and a still pulled after a drag
-     * is the still you were looking at.
+     * Dragging aims whichever mode wants aiming, and each is dragged the way
+     * it was written to be: the globe moves its heading and lean, the sphere
+     * its own two rotations at the rate the prototype used, and the flat
+     * patterns have no camera to aim so the pointer does nothing. The angle
+     * lives in the settings rather than in a rotation held here, so what you
+     * drag to is what an export draws.
      *
-     * Both signs follow the surface rather than the camera: drag right and the
-     * land under the pointer goes right, drag down and it goes down, as though
-     * the globe itself were being pushed. Raising the heading moves a
-     * front-facing point right and raising the tilt moves it down, so both
-     * terms are added — the heading was subtracted before, which turned the
-     * globe against the hand.
-     *
-     * Scaled by the radius, so the grab keeps pace with the pointer at any
-     * globe size. Tilt stops short of the pole, where the projection has
-     * nothing left to turn.
+     * Both signs follow the surface rather than the camera: drag right and
+     * what is under the pointer goes right, as though the form itself were
+     * being pushed.
      */
     var drag = useRef(null);
 
+    function draggable() {
+      return props.params.mode === 'globe' || props.params.mode === 'sphere';
+    }
+
     function onDown(e) {
+      if (!draggable()) return;
       e.currentTarget.setPointerCapture(e.pointerId);
       drag.current = { x: e.clientX, y: e.clientY };
     }
@@ -50,24 +50,34 @@ var DG = window.DG || (window.DG = {});
     function onMove(e) {
       if (!drag.current || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
       var d = drag.current;
-      var span = Math.max(80, size.w * props.params.globeSize * 0.5);
+      var mx = e.clientX - d.x;
+      var my = e.clientY - d.y;
+      drag.current = { x: e.clientX, y: e.clientY };
+
+      if (props.params.mode === 'sphere') {
+        // The prototype's own rate, in radians a pixel.
+        props.set({
+          rotY: props.params.rotY + mx * 0.005,
+          rotX: props.params.rotX + my * 0.005
+        });
+        return;
+      }
 
       /*
-       * The pointer's travel is turned back through the axis tilt before it is
-       * read. That tilt is a roll applied after everything else, so on a
-       * tilted globe the screen's right is not the globe's right: drag
-       * sideways without undoing it and the land creeps up or down the frame
-       * as it goes. Undone, the grab stays under the hand at any tilt.
+       * The globe. Scaled by the radius, so the grab keeps pace with the
+       * pointer at any globe size, and the pointer's travel is turned back
+       * through the axis tilt before it is read — that tilt is a roll applied
+       * after everything else, so on a tilted globe the screen's right is not
+       * the globe's right.
        */
+      var span = Math.max(80, size.w * props.params.globeSize * 0.5);
       var a = (props.params.axisTilt || 0) * Math.PI / 180;
       var ca = Math.cos(a), sa = Math.sin(a);
-      var mx = e.clientX - d.x, my = -(e.clientY - d.y);
-      var gx = mx * ca + my * sa;
-      var gy = -mx * sa + my * ca;
+      var gx = mx * ca + (-my) * sa;
+      var gy = -mx * sa + (-my) * ca;
 
       var heading = props.params.heading + gx / span * 90;
       var tilt = props.params.tilt - gy / span * 90;
-      drag.current = { x: e.clientX, y: e.clientY };
       props.set({
         heading: ((heading % 360) + 360) % 360,
         tilt: Math.max(-80, Math.min(80, tilt))
@@ -78,6 +88,28 @@ var DG = window.DG || (window.DG = {});
       drag.current = null;
       if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     }
+
+    /*
+     * The wheel zooms the sphere, as it did in the prototype, between the same
+     * two stops. Registered by hand rather than as a React prop because a
+     * passive listener cannot stop the page scrolling under it.
+     */
+    var wheelLive = useRef(null);
+    wheelLive.current = { params: props.params, set: props.set };
+
+    useEffect(function () {
+      var el = canvasRef.current;
+      if (!el) return undefined;
+      function onWheel(e) {
+        var cur = wheelLive.current;
+        if (cur.params.mode !== 'sphere') return;
+        e.preventDefault();
+        var z = cur.params.cameraZ + e.deltaY * 0.5;
+        cur.set({ cameraZ: Math.max(200, Math.min(1000, z)) });
+      }
+      el.addEventListener('wheel', onWheel, { passive: false });
+      return function () { el.removeEventListener('wheel', onWheel); };
+    }, []);
 
     var ratio = DG.frameRatio(props.params.frame);
     var w = Math.max(240, Math.floor(Math.min(box.w, box.h * ratio)));
@@ -146,13 +178,69 @@ var DG = window.DG || (window.DG = {});
 
     return html`
       <div class="stage" ref=${wrapRef}>
-        <canvas ref=${canvasRef} class=${'stage-canvas' + (props.style.background ? '' : ' is-transparent')}
+        <canvas ref=${canvasRef} class=${'stage-canvas' + (props.style.background ? '' : ' is-transparent') +
+            (draggable() ? ' is-draggable' : '')}
           onPointerDown=${onDown} onPointerMove=${onMove} onPointerUp=${onUp} onPointerCancel=${onUp}></canvas>
       </div>`;
   };
 
-  /* ---- one pattern in the gallery, animating ---------------------------- */
+  /* ---- one preset in a gallery, animating ------------------------------- */
   var THUMB_W = 168;
+
+  /*
+   * A live thumbnail of one preset. It renders the same engine the stage does,
+   * with whatever the preset overrides, so a gallery is never a set of stale
+   * pictures — change the palette or the frame and every thumbnail follows.
+   * The grid is capped on the way in, because a hundred and sixty rings in a
+   * hundred and sixty pixels is a grey rectangle.
+   */
+  DG.PresetThumb = function PresetThumb(props) {
+    var ref = useRef(null);
+    var live = useRef({});
+    live.current = props;
+    var THUMB_H = Math.round(THUMB_W / DG.frameRatio(props.params.frame));
+
+    useEffect(function () {
+      var raf = 0;
+      function tick() {
+        var cur = live.current;
+        var canvas = ref.current;
+        if (canvas) {
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          var h = Math.round(THUMB_W / DG.frameRatio(cur.params.frame));
+          if (canvas.width !== THUMB_W * dpr) { canvas.width = THUMB_W * dpr; }
+          if (canvas.height !== h * dpr) { canvas.height = h * dpr; }
+          var ctx = canvas.getContext('2d');
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          var params = Object.assign({}, cur.params, cur.preset.params);
+          if (params.grid) params.grid = Math.min(22, params.grid);
+          if (params.count) params.count = Math.min(900, params.count);
+          DG.renderDots(ctx, DG.generateDots(params, THUMB_W, h, DG.clock || 0), {
+            width: THUMB_W,
+            height: h,
+            background: cur.style.background || '#ffffff',
+            solid: cur.style.solid,
+            useGradient: cur.style.useGradient,
+            alpha: cur.style.alpha,
+            bgGradient: cur.style.bgGradient,
+            highlight: cur.style.highlight
+          });
+        }
+        raf = requestAnimationFrame(tick);
+      }
+      raf = requestAnimationFrame(tick);
+      return function () { cancelAnimationFrame(raf); };
+    }, []);
+
+    return html`
+      <button type="button"
+        class=${'thumb' + (props.active ? ' is-active' : '')}
+        onClick=${props.onSelect}
+        title=${props.preset.blurb || props.preset.name}>
+        <canvas ref=${ref} style=${{ height: THUMB_H }}></canvas>
+        <span class="thumb-name">${props.preset.name}</span>
+      </button>`;
+  };
 
   /*
    * The country picker. 177 names is too many for a list of buttons and too
@@ -295,7 +383,7 @@ var DG = window.DG || (window.DG = {});
   DG.StopControls = function StopControls(props) {
     var stops = DG.tidyStops(props.stops);
     var set = props.set;
-    var names = ['Red', 'Slate', 'Ice'];
+    var names = DG.GRADIENT_NAMES;
 
     function move(i, v) {
       var next = stops.slice();

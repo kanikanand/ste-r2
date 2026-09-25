@@ -1,14 +1,31 @@
+/* ============================================================================
+ * style.css — the suite's light interface.
+ *
+ * The artwork carries the colour, so the interface does not compete for it:
+ * paper, one hairline, one red. The stage sits on a grey a shade darker than
+ * the panels so a white-grounded frame still reads as an object rather than
+ * as a hole in the page.
+ * ==========================================================================*/
 :root {
-  --bg: #08080a;
-  --panel: #101014;
-  --panel-2: #16161c;
-  --line: #26262e;
-  --text: #eceff4;
-  --muted: #8b8f9c;
-  --red: #de2027;
-  --slate: #687099;
-  --ice: #c5eef9;
-  --mono: 'IBM Plex Mono', 'SF Mono', ui-monospace, 'Roboto Mono', Menlo, Consolas, monospace;
+  --page: #f2f2f4;
+  --panel: #ffffff;
+  --panel-2: #f7f7f9;
+  --stage: #e9e9ed;
+  --line: #dededf;
+  --line-2: #c9c9cf;
+  --text: #111114;
+  --muted: #6d6d79;
+  --red: #ff0000;
+  --lilac: #ebbfff;
+  --apricot: #ffd091;
+  --periwinkle: #babeff;
+  /*
+   * One place to change the face. Mona Sans is the nearest family Google
+   * serves to the one asked for; the stack behind it is what shows when the
+   * page is opened straight off the filesystem with no network, which is a
+   * thing this tool is meant to survive.
+   */
+  --ui: 'Mona Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -17,10 +34,11 @@ html, body, #root { height: 100%; }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--page);
   color: var(--text);
-  font-family: var(--mono);
-  font-size: 12px;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -32,19 +50,45 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 18px;
+  padding: 11px 18px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
-.brand { display: flex; align-items: center; gap: 12px; }
-.brand-mark {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, var(--ice), var(--slate) 45%, var(--red));
-}
-.topbar h1 { margin: 0; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; }
-.topbar p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+.brand { display: flex; align-items: center; gap: 11px; flex: 0 0 auto; }
+.brand > div { min-width: 0; }
+.brand-mark { display: block; width: auto; height: 22px; }
+.topbar h1 { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+.topbar p { margin: 2px 0 0; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
 .readout { color: var(--muted); margin-right: 4px; }
+
+/*
+ * The three modes, as one segmented control rather than three buttons: they
+ * are one choice, and a group with a shared outline says so where three
+ * separate buttons say "three more things in the bar".
+ */
+.modes {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 2px;
+  gap: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.mode {
+  padding: 5px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.mode:hover { color: var(--text); background: transparent; }
+.mode.is-active { background: var(--text); color: #ffffff; }
 
 /*
  * Every download sits in the bar, grouped by what it produces. The groups are
@@ -61,6 +105,7 @@ body {
 }
 .dl-label {
   font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
@@ -86,7 +131,8 @@ body {
 .panel h2 {
   margin: 0 0 10px;
   font-size: 10px;
-  letter-spacing: 0.18em;
+  font-weight: 700;
+  letter-spacing: 0.17em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -95,14 +141,8 @@ body {
 
 /* ---------- presets ---------- */
 .thumbs { display: grid; grid-template-columns: 1fr; gap: 8px; }
-.thumb canvas { width: 100%; display: block; border-radius: 2px; }
-.swatch-none { background: repeating-conic-gradient(#2a2a32 0% 25%, #16161c 0% 50%) 50%/10px 10px; }
-.job { color: var(--red); }
+.job { color: var(--red); font-weight: 600; }
 .chip[disabled] { opacity: 0.4; cursor: default; }
-/*
- * Chips had no selected state at all, so the active Frame never showed which
- * ratio was in use. One rule covers that and the GIF background toggle.
- */
 .chip.is-active { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
 .chip-toggle { color: var(--muted); }
 /* The tier letter leads; the pixels sit beside it, quieter. */
@@ -115,17 +155,17 @@ body {
   gap: 2px;
   padding: 6px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 5px;
   background: var(--panel-2);
   color: var(--text);
   font: inherit;
   cursor: pointer;
   text-align: left;
 }
-.thumb canvas { width: 100%; height: auto; display: block; border-radius: 2px; }  /* height from the canvas's own ratio */
-.thumb:hover { border-color: var(--slate); }
+.thumb canvas { width: 100%; height: auto; display: block; border-radius: 3px; }  /* height from the canvas's own ratio */
+.thumb:hover { border-color: var(--line-2); }
 .thumb.is-active { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
-.thumb-name { margin-top: 4px; font-size: 11px; }
+.thumb-name { margin-top: 4px; font-size: 11px; font-weight: 600; }
 .thumb-sub { color: var(--muted); font-size: 10px; }
 
 /* ---------- stage ---------- */
@@ -135,7 +175,7 @@ body {
   flex-direction: column;
   gap: 12px;
   padding: 20px;
-  background: #0b0b0e;
+  background: var(--stage);
 }
 .stage {
   flex: 1;
@@ -150,18 +190,23 @@ body {
      fits its box. Constraining one axis with max-width while the height is
      fixed inline would squash the frame and turn every dot into an oval. */
   box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(17, 17, 20, 0.07);
+}
+/* A checker behind a transparent ground, so "no background" looks like one. */
+.stage-canvas.is-transparent {
+  background: repeating-conic-gradient(#ffffff 0% 25%, #e0e0e4 0% 50%) 50% / 14px 14px;
 }
 .caption { text-align: center; }
-.caption h2 { margin: 0; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+.caption h2 { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .caption p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; margin-inline: auto; }
 
 /* ---------- controls ---------- */
 .ctrl { display: flex; flex-direction: column; gap: 5px; }
 .ctrl-head { display: flex; justify-content: space-between; gap: 8px; }
 .ctrl-val, .unit { color: var(--muted); }
-.ctrl-label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.ctrl-label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .row { display: flex; align-items: flex-end; gap: 8px; }
 .row .ctrl { flex: 1; }
 .sub-block { display: flex; flex-direction: column; gap: 8px; padding-left: 10px; border-left: 1px solid var(--line); }
@@ -171,34 +216,38 @@ input[type='range'] {
   appearance: none;
   width: 100%;
   height: 3px;
-  background: var(--line);
+  background: var(--line-2);
   border-radius: 2px;
   outline: none;
 }
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px; height: 12px;
+  width: 13px; height: 13px;
   border-radius: 50%;
   background: var(--text);
   cursor: pointer;
 }
 input[type='range']::-moz-range-thumb {
-  width: 12px; height: 12px; border: 0;
+  width: 13px; height: 13px; border: 0;
   border-radius: 50%;
   background: var(--text);
   cursor: pointer;
 }
 
-button, select, input[type='number'], input[type='file'] {
+button, select, input[type='text'], input[type='number'], input[type='file'] {
   font: inherit;
   color: var(--text);
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 3px;
+  border-radius: 4px;
   padding: 6px 10px;
 }
 button { cursor: pointer; }
-button:hover, select:hover { border-color: var(--slate); }
+button:hover, select:hover, input[type='text']:hover { border-color: var(--line-2); }
+select:focus-visible, input:focus-visible, button:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 1px;
+}
 button.ghost { background: transparent; }
 button.wide { width: 100%; }
 input[type='number'] { width: 68px; }
@@ -211,8 +260,8 @@ input[type='file'] { padding: 6px; width: 100%; }
 .dial-row { display: flex; align-items: center; gap: 12px; }
 .dial { cursor: grab; touch-action: none; }
 .dial:active { cursor: grabbing; }
-.dial-ring { fill: var(--panel-2); stroke: var(--line); }
-.dial-needle { stroke: var(--slate); stroke-width: 2; }
+.dial-ring { fill: var(--panel-2); stroke: var(--line-2); }
+.dial-needle { stroke: var(--text); stroke-width: 2; }
 .dial-knob { fill: var(--red); }
 .dial-meta { display: flex; flex-direction: column; gap: 4px; }
 
@@ -222,17 +271,24 @@ input[type='file'] { padding: 6px; width: 100%; }
   width: 26px; height: 26px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-2);
 }
 .swatch-wide { width: 60px; border-radius: 13px; }
-.ramp-preview { height: 10px; border-radius: 5px; border: 1px solid var(--line); }
-.swatch.is-active { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--text); }
+.swatch-none { background: repeating-conic-gradient(#ffffff 0% 25%, #dcdce1 0% 50%) 50% / 10px 10px; }
+.ramp-preview { height: 10px; border-radius: 5px; border: 1px solid var(--line-2); }
+.swatch.is-active { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--text); }
 
 /* ---------- image ---------- */
 .image-row { display: flex; gap: 10px; align-items: flex-start; }
 .image-row img { width: 64px; height: 64px; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }
 .image-row > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .filename { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 1320px) {
+  /* The modes drop under the brand before the downloads start wrapping. */
+  .topbar { flex-wrap: wrap; }
+  .modes { order: 3; }
+}
 
 @media (max-width: 1180px) {
   /* Stack, and let the page scroll as one column instead of three panes. */
@@ -250,8 +306,8 @@ input[type='file'] { padding: 6px; width: 100%; }
 }
 
 @media (max-width: 560px) {
-  .topbar { flex-wrap: wrap; }
   .thumbs { grid-template-columns: repeat(2, 1fr); }
+  .modes { width: 100%; justify-content: center; }
 }
 
 /* ---------- country picker ---------- */
@@ -262,5 +318,7 @@ input[type='file'] { padding: 6px; width: 100%; }
 .chip-pick .x { color: var(--muted); }
 .chip-pick:hover .x { color: var(--red); }
 .panel-presets .note, .panel-controls .note { margin: 0; color: var(--muted); line-height: 1.5; }
-.stage-canvas { cursor: grab; touch-action: none; }
-.stage-canvas:active { cursor: grabbing; }
+
+/* Only the modes with something to aim take the pointer. */
+.stage-canvas.is-draggable { cursor: grab; touch-action: none; }
+.stage-canvas.is-draggable:active { cursor: grabbing; }
