@@ -124,23 +124,46 @@ var DG = window.DG || (window.DG = {});
     var stem = mode === 'patterns' ? params.pattern + '-motion' : mode;
     var video = DG.videoType();
 
+    /*
+     * What a duration button will actually give you.
+     *
+     * Footage holds a whole number of cycles so that it loops, and the speed
+     * is the speed you set, so the two together decide the length — the button
+     * can only ask for the nearest one. A globe at twenty-four seconds a turn
+     * has no ten second loop in it; the nearest is a single turn, which is
+     * twenty-four. It used to fit one turn into ten seconds instead and hand
+     * back something running two and a half times fast. Now the length gives
+     * way and says so: the button carries the real one under its label, and
+     * the file is named for it.
+     */
+    function clipLength(seconds) {
+      return DG.clipPlan(seconds, params.speed).duration;
+    }
+
+    function lengthNote(seconds) {
+      var real = clipLength(seconds);
+      return Math.abs(real - seconds) < 0.05 ? null : DG.clipLabel(real);
+    }
+
     function runFootage(kind, seconds) {
       if (job) return;
-      setJob({ what: kind + ' · ' + seconds + 's', progress: 0 });
-      var onProgress = function (v) { setJob({ what: kind + ' · ' + seconds + 's', progress: v }); };
+      var length = DG.clipLabel(clipLength(seconds));
+      var what = kind + ' · ' + length;
+      setJob({ what: what, progress: 0 });
+      var onProgress = function (v) { setJob({ what: what, progress: v }); };
       var done = function () { setJob(null); };
       var fail = function (e) { setJob(null); alert(e.message || String(e)); };
 
       if (kind === 'GIF') {
         // Named apart, so downloading both leaves you with two files rather
         // than one and a copy.
-        var gifName = stem + '-' + seconds + 's' + (clearBg ? '-clear' : '') + '.gif';
+        var gifName = stem + '-' + length + (clearBg ? '-clear' : '') + '.gif';
         DG.exportGIF(params, exportStyle, seconds, { height: DG.sizeHeight(params.size), fps: 12.5 }, onProgress)
           .then(function (blob) { DG.download(blob, gifName); done(); })
           .catch(fail);
       } else {
         DG.exportVideo(params, style, seconds, { height: DG.sizeHeight(params.size), fps: 30 }, onProgress)
-          .then(function (r) { DG.download(r.blob, stem + '-' + seconds + 's.' + r.ext); done(); })
+          .then(function (r) { DG.download(r.blob, stem + '-' + length + '.' + r.ext); done(); })
           .catch(fail);
       }
     }
@@ -443,21 +466,26 @@ var DG = window.DG || (window.DG = {});
                 onClick=${function () { DG.exportPNG(params, exportStyle, clock.current, DG.sizeHeight(params.size), stem + (clearBg ? '-clear' : '') + '.png'); }}>PNG</button>
             </div>
 
-            <div class="dl-group" title="Looping footage. A GIF has one see-through palette entry, so with No bg on, a dot edge cannot fade into whatever sits behind it.">
+            <div class="dl-group" title="Looping footage, at the speed you set — so the length is the nearest whole number of cycles to the one you press, shown under it when the two differ. A GIF has one see-through palette entry, so with No bg on, a dot edge cannot fade into whatever sits behind it.">
               <span class="dl-label">GIF</span>
               ${DURATIONS.map(function (d) {
+                var note = lengthNote(d.id);
                 return html`<button key=${d.id} type="button" class="chip" disabled=${!!job}
-                  onClick=${function () { runFootage('GIF', d.id); }}>${d.label}</button>`;
+                  onClick=${function () { runFootage('GIF', d.id); }}>
+                  ${d.label}${note && html`<span class="chip-dim">${note}</span>`}
+                </button>`;
               })}
             </div>
 
-            <div class="dl-group" title=${video && video.ext !== 'mp4'
-              ? 'This browser records WebM rather than MP4. Recorded as it plays, so a minute takes a minute.'
-              : 'Recorded as it plays, so a minute takes a minute.'}>
+            <div class="dl-group" title=${(video && video.ext !== 'mp4' ? 'This browser records WebM rather than MP4. ' : '') +
+              'Looping footage, at the speed you set — so the length is the nearest whole number of cycles to the one you press, shown under it when the two differ. Drawn frame by frame, so a slow frame makes the recording take longer rather than the clip come out short and fast.'}>
               <span class="dl-label">${video ? (video.ext === 'mp4' ? 'MP4' : 'WebM') : 'Video'}</span>
               ${DURATIONS.map(function (d) {
+                var vnote = lengthNote(d.id);
                 return html`<button key=${d.id} type="button" class="chip" disabled=${!!job || !video}
-                  onClick=${function () { runFootage('Video', d.id); }}>${d.label}</button>`;
+                  onClick=${function () { runFootage('Video', d.id); }}>
+                  ${d.label}${vnote && html`<span class="chip-dim">${vnote}</span>`}
+                </button>`;
               })}
             </div>
           </div>

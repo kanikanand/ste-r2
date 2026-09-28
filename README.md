@@ -109,7 +109,10 @@ worked out for its own export — the orbit, and the distortion's 40π repeat �
 those are what `t` drives now, so what plays on screen and what is written to a
 file are the same motion rather than two takes of it. The particle table is
 still built once and kept, random size offsets and all, because a table rebuilt
-per frame would fizz.
+per frame would fizz — and there is one per particle count, so the five
+thumbnails down the left asking for nine hundred particles cannot evict the two
+thousand the stage is drawing. One slot for all of them was the jitter: every
+dot took a fresh random size sixty times a second.
 
 Its framing is the one adaptation with a visible effect: the prototype was a
 fixed 180px sphere on an 800×600 stage, which is a little under a third of the
@@ -118,11 +121,37 @@ fraction of the frame at every download size and in every aspect ratio.
 
 ## Exports
 
-**SVG** and **PNG** take the frame as it stands. **GIF** and **MP4** record 10
-seconds, 30 seconds or a minute, always holding a whole number of cycles so
-they loop. **No bg** drops the background from SVG, PNG and GIF, saving as
-`-clear`; video always carries one, since MP4 has no alpha. All four work in
-all three modes, at the selected size.
+**SVG** and **PNG** take the frame as it stands. **GIF** and **MP4** make
+looping footage of about 10 seconds, 30 seconds or a minute. **No bg** drops
+the background from SVG, PNG and GIF, saving as `-clear`; video always carries
+one, since MP4 has no alpha. All four work in all three modes, at the selected
+size.
+
+*About* ten seconds, because two things come first. A loop has to hold a whole
+number of cycles or it jumps at the join, and the footage has to run at the
+speed you set. Those two decide the length between them, so the button can only
+ask for the nearest one: a globe at twenty-four seconds a turn has no ten
+second loop in it, and the nearest is a single turn. It used to fit that turn
+into ten seconds instead and hand back a clip running two and a half times
+fast. Now the length gives way rather than the speed, and says so — the button
+carries the real length under its label, and the file is named for it.
+
+MP4 is drawn frame by frame rather than recorded off a canvas as it plays. It
+used to draw as fast as the animation frame came round and let
+`captureStream(fps)` sample whatever was there — which at 1080 draws nearly
+twice as many frames as the file can hold, and puts into it only what the
+browser sampled and the encoder swallowed before the recorder stopped. Ten
+seconds asked for came back as 3.79, holding all ten seconds of motion:
+the same clip, two and a half times fast. `captureStream(0)` hands the sampling
+over — nothing is captured until the frame is asked for — so the file holds
+exactly the frames drawn for it, one apiece, paced by the clock because the
+recorder stamps them by arrival. A slow frame now makes the recording take
+longer rather than the clip come out short. The one thing left to wait for is
+the encoder, which runs about four tenths of a second behind at 1080 and loses
+whatever is still queued when the recorder stops; stopping eight tenths late
+costs nothing but wall clock. Measured: ten seconds asked for at 1080 comes
+back as 9.99s, a globe's single turn as 24.01s, and a GIF's frame delays sum to
+the same.
 
 ## The files
 

@@ -79,7 +79,23 @@ var DG = window.DG || (window.DG = {});
     return Math.min(maximum, Math.max(minimum, value));
   }
 
-  var cache = { count: 0, particles: null };
+  /*
+   * The tables, one per particle count, kept for the life of the page.
+   *
+   * One slot was not enough and the way it failed was not subtle. Each table
+   * is built with a random size offset per particle — the prototype rolled
+   * those once at startup — and a single slot keyed by the count meant any
+   * call at a different count evicted the one before it. In this mode the
+   * gallery down the left asks for five thumbnails of nine hundred particles
+   * while the stage asks for two thousand, so every frame rebuilt the table
+   * several times over and every dot was drawn at a fresh random size. That
+   * is what the jitter was: not motion, but the whole cloud re-rolling its
+   * sizes sixty times a second.
+   *
+   * A table per count fixes it outright, and the counts are a stepped slider,
+   * so there are at most a dozen or so of them and nothing needs evicting.
+   */
+  var tables = {};
 
   function createSphereParticles(count) {
     var particles = [];
@@ -104,11 +120,9 @@ var DG = window.DG || (window.DG = {});
   }
 
   function particlesFor(count) {
-    if (cache.count !== count) {
-      cache.count = count;
-      cache.particles = createSphereParticles(count);
-    }
-    return cache.particles;
+    var t = tables[count];
+    if (!t) { t = tables[count] = createSphereParticles(count); }
+    return t;
   }
 
   function rotateX(point, angle) {

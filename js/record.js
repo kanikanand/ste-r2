@@ -74,9 +74,33 @@ var DG = window.DG || (window.DG = {});
   /* ---- footage ---------------------------------------------------------- */
 
   /* Whole cycles, and the clock stretched so the length comes out as asked. */
-  function cyclesFor(seconds, speed) {
-    return Math.max(1, Math.round(seconds * (speed || 1)));
-  }
+  /*
+   * How long a clip actually runs, and how many cycles it holds.
+   *
+   * Footage has to close where it opened, so it has to hold a whole number of
+   * cycles. It used to get there by keeping the length you asked for and
+   * fitting whole cycles into it, which quietly changed the speed: a globe set
+   * to twenty-four seconds a turn, asked for ten seconds, was given one whole
+   * turn in ten — two and a half times faster than the thing on screen. The
+   * duration buttons are a target now, and the speed is not negotiable. The
+   * clip runs at the speed you set and its length is rounded to the nearest
+   * whole number of cycles, which is reported back so nothing about it is a
+   * surprise.
+   */
+  DG.clipPlan = function (seconds, speed) {
+    var s = speed > 0 ? speed : 1;
+    var cycles = Math.max(1, Math.round(seconds * s));
+    return { cycles: cycles, duration: cycles / s };
+  };
+
+  /* A clip's length, short enough for a button and safe in a filename. */
+  DG.clipLabel = function (seconds) {
+    var whole = Math.round(seconds);
+    if (whole < 60) return whole + 's';
+    var minutes = Math.floor(whole / 60);
+    var rest = whole % 60;
+    return rest ? minutes + 'm' + rest + 's' : minutes + 'm';
+  };
 
   /*
    * GIF is drawn frame by frame rather than recorded, so it does not depend on
@@ -86,8 +110,11 @@ var DG = window.DG || (window.DG = {});
     var fps = opts.fps || 12.5;
     var height = opts.height || 540;
     var width = Math.round(height * DG.frameRatio(params.frame));
-    var total = Math.max(2, Math.round(seconds * fps));
-    var cycles = cyclesFor(seconds, params.speed);
+    var plan = DG.clipPlan(seconds, params.speed);
+    var cycles = plan.cycles;
+    // The frame count follows the clip's real length, so the delay written
+    // into every frame plays the cycles back at the speed they were made at.
+    var total = Math.max(2, Math.round(plan.duration * fps));
 
     var canvas = document.createElement('canvas');
     canvas.width = width;
@@ -169,9 +196,25 @@ var DG = window.DG || (window.DG = {});
   };
 
   /*
-   * Video is recorded off a live canvas, so it runs for as long as the clip
-   * lasts. A recorder stamps its frames by the wall clock, so feeding them
-   * faster would only produce a clip that played too fast.
+   * Video is written frame by frame, like the GIF, rather than scraped off a
+   * canvas while it plays.
+   *
+   * This used to draw as fast as the animation frame came round and leave
+   * captureStream(fps) to sample whatever happened to be on the canvas. Two
+   * things go wrong with that at 1080. It draws far more frames than the file
+   * can hold — nearly sixty a second for a thirty a second recording — and
+   * what reaches the file is only what the browser managed to sample and the
+   * encoder managed to swallow before the recorder was stopped. Ten seconds
+   * asked for came back as 3.79, with all ten seconds of motion inside it,
+   * which is the same clip played two and a half times fast.
+   *
+   * captureStream(0) takes the sampling away from the browser: nothing is
+   * captured until requestFrame is called, so the file holds exactly the frames
+   * that were drawn for it, one apiece, in order. The recorder stamps them by
+   * the time they arrive — measured, and it is not the nominal frame rate — so
+   * the loop waits for each frame's turn on the wall clock. What it will not do
+   * is drop one to catch up: a frame that takes too long makes the recording
+   * take longer, not the clip come out short and fast.
    */
   DG.exportVideo = function (params, style, seconds, opts, onProgress) {
     var type = DG.videoType();
@@ -180,19 +223,35 @@ var DG = window.DG || (window.DG = {});
     var height = opts.height || 1080;
     var width = Math.round(height * DG.frameRatio(params.frame));
     var fps = opts.fps || 30;
-    var cycles = cyclesFor(seconds, params.speed);
+    var plan = DG.clipPlan(seconds, params.speed);
+    var cycles = plan.cycles;
+    var frameCount = Math.max(2, Math.round(plan.duration * fps));
 
     var canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     var ctx = canvas.getContext('2d');
-    var stream = canvas.captureStream(fps);
+
+    var stream = canvas.captureStream(0);
+    var track = stream.getVideoTracks()[0];
+    var manual = !!(track && typeof track.requestFrame === 'function');
+    if (!manual) {
+      // Nothing would ever reach a stream at zero without requestFrame. Back
+      // to the browser's own sampling, which is worse but is a recording.
+      stream.getTracks().forEach(function (tr) { tr.stop(); });
+      stream = canvas.captureStream(fps);
+    }
+
     var chunks = [];
-    // Scaled to the frame rather than fixed. A flat 8 Mbit was generous for the
-    // 720-high recording this used to make and thin for a 1080-high one, which
-    // is exactly the size the L option now asks for.
+    /*
+     * Scaled to the frame, and generously. What comes out of here is a field of
+     * small hard-edged dots over a smooth gradient, which is the worst case for
+     * an encoder: high-frequency detail everywhere, and banding in the ground
+     * the moment it runs short. A 1080-high frame at thirty asks for around
+     * twenty-two megabits, which is roughly what a camera would give it.
+     */
     var bitrate = opts.bitrate ||
-      Math.max(4e6, Math.min(24e6, Math.round(width * height * fps * 0.2)));
+      Math.max(8e6, Math.min(48e6, Math.round(width * height * fps * 0.35)));
     var rec = new MediaRecorder(stream, { mimeType: type.mime, videoBitsPerSecond: bitrate });
     rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
 
@@ -200,14 +259,12 @@ var DG = window.DG || (window.DG = {});
       rec.onerror = function (e) { reject(e.error || new Error('Recording failed.')); };
       rec.onstop = function () { resolve({ blob: new Blob(chunks, { type: type.mime }), ext: type.ext }); };
 
-      var start = performance.now();
-      function frame(now) {
-        var elapsed = (now - start) / 1000;
-        if (elapsed >= seconds) {
-          rec.stop();
-          return;
-        }
-        var t = (elapsed / seconds) * cycles;
+      var interval = 1000 / fps;
+      var start = 0;
+      var i = 0;
+
+      function paint(index) {
+        var t = (index / frameCount) * cycles;
         DG.renderDots(ctx, DG.generateDots(params, width, height, t), {
           width: width,
           height: height,
@@ -216,17 +273,45 @@ var DG = window.DG || (window.DG = {});
           useGradient: style.useGradient,
           alpha: style.alpha,
           mesh: style.mesh,
-      meshBlend: style.meshBlend,
+          meshBlend: style.meshBlend,
           highlight: style.highlight,
           labelFill: style.labelFill,
           labelText: style.labelText,
           labels: DG.generateLabels(params, width, height, t)
         });
-        if (onProgress) onProgress(elapsed / seconds);
-        requestAnimationFrame(frame);
       }
+
+      function step(now) {
+        if (!start) start = now;
+        // Frame i's turn, by the clock. Early, and it waits; late, and it goes
+        // straight through — the frame is never given up on.
+        if (now - start + 0.5 < i * interval) return requestAnimationFrame(step);
+
+        try {
+          paint(i);
+        } catch (e) {
+          try { rec.stop(); } catch (ignored) {}
+          return reject(e);
+        }
+        if (manual) track.requestFrame();
+        i += 1;
+        if (onProgress) onProgress(i / frameCount);
+        if (i < frameCount) return requestAnimationFrame(step);
+
+        /*
+         * And then it waits before stopping. The encoder runs behind the
+         * submissions — around four tenths of a second behind at 1080 — and
+         * whatever is still in its queue when stop() is called is lost, which
+         * took a ten second clip down to 9.63. Stopping late costs a moment of
+         * wall clock and nothing else: the file ends at the last frame either
+         * way, so the wait only has to be longer than the queue. Measured at
+         * 1080/30, 500ms was enough and 1000ms was no different.
+         */
+        setTimeout(function () { rec.stop(); }, 800);
+      }
+
       rec.start();
-      requestAnimationFrame(frame);
+      requestAnimationFrame(step);
     });
   };
 })(DG);
