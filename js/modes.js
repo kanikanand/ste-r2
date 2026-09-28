@@ -24,8 +24,29 @@ var DG = window.DG || (window.DG = {});
   DG.MODES = [
     { id: 'patterns', label: 'Patterns', blurb: 'A flat lattice, five motions' },
     { id: 'globe', label: 'Globe', blurb: 'The real world, in dots' },
-    { id: 'sphere', label: 'Sphere', blurb: 'Orbiting particles, distorted' }
+    { id: 'sphere', label: 'Sphere', blurb: 'Orbiting particles, held in a form' }
   ];
+
+  /*
+   * A mode can hold more than one formation, and Sphere holds two: the
+   * prototype's sphere under a distortion field, and the star — four rings
+   * through one centre that flatten into eight points. They are the same
+   * family, particles in orbit, and they differ in what holds them, so they
+   * are two settings of one mode rather than two modes.
+   *
+   * Each is a whole engine with its own settings, and those are kept apart:
+   * both have a particle count and they are nothing like the same number.
+   */
+  DG.FORMATIONS = {
+    sphere: [
+      { id: 'orbit', engine: 'sphere', label: 'Orbit', blurb: 'A sphere under a distortion field' },
+      { id: 'star', engine: 'star', label: 'Star', blurb: 'Four rings, flattened into eight points' }
+    ]
+  };
+
+  DG.formations = function (mode) {
+    return DG.FORMATIONS[mode] || null;
+  };
 
   /*
    * The settings that belong to the tool rather than to a mode. Changing the
@@ -50,18 +71,35 @@ var DG = window.DG || (window.DG = {});
     paused: false
   };
 
-  DG.engine = function (mode) {
-    return DG.ENGINES[mode] || DG.ENGINES[DG.MODES[0].id];
+  DG.engine = function (id) {
+    return DG.ENGINES[id] || DG.ENGINES[DG.MODES[0].id];
   };
 
   /*
-   * The settings one mode is working with: its own defaults, then whatever it
-   * was left at, then the shared ones on top — shared last, so the tool's
-   * palette wins over the default a mode was written with.
+   * Which engine a mode is showing. A mode with no formations is its own
+   * engine; one with formations names the engine for whichever is chosen, and
+   * falls back to the first, which is what a mode opens on.
+   */
+  DG.activeEngine = function (state) {
+    var list = DG.formations(state.mode);
+    if (!list) return state.mode;
+    var chosen = state.formation && state.formation[state.mode];
+    for (var i = 0; i < list.length; i++) if (list[i].id === chosen) return list[i].engine;
+    return list[0].engine;
+  };
+
+  /*
+   * The settings one mode is working with: the engine's own defaults, then
+   * whatever that engine was left at, then the shared ones on top — shared
+   * last, so the tool's palette wins over the default an engine was written
+   * with. The settings are kept per engine rather than per mode, so the two
+   * formations of Sphere do not have to agree about what a particle count is.
    */
   DG.modeParams = function (state) {
-    var e = DG.engine(state.mode);
-    return Object.assign({}, e.defaults, state.byMode[state.mode], state.shared, { mode: state.mode });
+    var key = DG.activeEngine(state);
+    var e = DG.engine(key);
+    return Object.assign({}, e.defaults, state.byEngine[key], state.shared,
+                         { mode: state.mode, engine: key });
   };
 
   DG.isShared = function (key) {
@@ -74,12 +112,12 @@ var DG = window.DG || (window.DG = {});
    * changes while the page is open.
    */
   function generateDots(params, width, height, t) {
-    var e = DG.engine(params.mode);
+    var e = DG.engine(params.engine || params.mode);
     return e.dots(Object.assign({}, e.defaults, params), width, height, t);
   }
 
   function generateLabels(params, width, height, t) {
-    var e = DG.engine(params.mode);
+    var e = DG.engine(params.engine || params.mode);
     if (!e.labels) return [];
     return e.labels(Object.assign({}, e.defaults, params), width, height, t);
   }

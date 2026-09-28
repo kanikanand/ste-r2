@@ -30,10 +30,55 @@ var DG = window.DG || (window.DG = {});
     { id: 60, label: '1 min' }
   ];
 
+  /*
+   * The star's gallery. The form is one construction at four settings — the
+   * rings round, flattened, gathered onto their own curves, or kneaded by the
+   * field — so these are places on those four sliders rather than shapes of
+   * their own, and every one of them is reachable by hand.
+   */
+  var STAR_PRESETS = [
+    { name: 'Globe', blurb: 'The rings round: one sphere',
+      params: { morph: 0, spike: 0.2, inflate: 1, fluid: 0.1 } },
+    { name: 'Between', blurb: 'Part flattened, part round',
+      params: { morph: 0.35, spike: 0.6, inflate: 0.6, fluid: 0.25 } },
+    { name: 'Star', blurb: 'Flat rings, eight points',
+      params: { morph: 1, spike: 0.85, inflate: 0.55, fluid: 0.15 } },
+    { name: 'Wireframe', blurb: 'Gathered onto the four curves',
+      params: { morph: 0.8, spike: 0.7, inflate: 0, fluid: 0.2 } },
+    { name: 'Amoeba', blurb: 'The field kneading it out of shape',
+      params: { morph: 0.6, spike: 0.6, inflate: 0.6, fluid: 0.9 } }
+  ];
+
+  function sameAs(params, preset) {
+    var keys = Object.keys(preset.params);
+    for (var i = 0; i < keys.length; i++) {
+      if (Math.abs(params[keys[i]] - preset.params[keys[i]]) > 0.001) return false;
+    }
+    return true;
+  }
+
+  /*
+   * A bucket of settings per engine rather than per mode, because a mode can
+   * hold two formations and they are different engines with different
+   * settings — Sphere's orbit counts particles in thousands and the star in
+   * tens of thousands. Which formation a mode is showing is its own small
+   * piece of state, kept per mode so leaving Sphere and coming back finds the
+   * formation you left it on.
+   */
   function initialState() {
-    var byMode = {};
-    DG.MODES.forEach(function (m) { byMode[m.id] = {}; });
-    return { mode: 'patterns', shared: Object.assign({}, DG.SHARED_DEFAULTS), byMode: byMode };
+    var byEngine = {};
+    Object.keys(DG.ENGINES).forEach(function (id) { byEngine[id] = {}; });
+    var formation = {};
+    DG.MODES.forEach(function (m) {
+      var list = DG.formations(m.id);
+      if (list) formation[m.id] = list[0].id;
+    });
+    return {
+      mode: 'patterns',
+      formation: formation,
+      shared: Object.assign({}, DG.SHARED_DEFAULTS),
+      byEngine: byEngine
+    };
   }
 
   function App() {
@@ -67,11 +112,12 @@ var DG = window.DG || (window.DG = {});
           if (DG.isShared(k)) (shared = shared || {})[k] = patch[k];
           else (mine = mine || {})[k] = patch[k];
         });
-        var next = { mode: prev.mode, shared: prev.shared, byMode: prev.byMode };
+        var next = Object.assign({}, prev);
         if (shared) next.shared = Object.assign({}, prev.shared, shared);
         if (mine) {
-          next.byMode = Object.assign({}, prev.byMode);
-          next.byMode[prev.mode] = Object.assign({}, prev.byMode[prev.mode], mine);
+          var key = DG.activeEngine(prev);
+          next.byEngine = Object.assign({}, prev.byEngine);
+          next.byEngine[key] = Object.assign({}, prev.byEngine[key], mine);
         }
         return next;
       });
@@ -81,16 +127,28 @@ var DG = window.DG || (window.DG = {});
       setState(function (prev) { return Object.assign({}, prev, { mode: id }); });
     }, []);
 
+    var goFormation = useCallback(function (id) {
+      setState(function (prev) {
+        var formation = Object.assign({}, prev.formation);
+        formation[prev.mode] = id;
+        return Object.assign({}, prev, { formation: formation });
+      });
+    }, []);
+
+    // Reset is the formation you are in, not the mode: the other one is not
+    // on screen and has nothing to do with what you are looking at.
     var resetMode = useCallback(function () {
       setState(function (prev) {
-        var byMode = Object.assign({}, prev.byMode);
-        byMode[prev.mode] = {};
-        return Object.assign({}, prev, { byMode: byMode });
+        var byEngine = Object.assign({}, prev.byEngine);
+        byEngine[DG.activeEngine(prev)] = {};
+        return Object.assign({}, prev, { byEngine: byEngine });
       });
     }, []);
 
     var mode = state.mode;
     var params = DG.modeParams(state);
+    var formations = DG.formations(mode);
+    var formation = params.engine;
 
     var style = useMemo(function () {
       var bg = null;
@@ -121,7 +179,10 @@ var DG = window.DG || (window.DG = {});
       return clearBg ? Object.assign({}, style, { background: null, mesh: null }) : style;
     }, [style, clearBg]);
 
-    var stem = mode === 'patterns' ? params.pattern + '-motion' : mode;
+    // What a download is called: the pattern in Patterns, and the formation
+    // rather than the mode in Sphere, so a star and an orbit do not land in
+    // the same folder under the same name.
+    var stem = mode === 'patterns' ? params.pattern + '-motion' : params.engine;
     var video = DG.videoType();
 
     /*
@@ -192,8 +253,34 @@ var DG = window.DG || (window.DG = {});
             <${DG.CountryPicker} picked=${params.highlights} set=${set} />
           <//>`;
       }
+      var switcher = html`
+        <div class="chips formations">
+          ${formations.map(function (f) {
+            return html`<button key=${f.id} type="button" title=${f.blurb}
+              class=${'chip' + (f.engine === formation ? ' is-active' : '')}
+              onClick=${function () { goFormation(f.id); }}>${f.label}</button>`;
+          })}
+        </div>`;
+
+      if (formation === 'star') {
+        return html`
+          <${React.Fragment}>
+            <h2>Formation</h2>
+            ${switcher}
+            <div class="thumbs">
+              ${STAR_PRESETS.map(function (p) {
+                return html`<${DG.PresetThumb} key=${p.name} params=${params} style=${style}
+                  preset=${p} active=${sameAs(params, p)}
+                  onSelect=${function () { set(p.params); }} />`;
+              })}
+            </div>
+          <//>`;
+      }
+
       return html`
         <${React.Fragment}>
+          <h2>Formation</h2>
+          ${switcher}
           <h2>Distortion</h2>
           <div class="thumbs">
             ${DG.SPHERE_PATTERNS.map(function (p) {
@@ -219,6 +306,16 @@ var DG = window.DG || (window.DG = {});
               : 'The world'}</h2>
             <p>Drag the globe to turn it. It completes one revolution over a cycle, so any
                length of footage closes where it opened.</p>
+          <//>`;
+      }
+      if (formation === 'star') {
+        return html`
+          <${React.Fragment}>
+            <h2>${params.dist < 1 ? 'Inside the form'
+              : params.morph < 0.02 && params.spike < 0.02 ? 'Globe'
+              : params.morph > 0.98 ? 'Star' : 'Between'}</h2>
+            <p>Drag to turn and lean it. Distance is in form radii, and below 1 the camera
+               is inside looking out.</p>
           <//>`;
       }
       return html`
@@ -346,6 +443,75 @@ var DG = window.DG || (window.DG = {});
                   onChange=${function (e) { set({ labels: e.target.checked }); }} />
                 <span>Name the countries picked</span>
               </label>
+            </section>
+          <//>`;
+      }
+
+      if (formation === 'star') {
+        return html`
+          <${React.Fragment}>
+            <section>
+              <h2>Form</h2>
+              <${DG.Slider} label="Morph" value=${params.morph} min=${0} max=${1}
+                format=${function (v) { return v < 0.005 ? 'round' : v > 0.995 ? 'flat'
+                  : Math.round(v * 100) + '%'; }}
+                onChange=${function (v) { set({ morph: v }); }} />
+              <${DG.Slider} label="Inflate" value=${params.inflate} min=${0} max=${1}
+                format=${function (v) { return v < 0.005 ? 'bands' : v > 0.995 ? 'shells'
+                  : Math.round(v * 100) + '%'; }}
+                onChange=${function (v) { set({ inflate: v }); }} />
+              <${DG.Slider} label="Reach" value=${params.spike} min=${0} max=${1}
+                format=${function (v) { return Math.round(v * 100) + '%'; }}
+                onChange=${function (v) { set({ spike: v }); }} />
+              <${DG.Slider} label="Fluidity" value=${params.fluid} min=${0} max=${1}
+                format=${function (v) { return v < 0.005 ? 'held'
+                  : v > 0.7 ? Math.round(v * 100) + '% — amoeba'
+                  : Math.round(v * 100) + '% alive'; }}
+                onChange=${function (v) { set({ fluid: v }); }} />
+              <p class="note">Morph flattens the four rings until their eight ends are the
+                 points of a star; Reach is how far those ends go. Inflate is how much of
+                 a ring is filled, from four bands to four shells.</p>
+            </section>
+
+            <section>
+              <h2>Dots</h2>
+              <${DG.Slider} label="Particles" value=${params.count} min=${400} max=${14000} step=${100}
+                format=${function (v) { return Math.round(v).toLocaleString(); }}
+                onChange=${function (v) { set({ count: v }); }} />
+              <${DG.Slider} label="Dot size" value=${params.dotScale} min=${0.1} max=${1.6}
+                onChange=${function (v) { set({ dotScale: v }); }} />
+              <${DG.Slider} label="Depth falloff" value=${params.sizeVariation} min=${0} max=${1}
+                onChange=${function (v) { set({ sizeVariation: v }); }} />
+              <${DG.Slider} label="Opacity" value=${params.dotAlpha} min=${0.05} max=${1}
+                format=${function (v) { return Math.round(v * 100) + '%'; }}
+                onChange=${function (v) { set({ dotAlpha: v }); }} />
+              <${DG.Slider} label="Contrast" value=${params.contrast} min=${0.3} max=${3}
+                onChange=${function (v) { set({ contrast: v }); }} />
+              <div class="row">
+                <${DG.Slider} label="Scatter" value=${params.scatter} min=${0} max=${1}
+                  onChange=${function (v) { set({ scatter: v }); }} />
+                <button type="button" class="ghost"
+                  onClick=${function () { set({ seed: 1 + Math.floor(Math.random() * 999) }); }}>Shuffle</button>
+              </div>
+            </section>
+
+            <section>
+              <h2>Camera</h2>
+              <${DG.Slider} label="Distance" value=${params.dist} min=${0.15} max=${5}
+                format=${function (v) { return v < 1 ? v.toFixed(2) + ' — inside' : v.toFixed(2); }}
+                onChange=${function (v) { set({ dist: v }); }} />
+              <${DG.Slider} label="Lens" value=${params.lens} min=${0.4} max=${2.2}
+                format=${function (v) { return v.toFixed(2) + '×'; }}
+                onChange=${function (v) { set({ lens: v }); }} />
+              <${DG.Slider} label="Spin" value=${Math.round(1 / params.speed)} min=${10} max=${100} step=${1}
+                format=${function (v) { return Math.round(v) + ' s a turn'; }}
+                onChange=${function (v) { set({ speed: 1 / v }); }} />
+              <${DG.Slider} label="Orbit" value=${params.orbit} min=${0} max=${4} step=${1}
+                format=${function (v) { return v < 1 ? 'held — rows intact'
+                  : v === 1 ? 'one turn a cycle' : 'up to ' + v + ' turns a cycle'; }}
+                onChange=${function (v) { set({ orbit: v }); }} />
+              <p class="note">Distance is in form radii; below 1 is inside. Orbit is whole
+                 turns a cycle, so footage closes where it opened.</p>
             </section>
           <//>`;
       }

@@ -14,8 +14,10 @@ interface asks for comes out of one file.
 
 **Patterns** — a flat lattice that never moves, with five motions running
 underneath it. **Globe** — a dotted globe of the real world, 241 countries,
-pick any of them out. **Sphere** — a sphere of orbiting particles under one of
-five distortion fields.
+pick any of them out. **Sphere** — particles in orbit, in one of two
+formations: **Orbit**, a sphere under one of five distortion fields, and
+**Star**, four rings through one centre that flatten until their eight ends
+are the points of a star.
 
 ## What is shared and what is not
 
@@ -26,6 +28,31 @@ the **background**, the opacity, and the four export buttons. Everything that
 makes a mode itself is its own, and is kept while you are elsewhere: leaving
 Globe and coming back finds the globe where you left it rather than reset.
 Reset only resets the mode you are in.
+
+## Two formations in one mode
+
+Sphere holds two engines rather than one, because they are the same family —
+particles in orbit — and differ only in what holds them. The switch is at the
+top of the gallery, and each keeps its own settings: both have a particle
+count and they are nothing like the same number, so they are stored apart and
+Reset resets the formation you are in rather than the mode.
+
+**Star** is one construction at every setting, not two shapes mixed. A sphere
+drawn as circles and an eight-pointed star drawn as four long ellipses
+crossing at one centre are the same picture — an ellipse is a circle that has
+been flattened — so the form is four rings through a common centre and
+**Morph** is how flat they are. Their long axes never change length, so the
+tips stay where they are and the morph is the body drawing in rather than the
+whole thing inflating. **Reach** is how far those ends go, **Inflate** how much
+of a ring is occupied, from four scattered bands along the curves to four full
+shells, and **Fluidity** leans and stretches each ring on its own schedule and
+then, at the top of its range, hands the whole cloud to a field of long waves
+that kneads it into an amoeba.
+
+The four axes are spread through space rather than round a circle — made to
+repel one another, both ends of each counted, best arrangement kept — so there
+is no angle the star is only a star from. For four axes the answer is the
+diagonals of a cube.
 
 ## The palette
 
@@ -74,13 +101,13 @@ banding back into the smooth field the mesh exists for.
 
 ## How the three fit together
 
-Each mode arrived as a whole application, with `DG.DEFAULTS` and
-`DG.generateDots` to itself. Rather than pick one and bend the other two into
-it, each registers under its own name through `DG.register` and `modes.js`
-decides which one the renderer, the recorder and the four exporters are talking
-to. None of those had to change to take three engines instead of one: they were
-already written against a list of dots in screen pixels and know nothing about
-what made it.
+Each arrived as a whole application, with `DG.DEFAULTS` and `DG.generateDots`
+to itself. Rather than pick one and bend the others into it, each registers
+under its own name through `DG.register` and `modes.js` decides which one the
+renderer, the recorder and the four exporters are talking to. None of those had
+to change to take four engines instead of one: they were already written
+against a list of dots in screen pixels and know nothing about what made it.
+Four engines in three modes, because Sphere holds two of them.
 
 So **none of the pattern, motion or formation code was touched**, and that is
 checked rather than asserted:
@@ -93,6 +120,11 @@ checked rather than asserted:
   the attached HTML and run beside the port: five distortion patterns × four
   times × varied twist, stretch, frequency, detail, lean and count. 38,000
   particles, worst disagreement 0.00px.
+- **Star** is compared against the morph branch it came from, particle by
+  particle rather than by position in the list: twelve settings across the
+  whole of Morph, Reach, Inflate and Fluidity, four points in the loop each,
+  with the camera inside the form as well as outside it. 453,432 marks, every
+  one identical, nothing unmatched.
 
 Two things had to change, and neither is a formation:
 
@@ -164,7 +196,8 @@ the same.
 | `js/record.js` | the four exporters |
 | `js/patterns.js`, `js/field.js` | Patterns: the five fields, and the lattice |
 | `vendor/world-50m.js`, `js/geo.js`, `js/globe.js` | Globe: the coastlines, the lookup, the projection |
-| `js/sphere.js` | Sphere: placement, distortion, perspective |
+| `js/sphere.js` | Sphere / Orbit: placement, distortion, perspective |
+| `js/star.js` | Sphere / Star: the four rings, the field, the framing solve |
 | `js/ui.js` | the stage, the galleries, the widgets |
 | `js/app.js` | state, layout, mount |
 | `css/fonts.css`, `vendor/fonts/` | Momo Trust Display and Sans, vendored |

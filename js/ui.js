@@ -41,6 +41,10 @@ var DG = window.DG || (window.DG = {});
       return props.params.mode === 'globe' || props.params.mode === 'sphere';
     }
 
+    function engineOf(params) {
+      return params.engine || params.mode;
+    }
+
     function onDown(e) {
       if (!draggable()) return;
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -53,6 +57,23 @@ var DG = window.DG || (window.DG = {});
       var mx = e.clientX - d.x;
       var my = e.clientY - d.y;
       drag.current = { x: e.clientX, y: e.clientY };
+
+      if (engineOf(props.params) === 'star') {
+        /*
+         * The star turns by its heading and lean, the way the branch it came
+         * from dragged it: scaled by the stage so the grab keeps pace with the
+         * pointer at any size, and the lean stopping short of the pole, where
+         * the projection has nothing left to turn.
+         */
+        var reach = Math.max(80, size.w * 0.32);
+        var head = props.params.heading + mx / reach * 90;
+        var lean = props.params.tilt + my / reach * 90;
+        props.set({
+          heading: ((head % 360) + 360) % 360,
+          tilt: Math.max(-80, Math.min(80, lean))
+        });
+        return;
+      }
 
       if (props.params.mode === 'sphere') {
         // The prototype's own rate, in radians a pixel.
@@ -103,6 +124,15 @@ var DG = window.DG || (window.DG = {});
       function onWheel(e) {
         var cur = wheelLive.current;
         if (cur.params.mode !== 'sphere') return;
+        // The star's camera is a distance in form radii, and the wheel walks
+        // it the same way the sphere's zoom does — in far enough to stand
+        // inside the form and look out.
+        if ((cur.params.engine || cur.params.mode) === 'star') {
+          e.preventDefault();
+          var d = cur.params.dist * Math.pow(1.0015, e.deltaY);
+          cur.set({ dist: Math.max(0.15, Math.min(5, d)) });
+          return;
+        }
         e.preventDefault();
         var z = cur.params.cameraZ + e.deltaY * 0.5;
         cur.set({ cameraZ: Math.max(200, Math.min(1000, z)) });

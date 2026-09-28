@@ -157,6 +157,8 @@ body {
 .chip-toggle { color: var(--muted); }
 /* The tier letter leads; the pixels sit beside it, quieter. */
 .chip-dim { color: var(--muted); margin-left: 6px; }
+.formations { margin-bottom: 14px; }
+.formations .chip { flex: 1; justify-content: center; }
 .chip.is-active .chip-dim { color: var(--text); }
 .chip-toggle.is-active { color: var(--text); }
 .thumb {
