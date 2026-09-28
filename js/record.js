@@ -1,10 +1,9 @@
 /* ============================================================================
  * record.js — stills and footage.
  *
- * The patterns loop with a period of one cycle, so an export is recorded over a
- * whole number of cycles and the file loops without a jump at the join. The
- * requested length is kept exactly: the number of cycles is chosen to suit it
- * and the clock is stretched to fit.
+ * A clip is the length on the button, at the speed on screen. Those are the
+ * two things the interface says out loud, so they are the two that are kept,
+ * and how much of a cycle that comes to is whatever it comes to.
  * ==========================================================================*/
 var DG = window.DG || (window.DG = {});
 
@@ -73,33 +72,24 @@ var DG = window.DG || (window.DG = {});
 
   /* ---- footage ---------------------------------------------------------- */
 
-  /* Whole cycles, and the clock stretched so the length comes out as asked. */
   /*
-   * How long a clip actually runs, and how many cycles it holds.
+   * How long a clip runs, and how much of the motion it holds.
    *
-   * Footage has to close where it opened, so it has to hold a whole number of
-   * cycles. It used to get there by keeping the length you asked for and
-   * fitting whole cycles into it, which quietly changed the speed: a globe set
-   * to twenty-four seconds a turn, asked for ten seconds, was given one whole
-   * turn in ten — two and a half times faster than the thing on screen. The
-   * duration buttons are a target now, and the speed is not negotiable. The
-   * clip runs at the speed you set and its length is rounded to the nearest
-   * whole number of cycles, which is reported back so nothing about it is a
-   * surprise.
+   * Both of the things a button can promise are kept: press ten seconds and
+   * the file is ten seconds, running at the speed set on screen. The cycles
+   * follow from those two and are whatever they come to — ten at a cycle a
+   * second, five twelfths of a turn for a globe at twenty-four seconds a turn.
+   *
+   * What is given up is the seamless join, and only when the arithmetic does
+   * not hand one over. This used to hold whole cycles above everything else,
+   * and both ways of paying for it were worse than the join: fitting a whole
+   * turn into the ten seconds asked for changed the speed, and running the
+   * whole turn at the right speed made a twenty-four second file out of a ten
+   * second button. A clip that says what it is beats a clip that loops.
    */
   DG.clipPlan = function (seconds, speed) {
     var s = speed > 0 ? speed : 1;
-    var cycles = Math.max(1, Math.round(seconds * s));
-    return { cycles: cycles, duration: cycles / s };
-  };
-
-  /* A clip's length, short enough for a button and safe in a filename. */
-  DG.clipLabel = function (seconds) {
-    var whole = Math.round(seconds);
-    if (whole < 60) return whole + 's';
-    var minutes = Math.floor(whole / 60);
-    var rest = whole % 60;
-    return rest ? minutes + 'm' + rest + 's' : minutes + 'm';
+    return { cycles: seconds * s, duration: seconds };
   };
 
   /*
@@ -112,8 +102,9 @@ var DG = window.DG || (window.DG = {});
     var width = Math.round(height * DG.frameRatio(params.frame));
     var plan = DG.clipPlan(seconds, params.speed);
     var cycles = plan.cycles;
-    // The frame count follows the clip's real length, so the delay written
-    // into every frame plays the cycles back at the speed they were made at.
+    // The delay written into every frame is 1/fps, so a file of this many
+    // frames runs for exactly as long as was asked for, and the motion inside
+    // it goes by at the speed it was set to.
     var total = Math.max(2, Math.round(plan.duration * fps));
 
     var canvas = document.createElement('canvas');
@@ -253,11 +244,29 @@ var DG = window.DG || (window.DG = {});
     var bitrate = opts.bitrate ||
       Math.max(8e6, Math.min(48e6, Math.round(width * height * fps * 0.35)));
     var rec = new MediaRecorder(stream, { mimeType: type.mime, videoBitsPerSecond: bitrate });
-    rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+    var flowing = false;
+    rec.ondataavailable = function (e) {
+      if (e.data && e.data.size) { flowing = true; chunks.push(e.data); }
+    };
+
+    /*
+     * Letting go of the capture when the clip is finished. Leaving the track
+     * live is not free: a second export in the same session then starts while
+     * the last one is still being torn down, and the frames handed over before
+     * the new encoder is really running are dropped on the floor. Measured
+     * three exports in a row — the first came out at 9.99s and the two after
+     * it at 9.02 and 9.37, each missing about a second off the front.
+     */
+    function release() {
+      stream.getTracks().forEach(function (tr) { tr.stop(); });
+    }
 
     return new Promise(function (resolve, reject) {
-      rec.onerror = function (e) { reject(e.error || new Error('Recording failed.')); };
-      rec.onstop = function () { resolve({ blob: new Blob(chunks, { type: type.mime }), ext: type.ext }); };
+      rec.onerror = function (e) { release(); reject(e.error || new Error('Recording failed.')); };
+      rec.onstop = function () {
+        release();
+        resolve({ blob: new Blob(chunks, { type: type.mime }), ext: type.ext });
+      };
 
       var interval = 1000 / fps;
       var start = 0;
@@ -291,6 +300,7 @@ var DG = window.DG || (window.DG = {});
           paint(i);
         } catch (e) {
           try { rec.stop(); } catch (ignored) {}
+          release();
           return reject(e);
         }
         if (manual) track.requestFrame();
@@ -310,8 +320,49 @@ var DG = window.DG || (window.DG = {});
         setTimeout(function () { rec.stop(); }, 800);
       }
 
+      /*
+       * Before any of that, the first frame is offered until the encoder
+       * proves it is taking them.
+       *
+       * start() returns long before the pipeline is up, and everything handed
+       * over in between is dropped without a word — which costs the front of
+       * the clip, not the back. It only shows on the second export in a
+       * session, where the last recording is still being torn down: measured
+       * three in a row, the first came out at 9.99s and the two after it at
+       * 9.05 and 9.36, each missing about a second off its opening. Releasing
+       * the capture afterwards, which this now does, was not enough on its
+       * own.
+       *
+       * The recorder's own start event cannot be waited for: with the capture
+       * handing frames over only on request, nothing reaches the encoder
+       * until the first request, and Chromium does not fire start until a
+       * frame has reached it — waiting for it deadlocks. So the first frame
+       * is offered over and over, and requestData asks the recorder to flush
+       * what it has; the first flush that comes back with anything in it is
+       * the proof.
+       *
+       * It is not free. The encoder holds a few frames before it emits
+       * anything, so the copies offered in the meantime are all in the file:
+       * the clip opens on its first frame held for about a sixth of a second
+       * at 540 and four tenths at 1080, and runs that much over the length on
+       * the button. That is the whole of the error now, it is the same every
+       * time, and it buys back a second of the opening that used to be gone
+       * on every export after the first.
+       */
+      var primeUntil = performance.now() + 3000;
+      function prime(now) {
+        if (flowing || now > primeUntil) {
+          requestAnimationFrame(step);
+          return;
+        }
+        paint(0);
+        if (manual) track.requestFrame();
+        try { rec.requestData(); } catch (ignored) {}
+        requestAnimationFrame(prime);
+      }
+
       rec.start();
-      requestAnimationFrame(step);
+      requestAnimationFrame(prime);
     });
   };
 })(DG);

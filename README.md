@@ -154,36 +154,53 @@ fraction of the frame at every download size and in every aspect ratio.
 ## Exports
 
 **SVG** and **PNG** take the frame as it stands. **GIF** and **MP4** make
-looping footage of about 10 seconds, 30 seconds or a minute. **No bg** drops
+footage of 10 seconds, 30 seconds or a minute. **No bg** drops
 the background from SVG, PNG and GIF, saving as `-clear`; video always carries
 one, since MP4 has no alpha. All four work in all three modes, at the selected
 size.
 
-*About* ten seconds, because two things come first. A loop has to hold a whole
-number of cycles or it jumps at the join, and the footage has to run at the
-speed you set. Those two decide the length between them, so the button can only
-ask for the nearest one: a globe at twenty-four seconds a turn has no ten
-second loop in it, and the nearest is a single turn. It used to fit that turn
-into ten seconds instead and hand back a clip running two and a half times
-fast. Now the length gives way rather than the speed, and says so — the button
-carries the real length under its label, and the file is named for it.
+Ten seconds means ten seconds, at the speed on screen. Those are the two things
+the buttons say out loud, so they are the two that are kept, and how much of a
+cycle that comes to is whatever it comes to — ten cycles for a pattern at one a
+second, five twelfths of a turn for a globe at twenty-four seconds a turn.
+
+What is given up is the seamless join, and only where the arithmetic does not
+hand one over. Both ways of paying for a whole number of cycles were worse than
+the join: fitting a whole turn into the ten seconds asked for changed the speed,
+and running that turn at the right speed made a twenty-four second file out of a
+ten second button. A clip that is what it says beats a clip that loops. Where
+the two coincide — any pattern, or a globe at a spin that divides the length —
+it still loops.
 
 MP4 is drawn frame by frame rather than recorded off a canvas as it plays. It
 used to draw as fast as the animation frame came round and let
 `captureStream(fps)` sample whatever was there — which at 1080 draws nearly
 twice as many frames as the file can hold, and puts into it only what the
 browser sampled and the encoder swallowed before the recorder stopped. Ten
-seconds asked for came back as 3.79, holding all ten seconds of motion:
-the same clip, two and a half times fast. `captureStream(0)` hands the sampling
+seconds asked for came back as 3.79, holding all ten seconds of motion: the
+same clip, two and a half times fast. `captureStream(0)` hands the sampling
 over — nothing is captured until the frame is asked for — so the file holds
 exactly the frames drawn for it, one apiece, paced by the clock because the
 recorder stamps them by arrival. A slow frame now makes the recording take
-longer rather than the clip come out short. The one thing left to wait for is
-the encoder, which runs about four tenths of a second behind at 1080 and loses
-whatever is still queued when the recorder stops; stopping eight tenths late
-costs nothing but wall clock. Measured: ten seconds asked for at 1080 comes
-back as 9.99s, a globe's single turn as 24.01s, and a GIF's frame delays sum to
-the same.
+longer rather than the clip come out short.
+
+The encoder is the part that has to be waited for, at both ends. It finishes
+about four tenths of a second behind at 1080 and loses whatever is still queued
+when the recorder is stopped, so the stop is held eight tenths late, which costs
+nothing but wall clock. And it starts late: `start()` returns well before the
+pipeline is up, and frames handed over in between are dropped without a word —
+three exports in a row came out at 9.99s, 9.05s and 9.36s, the second and third
+each missing about a second off the *opening*. Its own start event cannot be
+waited for, since with frames handed over only on request nothing reaches the
+encoder until the first request and Chromium does not fire start until a frame
+has reached it. So the first frame is offered over and over until a flush comes
+back with something in it. That works and it is consistent, and the cost is at
+the head of the file: the clip opens on its first frame held for about a sixth
+of a second at 540 and four tenths at 1080, and runs that much over. Measured,
+three exports in one session at 1080: 10.44s, 10.44s, 10.40s for a ten second
+button, each at the right speed throughout, against 9.99 / 9.05 / 9.36 before.
+GIF has none of this — it is written frame by frame with no encoder to wait for,
+and its frame delays sum to 10.00s exactly.
 
 ## The files
 

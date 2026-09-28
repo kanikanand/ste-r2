@@ -185,31 +185,9 @@ var DG = window.DG || (window.DG = {});
     var stem = mode === 'patterns' ? params.pattern + '-motion' : params.engine;
     var video = DG.videoType();
 
-    /*
-     * What a duration button will actually give you.
-     *
-     * Footage holds a whole number of cycles so that it loops, and the speed
-     * is the speed you set, so the two together decide the length — the button
-     * can only ask for the nearest one. A globe at twenty-four seconds a turn
-     * has no ten second loop in it; the nearest is a single turn, which is
-     * twenty-four. It used to fit one turn into ten seconds instead and hand
-     * back something running two and a half times fast. Now the length gives
-     * way and says so: the button carries the real one under its label, and
-     * the file is named for it.
-     */
-    function clipLength(seconds) {
-      return DG.clipPlan(seconds, params.speed).duration;
-    }
-
-    function lengthNote(seconds) {
-      var real = clipLength(seconds);
-      return Math.abs(real - seconds) < 0.05 ? null : DG.clipLabel(real);
-    }
-
     function runFootage(kind, seconds) {
       if (job) return;
-      var length = DG.clipLabel(clipLength(seconds));
-      var what = kind + ' · ' + length;
+      var what = kind + ' · ' + seconds + 's';
       setJob({ what: what, progress: 0 });
       var onProgress = function (v) { setJob({ what: what, progress: v }); };
       var done = function () { setJob(null); };
@@ -218,13 +196,13 @@ var DG = window.DG || (window.DG = {});
       if (kind === 'GIF') {
         // Named apart, so downloading both leaves you with two files rather
         // than one and a copy.
-        var gifName = stem + '-' + length + (clearBg ? '-clear' : '') + '.gif';
+        var gifName = stem + '-' + seconds + 's' + (clearBg ? '-clear' : '') + '.gif';
         DG.exportGIF(params, exportStyle, seconds, { height: DG.sizeHeight(params.size), fps: 12.5 }, onProgress)
           .then(function (blob) { DG.download(blob, gifName); done(); })
           .catch(fail);
       } else {
         DG.exportVideo(params, style, seconds, { height: DG.sizeHeight(params.size), fps: 30 }, onProgress)
-          .then(function (r) { DG.download(r.blob, stem + '-' + length + '.' + r.ext); done(); })
+          .then(function (r) { DG.download(r.blob, stem + '-' + seconds + 's.' + r.ext); done(); })
           .catch(fail);
       }
     }
@@ -304,8 +282,8 @@ var DG = window.DG || (window.DG = {});
             <h2>${params.highlights.length
               ? params.highlights.map(function (i) { return DG.countryNames()[i]; }).join(' · ')
               : 'The world'}</h2>
-            <p>Drag the globe to turn it. It completes one revolution over a cycle, so any
-               length of footage closes where it opened.</p>
+            <p>Drag the globe to turn it. It turns once over a cycle — twenty-four
+               seconds at the spin it starts on.</p>
           <//>`;
       }
       if (formation === 'star') {
@@ -326,8 +304,8 @@ var DG = window.DG || (window.DG = {});
             }
             return 'Sphere';
           })()}</h2>
-          <p>Drag to turn the sphere, scroll to zoom. Both loop terms hold whole cycles, so
-             footage closes where it opened.</p>
+          <p>Drag to turn the sphere, scroll to zoom. The orbit and the distortion both
+             come back to where they started at the end of a cycle.</p>
         <//>`;
     }
 
@@ -511,7 +489,7 @@ var DG = window.DG || (window.DG = {});
                   : v === 1 ? 'one turn a cycle' : 'up to ' + v + ' turns a cycle'; }}
                 onChange=${function (v) { set({ orbit: v }); }} />
               <p class="note">Distance is in form radii; below 1 is inside. Orbit is whole
-                 turns a cycle, so footage closes where it opened.</p>
+                 turns a cycle, so a particle is back where it began at the end of one.</p>
             </section>
           <//>`;
       }
@@ -570,8 +548,8 @@ var DG = window.DG || (window.DG = {});
               format=${function (v) { return Math.round(v) + ''; }}
               onChange=${function (v) { set({ cameraZ: v }); }} />
             <p class="note">Drag the sphere to turn it and scroll over it to zoom. Orbit
-               speed and distortion motion are rounded to whole turns of the loop, so a
-               clip always closes where it opened.</p>
+               speed and distortion motion are rounded to whole turns of a cycle, so the
+               motion comes back to where it began at the end of one.</p>
           </section>
         <//>`;
     }
@@ -632,26 +610,20 @@ var DG = window.DG || (window.DG = {});
                 onClick=${function () { DG.exportPNG(params, exportStyle, clock.current, DG.sizeHeight(params.size), stem + (clearBg ? '-clear' : '') + '.png'); }}>PNG</button>
             </div>
 
-            <div class="dl-group" title="Looping footage, at the speed you set — so the length is the nearest whole number of cycles to the one you press, shown under it when the two differ. A GIF has one see-through palette entry, so with No bg on, a dot edge cannot fade into whatever sits behind it.">
+            <div class="dl-group" title="The length on the button, at the speed on screen. A GIF has one see-through palette entry, so with No bg on, a dot edge cannot fade into whatever sits behind it.">
               <span class="dl-label">GIF</span>
               ${DURATIONS.map(function (d) {
-                var note = lengthNote(d.id);
                 return html`<button key=${d.id} type="button" class="chip" disabled=${!!job}
-                  onClick=${function () { runFootage('GIF', d.id); }}>
-                  ${d.label}${note && html`<span class="chip-dim">${note}</span>`}
-                </button>`;
+                  onClick=${function () { runFootage('GIF', d.id); }}>${d.label}</button>`;
               })}
             </div>
 
             <div class="dl-group" title=${(video && video.ext !== 'mp4' ? 'This browser records WebM rather than MP4. ' : '') +
-              'Looping footage, at the speed you set — so the length is the nearest whole number of cycles to the one you press, shown under it when the two differ. Drawn frame by frame, so a slow frame makes the recording take longer rather than the clip come out short and fast.'}>
+              'The length on the button, at the speed on screen. Drawn frame by frame, so a slow frame makes the recording take longer rather than the clip come out short and fast.'}>
               <span class="dl-label">${video ? (video.ext === 'mp4' ? 'MP4' : 'WebM') : 'Video'}</span>
               ${DURATIONS.map(function (d) {
-                var vnote = lengthNote(d.id);
                 return html`<button key=${d.id} type="button" class="chip" disabled=${!!job || !video}
-                  onClick=${function () { runFootage('Video', d.id); }}>
-                  ${d.label}${vnote && html`<span class="chip-dim">${vnote}</span>`}
-                </button>`;
+                  onClick=${function () { runFootage('Video', d.id); }}>${d.label}</button>`;
               })}
             </div>
           </div>
